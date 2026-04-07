@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { MapContainer, TileLayer, Marker, ZoomControl, useMap, useMapEvents, Polyline } from 'react-leaflet';
 import L from 'leaflet';
@@ -11,6 +11,8 @@ import ChatPanel from '../components/game/ChatPanel';
 import { useArchipelagoStore } from '../store/archipelagoStore';
 import { archipelago } from '../lib/archipelago';
 import { pb } from '../store/authStore';
+import { useGeolocation } from '../hooks/useGeolocation';
+import { Navigation } from 'lucide-react';
 
 // Map resizer to handle container boundary updates when Layout triggers changes
 const MapResizer = () => {
@@ -56,36 +58,33 @@ const GameStatsBar = ({ session, nodes }: { session: any, nodes: any[] }) => {
   const available = nodes.filter(n => n.state === 'Available').length;
   const hidden = nodes.filter(n => n.state === 'Hidden').length;
 
-  const statusColor = status === 'connected' ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]' : 
-                      status === 'connecting' ? 'bg-yellow-500 animate-pulse' : 
-                      status === 'error' ? 'bg-red-500' : 'bg-neutral-600';
+  const statusColor = status === 'connected' ? 'bg-[var(--color-success-hex)] shadow-[0_0_8px_rgba(var(--color-success),0.5)]' :
+                      status === 'connecting' ? 'bg-[var(--color-warning-hex)] animate-pulse' :
+                      status === 'error' ? 'bg-[var(--color-error-hex)]' : 'bg-[var(--color-border-hex)]';
 
   return (
-    <div className="w-full bg-[#1e1e1e] border-b border-white/10 px-4 py-2 flex items-center justify-between shrink-0 h-14 z-10">
-      <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-white/10 bg-white/5 relative group">
-        <div className={`w-2 h-2 rounded-full ${statusColor}`}></div>
-        <span className="text-sm font-medium text-neutral-300">
+    <div className="w-full bg-[#1e1e1e] border-b border-[#262626] px-4 py-2 flex items-center justify-between shrink-0 h-12 z-10">
+      <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-[var(--color-border-hex)] bg-[rgb(var(--color-surface-overlay))] relative group min-w-0">
+        <div className={`w-2 h-2 rounded-full flex-shrink-0 ${statusColor}`}></div>
+        <span className="text-xs font-medium text-[var(--color-text-muted-hex)] truncate">
           {session?.ap_seed_name || 'Visual Test Seed'} • {session?.ap_slot_name || 'test'}
         </span>
         {error && (
-          <div className="absolute top-full left-0 mt-2 p-2 bg-red-900/90 border border-red-500 rounded text-[10px] text-white opacity-0 group-hover:opacity-100 transition-opacity z-50 w-48">
+          <div className="absolute top-full left-0 mt-2 p-2 bg-[var(--color-error-hex)]/90 border border-[var(--color-error-hex)] rounded text-[10px] text-[var(--color-text-hex)] opacity-0 group-hover:opacity-100 transition-opacity z-50 w-48">
             {error}
           </div>
         )}
       </div>
-      
-      <div className="flex items-center gap-6 font-black text-xs uppercase tracking-tighter">
-        <div className="flex items-baseline gap-1.5">
-          <span className="text-white leading-none text-sm">{hidden}</span>
-          <span className="text-neutral-500">HIDDEN</span>
+
+      <div className="flex items-center gap-4 font-black text-xs uppercase tracking-tight ml-4">
+        <div className="flex items-baseline gap-1">
+          <span className="text-[var(--color-text-hex)] leading-none text-sm">{hidden}</span>
         </div>
-        <div className="flex items-baseline gap-1.5">
-          <span className="text-orange-500 leading-none text-sm">{available}</span>
-          <span className="text-neutral-500">AVAILABLE</span>
+        <div className="flex items-baseline gap-1">
+          <span className="text-[var(--color-primary-hex)] leading-none text-sm">{available}</span>
         </div>
-        <div className="flex items-baseline gap-1.5">
-          <span className="text-green-500 leading-none text-sm">{checked}</span>
-          <span className="text-neutral-500">CHECKED</span>
+        <div className="flex items-baseline gap-1">
+          <span className="text-[var(--color-success-hex)] leading-none text-sm">{checked}</span>
         </div>
       </div>
     </div>
@@ -95,13 +94,24 @@ const GameStatsBar = ({ session, nodes }: { session: any, nodes: any[] }) => {
 const GameView = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { activePanel, setActivePanel, routeData, waypoints, analysisResult, nodes, setNodes } = useGameStore();
+  const { activePanel, setActivePanel, routeData, waypoints, analysisResult, nodes, setNodes, userLocation } = useGameStore();
   
   const [session, setSession] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState('');
 
   const { checkedLocationIds } = useArchipelagoStore();
+  
+  // Activate Geolocation tracking
+  useGeolocation();
+  
+  const mapRef = useRef<L.Map | null>(null);
+
+  const locateUser = () => {
+    if (userLocation && mapRef.current) {
+      mapRef.current.setView(userLocation, 16);
+    }
+  };
 
   const fetchData = useCallback(async () => {
     try {
@@ -130,13 +140,16 @@ const GameView = () => {
       const nodesRes = await fetch(`/api/sessions/${id}/nodes`, { headers });
       if (!nodesRes.ok) throw new Error('Failed to load nodes');
       const nodesData = await nodesRes.json();
+      console.log(`Loaded ${nodesData.length} nodes for session ${id}`);
       setNodes(nodesData);
 
       // Trigger Archipelago connection if applicable
       if (sessionData.ap_server_url && sessionData.ap_slot_name) {
+        console.log(`Connecting to Archipelago: ${sessionData.ap_server_url} as ${sessionData.ap_slot_name}`);
         archipelago.connect(sessionData.ap_server_url, sessionData.ap_slot_name);
       }
     } catch (err: any) {
+      console.error('fetchData error:', err);
       setErrorMsg(err.message);
     } finally {
       setLoading(false);
@@ -154,10 +167,14 @@ const GameView = () => {
 
   // Sync Archipelago checked locations with local node states
   useEffect(() => {
-    if (nodes.length > 0 && checkedLocationIds.length > 0) {
+    const checkedIds = Array.isArray(checkedLocationIds) ? checkedLocationIds : Array.from((checkedLocationIds as any) || []);
+    
+    if (nodes.length > 0 && checkedIds.length > 0) {
       const updatedNodes = nodes.map(node => {
-        if (node.ap_location_id && checkedLocationIds.includes(node.ap_location_id)) {
-          return { ...node, state: 'Checked' };
+        if (node.ap_location_id && checkedIds.includes(node.ap_location_id)) {
+          if (node.state !== 'Checked') {
+            return { ...node, state: 'Checked' };
+          }
         }
         return node;
       });
@@ -165,6 +182,7 @@ const GameView = () => {
       // Avoid infinite loop by only updating if something actually changed
       const hasChanges = updatedNodes.some((node, i) => node.state !== nodes[i].state);
       if (hasChanges) {
+        console.log(`Syncing ${updatedNodes.filter(n => n.state === 'Checked').length} checked locations to node states`);
         setNodes(updatedNodes);
       }
     }
@@ -199,11 +217,12 @@ const GameView = () => {
     <div className="w-full h-full flex flex-col bg-neutral-900">
       <GameStatsBar session={session} nodes={nodes} />
 
-      <div className="flex-1 w-full relative flex overflow-hidden">
+      <div className="flex-1 w-full relative flex overflow-hidden pb-20 md:pb-0">
         <div className="flex-1 relative">
           <MapContainer
             center={center}
             zoom={14}
+            ref={mapRef}
             style={{ height: '100%', width: '100%', zIndex: 0 }}
             zoomControl={false}
           >
@@ -234,21 +253,68 @@ const GameView = () => {
             )}
 
             {waypoints.map((wp, i) => (
-              <Marker 
-                key={`wp-${i}`} 
-                position={wp} 
-                icon={L.divIcon({ 
-                  className: 'bg-white border-2 border-orange-500 rounded-full flex items-center justify-center text-[10px] font-bold text-orange-500',
-                  html: (i + 1).toString(),
-                  iconSize: [20, 20]
-                })} 
+              <Marker
+                key={`wp-${i}`}
+                position={wp}
+                icon={L.divIcon({
+                  className: 'bg-white border-2 border-orange-500 rounded-full flex items-center justify-center text-[10px] font-bold text-orange-500 leading-none w-5 h-5',
+                  html: `<div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">${i + 1}</div>`,
+                  iconSize: [20, 20],
+                  iconAnchor: [10, 10]
+                })}
               />
             ))}
+
+            {userLocation && (
+              <Marker 
+                position={userLocation} 
+                zIndexOffset={1000}
+                icon={L.divIcon({
+                  className: 'relative',
+                  html: `
+                    <div class="relative flex items-center justify-center">
+                      <div class="absolute w-8 h-8 bg-blue-500/30 rounded-full animate-ping"></div>
+                      <div class="w-4 h-4 bg-blue-500 border-2 border-white rounded-full shadow-lg z-10"></div>
+                    </div>
+                  `,
+                  iconSize: [32, 32],
+                  iconAnchor: [16, 16]
+                })}
+              />
+            )}
           </MapContainer>
+
+          {/* Map Controls */}
+          <div className="absolute bottom-24 md:bottom-7 left-6 z-10 flex flex-col gap-2">
+            {userLocation && (
+              <button
+                onClick={locateUser}
+                className="p-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl shadow-lg shadow-blue-900/30 transition-all active:scale-95"
+                title="Locate Me"
+              >
+                <Navigation className="w-5 h-5 fill-white" />
+              </button>
+            )}
+
+            <div className="bg-[#1e1e1e]/90 backdrop-blur-md rounded-xl border border-white/10 shadow-2xl overflow-hidden flex flex-col">
+               <button
+                  onClick={() => mapRef.current?.zoomIn()}
+                  className="p-3 hover:bg-white/10 text-white transition-colors border-b border-white/5"
+               >
+                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+               </button>
+               <button
+                  onClick={() => mapRef.current?.zoomOut()}
+                  className="p-3 hover:bg-white/10 text-white transition-colors"
+               >
+                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+               </button>
+            </div>
+          </div>
 
           {/* Quick Stats Overlay (Floating when no panel open) */}
           {!activePanel && (
-            <div className="absolute bottom-4 left-4 right-4 md:right-4 md:left-auto md:w-80 bg-neutral-900/90 backdrop-blur-md rounded-xl p-4 border border-white/10 z-[1000] flex justify-between items-center shadow-2xl">
+            <div className="absolute bottom-4 left-4 right-4 md:right-4 md:left-auto md:w-80 bg-[#1e1e1e]/90 backdrop-blur-md rounded-xl p-4 border border-white/10 z-5 flex justify-between items-center shadow-2xl">
                 <div className="flex gap-4">
                   <div className="flex flex-col">
                     <span className="text-[10px] font-bold text-neutral-400 tracking-wider uppercase">Distance</span>
@@ -271,7 +337,7 @@ const GameView = () => {
 
         {/* Side Panels */}
         {activePanel && (
-          <div className="w-full md:w-96 border-l border-white/10 flex flex-col bg-neutral-900 z-10 absolute inset-0 md:relative">
+          <div className="w-full md:w-96 border-l border-white/10 flex flex-col bg-[#1e1e1e] z-10 absolute inset-0 md:relative md:bg-neutral-900">
              <div className="flex items-center justify-between p-4 border-b border-white/5 md:hidden">
                 <span className="font-bold text-white uppercase tracking-widest text-xs">{activePanel}</span>
                 <button onClick={() => setActivePanel(null)} className="p-2 hover:bg-white/5 rounded-lg text-neutral-400">
