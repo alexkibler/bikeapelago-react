@@ -1,36 +1,18 @@
 import { test, expect } from '@playwright/test';
 import { FitWriter } from '@markw65/fit-file-writer';
-import path from 'path';
+import * as fs from 'fs';
+import * as path from 'path';
 
 test.describe('E2E Map Routing, GPX Download, FIT Conversion, and Upload', () => {
 	test.setTimeout(180000); // 3 minutes for full flow
 
-	test.beforeEach(async ({ context, page }) => {
-		// Set auth cookie
-		await context.addCookies([
-			{
-				name: 'mock_pb_auth',
-				value: JSON.stringify({
-					token: 'mock_token',
-					model: {
-						id: 'mock_user_123',
-						username: 'mockuser',
-						email: 'mock@example.com'
-					}
-				}),
-				domain: 'localhost',
-				path: '/'
-			}
-		]);
-
+	test.beforeEach(async ({ page }) => {
 		page.on('console', (msg) => {
 			if (msg.type() === 'error') console.error(`[Browser Error] ${msg.text()}`);
 		});
 		
-		// Ensure mock mode
-		await page.addInitScript(() => {
-			(window as any).PLAYWRIGHT_TEST = true;
-		});
+		// We DON'T set PLAYWRIGHT_TEST = true here because we want to test the real analysis
+		// with the mocked Overpass backend.
 	});
 
 	function createFitFileFromGpx(gpxPath: string, fitPath: string) {
@@ -97,7 +79,7 @@ test.describe('E2E Map Routing, GPX Download, FIT Conversion, and Upload', () =>
 				position_lat: toSemicircles(pt.lat),
 				position_long: toSemicircles(pt.lon),
 				altitude: 250,
-				distance: i * 100,
+				distance: i * 10,
 				heart_rate: 140,
 				power: 200
 			});
@@ -108,42 +90,41 @@ test.describe('E2E Map Routing, GPX Download, FIT Conversion, and Upload', () =>
 	}
 
 	test('complete routing to upload workflow', async ({ page }) => {
-		console.log('Navigating to mock session...');
-		await page.goto('/game/mock_session_123');
-		await page.waitForLoadState('networkidle');
-		const isMobile = page.viewportSize()!.width < 768;
+		// 1. Create New Session
+		console.log('Starting new game...');
+		await page.goto('/new-game');
+		await page.click('button:has-text("Single Player")');
+		await page.click('button:has-text("Start Single Player")');
 
-		const connectButton = page.locator('button:has-text("Connect & Play")');
-		if (await connectButton.isVisible()) {
-			await connectButton.click();
-		}
+		await page.waitForURL(/\/setup-session/);
+		console.log('Generating session nodes...');
+		await page.click('button:has-text("Create Session")');
+
+		await page.waitForURL(/\/game\//, { timeout: 60000 });
+		const sessionId = page.url().split('/').pop();
+		console.log(`Created session: ${sessionId}`);
+
+		// 2. Open Route Builder and wait for nodes
+		// Enable Mock Mode for routing to avoid external backend dependency
+		await page.evaluate(() => { (window as any).PLAYWRIGHT_TEST = true; });
 
 		console.log('Opening Route Builder tab...');
-		// Make sure Route Builder is active
 		await page.locator('button:has-text("Route Builder")').filter({ visible: true }).click();
-		await expect(page.locator('.panel-title')).toContainText('Route Builder', { timeout: 15000 });
+		await expect(page.locator('h2:has-text("Route Builder")')).toBeVisible({ timeout: 15000 });
 
-		if (isMobile) {
-			console.log('Mobile: Closing panel to allow map click');
-			await page.locator('button:has-text("Route Builder")').filter({ visible: true }).click(); // Toggle off
-		}
+		// Wait for nodes to load in the list
+		const nodeItem = page.locator('button >> text=Mock Node').first();
+		await expect(nodeItem).toBeVisible({ timeout: 15000 });
 
-		console.log('Clicking on map to generate route...');
-		// Click two points on the map
-		await page.locator('.leaflet-container').click({ position: { x: 150, y: 150 } });
-		await page.waitForTimeout(500);
-		await page.locator('.leaflet-container').click({ position: { x: 300, y: 300 } });
+		// 3. Click two nodes to start route
+		console.log('Adding nodes to route...');
+		await page.locator('button >> text=Mock Node').nth(0).click();
+		await page.locator('button >> text=Mock Node').nth(1).click();
 
-		if (isMobile) {
-			console.log('Mobile: Re-opening Route Builder to see stats');
-			await page.locator('button:has-text("Route Builder")').filter({ visible: true }).click();
-		}
-
+		// 4. Download GPX
 		console.log('Waiting for Download GPX button...');
-		// The original button has an ID #export-gpx or text "GPX"
-		// Wait for routing to complete. The 'Download GPX' button should appear in the Route Builder panel or above map.
-		const downloadBtn = page.locator('button:has-text("Download GPX"), button:has-text("GPX"), #export-gpx').first();
-		await expect(downloadBtn).toBeVisible({ timeout: 15000 });
+		const downloadBtn = page.locator('button:has-text("Download GPX"), button:has-text("GPX")').first();
+		await expect(downloadBtn).toBeEnabled({ timeout: 15000 });
 
 		console.log('Downloading GPX...');
 		const downloadPromise = page.waitForEvent('download');
@@ -152,16 +133,19 @@ test.describe('E2E Map Routing, GPX Download, FIT Conversion, and Upload', () =>
 		
 		const gpxPath = path.join(process.cwd(), 'temp_route.gpx');
 		await download.saveAs(gpxPath);
-		
 		expect(fs.existsSync(gpxPath)).toBeTruthy();
-		console.log('GPX downloaded successfully.');
 
+		// 5. Convert GPX to FIT
 		console.log('Converting GPX to FIT...');
 		const fitPath = path.join(process.cwd(), 'temp_route.fit');
 		createFitFileFromGpx(gpxPath, fitPath);
 		expect(fs.existsSync(fitPath)).toBeTruthy();
 		console.log('FIT file created successfully.');
 
+		// Disable Mock Mode for upload to test real analysis logic against generated nodes
+		await page.evaluate(() => { (window as any).PLAYWRIGHT_TEST = false; });
+
+		// 6. Upload and Analyze
 		console.log('Switching to Upload tab...');
 		await page.locator('button:has-text("Upload")').filter({ visible: true }).click();
 		await expect(page.locator('.panel-title')).toContainText('Upload', { timeout: 15000 });
@@ -174,25 +158,22 @@ test.describe('E2E Map Routing, GPX Download, FIT Conversion, and Upload', () =>
 		await expect(analyzeBtn).toBeVisible();
 		await analyzeBtn.click();
 
-		// Wait for summary to show DISTANCE (uppercase in UI)
-		await expect(page.locator('text=DISTANCE')).toBeVisible({ timeout: 15000 });
+		// 7. Verify analysis reached at least one node
+		console.log('Verifying analysis...');
+		await expect(page.locator('text=DISTANCE')).toBeVisible({ timeout: 30000 });
+		
+		// If real analysis is working, we should see green "Location X" boxes
+		const reachedLocation = page.locator('text=Location');
+		await expect(reachedLocation.first()).toBeVisible({ timeout: 15000 });
+		console.log('Ride validated with real analysis!');
 
-		// We know it might have cleared checks or zero checks depending on mock logic, but let's confirm & send
-		// and assert the success message appears.
-		console.log('Confirming and sending...');
-		const confirmBtn = page.locator('button:has-text("Confirm & Send")');
-		// We might need to ensure it's not disabled if there's no locations. In mock mode, locations could be anywhere.
-		// If it's disabled due to 0 locations, we just report it.
-		if (await confirmBtn.isDisabled()) {
-            console.log('Confirm button is disabled, likely 0 locations reached in mock mock.');
-        } else {
-            await confirmBtn.click();
-            await expect(page.locator('text=Successfully validated')).toBeVisible({ timeout: 15000 });
-            console.log('Ride validated successfully.');
-        }
+		// 8. Confirm
+		await page.click('button:has-text("Confirm & Send")');
+		await expect(page.locator('text=Successfully validated')).toBeVisible({ timeout: 15000 });
 
 		// Cleanup
 		if (fs.existsSync(gpxPath)) fs.unlinkSync(gpxPath);
 		if (fs.existsSync(fitPath)) fs.unlinkSync(fitPath);
 	});
 });
+

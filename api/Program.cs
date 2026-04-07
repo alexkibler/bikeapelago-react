@@ -21,8 +21,7 @@ if (builder.Configuration["USE_MOCK_AUTH"] == "true" || Environment.GetEnvironme
 {
     builder.Services.AddSingleton<IUserRepository, MockUserRepository>();
     builder.Services.AddSingleton<IGameSessionRepository, MockSessionRepository>();
-    // TODO: if mock node repository is needed
-    builder.Services.AddScoped<IMapNodeRepository, PocketBaseNodeRepository>();
+    builder.Services.AddSingleton<IMapNodeRepository, MockNodeRepository>();
 }
 else
 {
@@ -33,7 +32,6 @@ else
 
 // 3.5 Register External Services / Generators
 builder.Services.AddHttpClient<OverpassService>();
-builder.Services.AddScoped<OverpassService>();
 builder.Services.AddScoped<NodeGenerationService>();
 
 // 4. Add Authentication (Stubbed JWT)
@@ -78,7 +76,7 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    db.Database.EnsureCreated();
+    await db.Database.EnsureCreatedAsync();
 }
 
 // 8. Middleware Pipeline
