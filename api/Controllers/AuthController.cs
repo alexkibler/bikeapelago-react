@@ -11,7 +11,9 @@ public class AuthController(IUserRepository userRepository) : ControllerBase
     private readonly IUserRepository _userRepository = userRepository;
 
     [HttpPost("login")]
+    [HttpPost("login/")]
     [HttpPost("/api/pb/collections/users/auth-with-password")]
+    [HttpPost("/api/pb/collections/users/auth-with-password/")]
     public async Task<IActionResult> Login([FromBody] LoginRequest request)
     {
         var result = await _userRepository.LoginAsync(request.Username, request.Password);

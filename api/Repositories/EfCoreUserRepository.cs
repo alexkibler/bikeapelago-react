@@ -16,17 +16,14 @@ public class EfCoreUserRepository(BikeapelagoDbContext context) : IUserRepositor
         return await _context.Users.FindAsync(id);
     }
 
-    public async Task<User?> GetByUsernameAsync(string username)
+    public async Task<User?> GetByUsernameOrEmailAsync(string identity)
     {
-        return await _context.Users.FirstOrDefaultAsync(u => u.Username == username);
+        return await _context.Users.FirstOrDefaultAsync(u => u.Username == identity || u.Email == identity);
     }
 
     public async Task<User> CreateAsync(User user, string password)
     {
-        // For EF Core, you'll need to hash the password properly before inserting
-        // Assuming user.Password is left as null and stored securely or managed here.
         user.Password = BCrypt.Net.BCrypt.HashPassword(password);
-        
         _context.Users.Add(user);
         await _context.SaveChangesAsync();
         return user;
@@ -38,10 +35,10 @@ public class EfCoreUserRepository(BikeapelagoDbContext context) : IUserRepositor
         await _context.SaveChangesAsync();
         return user;
     }
-
-    public async Task<(string Token, User User)?> LoginAsync(string username, string password)
+    
+    public async Task<(string Token, User User)?> LoginAsync(string identity, string password)
     {
-        var user = await GetByUsernameAsync(username);
+        var user = await GetByUsernameOrEmailAsync(identity);
         if (user == null || user.Password == null) return null;
 
         if (!BCrypt.Net.BCrypt.Verify(password, user.Password)) return null;
@@ -53,11 +50,23 @@ public class EfCoreUserRepository(BikeapelagoDbContext context) : IUserRepositor
 
     public async Task<User?> GetCurrentUserAsync(string token)
     {
-        // Extract user id from JWT token in a real app.
-        // Assuming token format contains user ID for this mock logic:
-        if (token.StartsWith("jwt-token-") && Guid.TryParse(token.Substring(10), out var id))
+        Console.WriteLine($"DEBUG: Authenticating token: {token}");
+        if (string.IsNullOrEmpty(token)) return null;
+
+        if (token.StartsWith("jwt-token-"))
         {
-            return await GetByIdAsync(id);
+            var idStr = token.Substring(10);
+            if (Guid.TryParse(idStr, out var id))
+            {
+                var user = await GetByIdAsync(id);
+                if (user == null) Console.WriteLine($"DEBUG: User not found for ID: {id}");
+                return user;
+            }
+            Console.WriteLine($"DEBUG: Failed to parse GUID from: {idStr}");
+        }
+        else
+        {
+            Console.WriteLine("DEBUG: Token does not start with jwt-token-");
         }
         return null;
     }

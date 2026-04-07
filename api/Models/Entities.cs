@@ -154,6 +154,41 @@ public class Activity
     public LineString? Path { get; set; }
 }
 
+public class ApiLog
+{
+    [Key]
+    public long Id { get; set; }
+
+    [Required]
+    public DateTime Timestamp { get; set; } = DateTime.UtcNow;
+
+    [Required]
+    [MaxLength(10)]
+    public string Method { get; set; } = string.Empty;
+
+    [Required]
+    [MaxLength(2048)]
+    public string Path { get; set; } = string.Empty;
+
+    public string? QueryString { get; set; }
+
+    [Required]
+    public int StatusCode { get; set; }
+
+    [MaxLength(45)] // Enough for IPv6
+    public string? IpAddress { get; set; }
+
+    public string? UserAgent { get; set; }
+
+    public string? UserId { get; set; }
+
+    public string? ExceptionType { get; set; }
+
+    public string? StackTrace { get; set; }
+
+    public string? RequestBody { get; set; }
+}
+
 public enum SessionStatus
 {
     SetupInProgress,

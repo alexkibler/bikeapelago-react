@@ -10,10 +10,10 @@ public class MockUserRepository : IUserRepository
         return Task.FromResult<User?>(new User { Id = id, Username = "testuser", Name = "Test User" });
     }
 
-    public Task<User?> GetByUsernameAsync(string username)
+    public Task<User?> GetByUsernameOrEmailAsync(string identity)
     {
-        if (username == "testuser")
-            return Task.FromResult<User?>(new User { Id = Guid.Empty, Username = "testuser", Name = "Test User" });
+        if (identity == "testuser" || identity == "test@example.com")
+            return Task.FromResult<User?>(new User { Id = Guid.Empty, Username = "testuser", Name = "Test User", Email = "test@example.com" });
         return Task.FromResult<User?>(null);
     }
 
@@ -28,9 +28,9 @@ public class MockUserRepository : IUserRepository
         return Task.FromResult(user);
     }
 
-    public Task<(string Token, User User)?> LoginAsync(string username, string password)
+    public Task<(string Token, User User)?> LoginAsync(string identity, string password)
     {
-        if (username == "testuser" && password == "Password")
+        if ((identity == "testuser" || identity == "test@example.com") && password == "Password")
         {
             var user = new User { Id = Guid.Empty, Username = "testuser", Name = "Test User" };
             return Task.FromResult<(string Token, User User)?>(("mock-jwt-token-for-e2e", user));
