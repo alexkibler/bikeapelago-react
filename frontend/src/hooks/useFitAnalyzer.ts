@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { SportsLib } from '@sports-alliance/sports-lib';
 import FitParser from 'fit-file-parser';
-import { pb } from '../store/authStore';
+import { getToken } from '../store/authStore';
 
 // Haversine formula to calculate distance between two coordinates in meters
 function getDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
@@ -145,9 +145,14 @@ export function useFitAnalyzer(sessionId: string, onAnalysisComplete: (result: F
       if (path.length === 0) throw new Error('No GPS data found in FIT file');
 
       // Fetch available nodes for this session
-      const availableNodes = await pb.collection('map_nodes').getFullList({
-        filter: `session = "${sessionId}" && state = "Available"`
-      });
+      const token = getToken();
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      const nodesRes = await fetch(`/api/sessions/${sessionId}/nodes`, { headers });
+      if (!nodesRes.ok) throw new Error(`Failed to fetch nodes: ${nodesRes.status}`);
+      const allNodes = await nodesRes.json() as Array<{ id: string; state: string; lat: number; lon: number; ap_location_id: number }>;
+      const availableNodes = allNodes.filter(n => n.state === 'Available');
 
       const newlyCheckedNodes: NewlyCheckedNode[] = [];
       for (const node of availableNodes) {
@@ -157,7 +162,7 @@ export function useFitAnalyzer(sessionId: string, onAnalysisComplete: (result: F
             id: node.id,
             ap_location_id: node.ap_location_id,
             lat: node.lat,
-            lon: node.lon
+            lon: node.lon,
           });
         }
       }
@@ -175,9 +180,17 @@ export function useFitAnalyzer(sessionId: string, onAnalysisComplete: (result: F
 
     setLoading(true);
     try {
+      const token = getToken();
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
       const nodeIds = analysisResult.newlyCheckedNodes.map(n => n.id);
       await Promise.all(nodeIds.map(id =>
-        pb.collection('map_nodes').update(id, { state: 'Checked' })
+        fetch(`/api/nodes/${id}`, {
+          method: 'PATCH',
+          headers,
+          body: JSON.stringify({ state: 'Checked' }),
+        })
       ));
 
       setSuccess(`Successfully validated ${nodeIds.length} location(s)!`);

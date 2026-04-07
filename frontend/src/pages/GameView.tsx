@@ -10,7 +10,7 @@ import UploadPanel from '../components/game/UploadPanel';
 import ChatPanel from '../components/game/ChatPanel';
 import { useArchipelagoStore } from '../store/archipelagoStore';
 import { archipelago } from '../lib/archipelago';
-import { pb } from '../store/authStore';
+import { getToken } from '../store/authStore';
 import { useGeolocation } from '../hooks/useGeolocation';
 import { Navigation } from 'lucide-react';
 
@@ -295,7 +295,7 @@ const GameView = () => {
     if (apStatus === 'connected' && pendingConnection && session) {
       const updateSessionDB = async () => {
         try {
-          const token = pb.authStore.token;
+          const token = getToken();
           const headers = {
             'Content-Type': 'application/json',
             ...(token ? { 'Authorization': `Bearer ${token}` } : {})
@@ -335,7 +335,7 @@ const GameView = () => {
 
   const fetchData = useCallback(async () => {
     try {
-      const token = pb.authStore.token;
+      const token = getToken();
       const headers = {
         'Content-Type': 'application/json',
         ...(token ? { 'Authorization': `Bearer ${token}` } : {})

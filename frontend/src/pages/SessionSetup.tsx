@@ -4,7 +4,7 @@ import { MapContainer, TileLayer, Marker, Circle, useMapEvents, useMap } from 'r
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Search, Navigation, Play, Loader2, AlertCircle } from 'lucide-react';
-import { pb, useAuthStore } from '../store/authStore';
+import { getToken, useAuthStore } from '../store/authStore';
 
 
 // Fix Leaflet marker icon issue
@@ -91,7 +91,7 @@ const SessionSetup = () => {
     setProgress(10);
 
     try {
-      const token = pb.authStore.token;
+      const token = getToken();
       
       // 1. Create DB Session
       const payload: {

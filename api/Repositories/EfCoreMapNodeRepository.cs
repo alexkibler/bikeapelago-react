@@ -19,6 +19,11 @@ public class EfCoreMapNodeRepository(BikeapelagoDbContext context) : IMapNodeRep
             .ToListAsync();
     }
 
+    public async Task<MapNode?> GetByIdAsync(Guid id)
+    {
+        return await _context.MapNodes.FindAsync(id);
+    }
+
     public async Task<MapNode> CreateAsync(MapNode node)
     {
         _context.MapNodes.Add(node);

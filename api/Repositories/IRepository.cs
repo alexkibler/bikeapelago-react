@@ -24,6 +24,7 @@ public interface IGameSessionRepository
 public interface IMapNodeRepository
 {
     Task<IEnumerable<MapNode>> GetBySessionIdAsync(Guid sessionId);
+    Task<MapNode?> GetByIdAsync(Guid id);
     Task<MapNode> CreateAsync(MapNode node);
     Task<MapNode> UpdateAsync(MapNode node);
     Task DeleteBySessionIdAsync(Guid sessionId);

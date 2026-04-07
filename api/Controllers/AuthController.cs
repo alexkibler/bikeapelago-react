@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Bikeapelago.Api.Models;
 using Bikeapelago.Api.Repositories;
+using System.Text.Json.Serialization;
 
 namespace Bikeapelago.Api.Controllers;
 
@@ -29,6 +30,28 @@ public class AuthController : ControllerBase
             });
         }
         return Unauthorized(new { message = "Invalid credentials" });
+    }
+
+    public class UpdateUserRequest
+    {
+        [JsonPropertyName("name")]
+        public string? Name { get; set; }
+
+        [JsonPropertyName("weight")]
+        public double? Weight { get; set; }
+    }
+
+    [HttpPatch("/api/users/{id}")]
+    public async Task<IActionResult> UpdateUser(Guid id, [FromBody] UpdateUserRequest request)
+    {
+        var user = await _userRepository.GetByIdAsync(id);
+        if (user == null) return NotFound(new { message = "User not found." });
+
+        if (request.Name != null) user.Name = request.Name;
+        if (request.Weight.HasValue) user.Weight = request.Weight.Value;
+
+        var updated = await _userRepository.UpdateAsync(user);
+        return Ok(updated);
     }
 
     [HttpPost("/api/auth/register")]
