@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using System.Text.Json.Serialization;
 using Bikeapelago.Api.Models;
 using Bikeapelago.Api.Repositories;
 using Bikeapelago.Api.Services;
@@ -9,37 +10,40 @@ namespace Bikeapelago.Api.Controllers;
 [Route("api/[controller]")]
 public class SessionsController(
     IGameSessionRepository sessionRepository,
-    IUserRepository userRepository,
-    PocketBaseService pb) : ControllerBase
+    IUserRepository userRepository) : ControllerBase
 {
     private readonly IGameSessionRepository _sessionRepository = sessionRepository;
     private readonly IUserRepository _userRepository = userRepository;
-    private readonly PocketBaseService _pb = pb;
 
     [HttpGet]
     public async Task<IActionResult> GetSessions()
     {
         try {
             var authHeader = Request.Headers["Authorization"].FirstOrDefault();
+            Console.WriteLine($"DEBUG: Authorization Header: {authHeader}");
             if (string.IsNullOrEmpty(authHeader) || !authHeader.StartsWith("Bearer "))
                 return Unauthorized(new { message = "No auth token provided" });
 
             var token = authHeader["Bearer ".Length..].Trim();
-
-            _pb.Token = token;
+            Console.WriteLine($"DEBUG: Extracted Token: '{token}'");
+            
             var user = await _userRepository.GetCurrentUserAsync(token);
             if (user == null)
+            {
+                Console.WriteLine("DEBUG: User resolution failed");
                 return Unauthorized(new { message = "Invalid token" });
+            }
 
             var sessions = await _sessionRepository.GetByUserIdAsync(user.Id);
             return Ok(sessions);
         } catch (Exception ex) {
+            Console.WriteLine($"DEBUG: Exception in GetSessions: {ex}");
             return StatusCode(500, ex.ToString());
         }
     }
 
     [HttpGet("{id}")]
-    public async Task<IActionResult> GetSession(string id)
+    public async Task<IActionResult> GetSession(Guid id)
     {
         var session = await _sessionRepository.GetByIdAsync(id);
         if (session == null) return NotFound();
@@ -58,7 +62,7 @@ public class SessionsController(
     }
 
     [HttpPost("{id}/generate")]
-    public async Task<IActionResult> GenerateSessionNodes(string id, [FromBody] Bikeapelago.Api.Services.NodeGenerationRequest request, [FromServices] Bikeapelago.Api.Services.NodeGenerationService nodeGenerationService)
+    public async Task<IActionResult> GenerateSessionNodes(Guid id, [FromBody] Bikeapelago.Api.Services.NodeGenerationRequest request, [FromServices] Bikeapelago.Api.Services.NodeGenerationService nodeGenerationService)
     {
         try
         {
@@ -70,6 +74,49 @@ public class SessionsController(
             var createdCount = await nodeGenerationService.GenerateNodesAsync(request);
 
             return Ok(new { message = "Generation complete", nodeCount = createdCount });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    public class UpdateSessionRequest
+    {
+        [JsonPropertyName("ap_server_url")]
+        public string? ApServerUrl { get; set; }
+
+        [JsonPropertyName("ap_slot_name")]
+        public string? ApSlotName { get; set; }
+    }
+
+    [HttpPatch("{id}")]
+    public async Task<IActionResult> UpdateSession(Guid id, [FromBody] UpdateSessionRequest request)
+    {
+        try
+        {
+            var session = await _sessionRepository.GetByIdAsync(id);
+            if (session == null) return NotFound(new { message = "Session not found." });
+
+            bool changed = false;
+            if (request.ApServerUrl != null)
+            {
+                session.ApServerUrl = request.ApServerUrl;
+                changed = true;
+            }
+            if (request.ApSlotName != null)
+            {
+                session.ApSlotName = request.ApSlotName;
+                changed = true;
+            }
+
+            if (changed)
+            {
+                var updatedSession = await _sessionRepository.UpdateAsync(session);
+                return Ok(updatedSession);
+            }
+
+            return Ok(session);
         }
         catch (Exception ex)
         {

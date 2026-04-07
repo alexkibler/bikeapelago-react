@@ -4,7 +4,7 @@ import { MapContainer, TileLayer, Marker, Circle, useMapEvents, useMap } from 'r
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Search, Navigation, Play, Loader2, AlertCircle } from 'lucide-react';
-import { pb, useAuthStore } from '../store/authStore';
+import { getToken, useAuthStore } from '../store/authStore';
 
 
 // Fix Leaflet marker icon issue
@@ -25,6 +25,14 @@ const MapEvents = ({ onMapClick }: { onMapClick: (lat: number, lng: number) => v
       onMapClick(e.latlng.lat, e.latlng.lng);
     },
   });
+  return null;
+};
+
+const MapCenterUpdater = ({ center }: { center: [number, number] }) => {
+  const map = useMap();
+  useEffect(() => {
+    map.setView(center, map.getZoom());
+  }, [center, map]);
   return null;
 };
 
@@ -55,9 +63,30 @@ const SessionSetup = () => {
 
   // UI State
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isLocating, setIsLocating] = useState(false);
   const [progress, setProgress] = useState(0);
   const [status, setStatus] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
+
+  const handleUseMyLocation = () => {
+    if (!navigator.geolocation) {
+      setErrorMsg('Geolocation is not supported');
+      return;
+    }
+    
+    setIsLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setCenter([pos.coords.latitude, pos.coords.longitude]);
+        setIsLocating(false);
+      },
+      (err) => {
+        setErrorMsg(`Location error: ${err.message}`);
+        setIsLocating(false);
+      },
+      { enableHighAccuracy: true }
+    );
+  };
 
   const handleMapClick = (lat: number, lng: number) => {
     setCenter([lat, lng]);
@@ -70,10 +99,16 @@ const SessionSetup = () => {
     setProgress(10);
 
     try {
-      const token = pb.authStore.token;
+      const token = getToken();
       
       // 1. Create DB Session
-      const payload: any = {
+      const payload: {
+        user: string;
+        status: string;
+        radius: number;
+        ap_server_url?: string;
+        ap_slot_name?: string;
+      } = {
         user: user?.id ?? '',
         status: 'SetupInProgress',
         radius: radius // the selected radius allows the DB save to succeed cleanly now!
@@ -94,11 +129,11 @@ const SessionSetup = () => {
       });
 
       if (!createRes.ok) {
-        const err = await createRes.json().catch(() => ({}));
+        const err = await createRes.json().catch(() => ({})) as { message?: string };
         throw new Error(err.message ?? `Session creation failed: ${createRes.status}`);
       }
 
-      const session = await createRes.json();
+      const session = await createRes.json() as { id: string };
       const newSessionId = session.id;
 
       setProgress(40);
@@ -121,7 +156,7 @@ const SessionSetup = () => {
       });
 
       if (!genRes.ok) {
-        const err = await genRes.json().catch(() => ({}));
+        const err = await genRes.json().catch(() => ({})) as { message?: string };
         throw new Error(err.message ?? `Generation failed: ${genRes.status}`);
       }
 
@@ -129,8 +164,8 @@ const SessionSetup = () => {
       setStatus('Success! Re-routing...');
       
       setTimeout(() => navigate(`/game/${newSessionId}`), 500);
-    } catch (err: any) {
-      setErrorMsg(err.message ?? 'Generation process failed.');
+    } catch (err: unknown) {
+      setErrorMsg(err instanceof Error ? err.message : 'Generation process failed.');
       setIsGenerating(false);
       setProgress(0);
     }
@@ -138,11 +173,11 @@ const SessionSetup = () => {
 
 
   return (
-    <div className="py-8 space-y-8">
+    <div className="py-8 space-y-8 max-w-screen-xl mx-auto px-6">
       {/* Header */}
       <header className="max-w-4xl mx-auto text-center">
-        <h1 className="text-3xl font-black text-white mb-2">Configure Your Session</h1>
-        <p className="text-neutral-400">
+        <h1 className="text-3xl font-black text-[var(--color-text-hex)] mb-2">Configure Your Session</h1>
+        <p className="text-[var(--color-text-muted-hex)]">
           Search for a location or click on the map to set your starting point.
         </p>
       </header>
@@ -150,34 +185,38 @@ const SessionSetup = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
         {/* Sidebar Controls */}
         <div className="space-y-6 lg:order-1 order-2">
-          <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 space-y-6">
+          <div className="bg-[var(--color-surface-hex)] border border-[var(--color-border-hex)] rounded-2xl p-6 space-y-6">
             {/* Search */}
             <div className="space-y-2">
-              <label className="text-xs font-black uppercase tracking-widest text-neutral-500">Location Search</label>
+              <label className="text-xs font-black uppercase tracking-widest text-[var(--color-text-subtle-hex)]">Location Search</label>
               <div className="flex gap-2">
                 <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500" />
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--color-text-subtle-hex)]" />
                   <input
                     type="text"
                     value={address}
                     onChange={(e) => setAddress(e.target.value)}
                     placeholder="Pittsburgh, PA"
-                    className="w-full bg-neutral-800 border border-neutral-700 rounded-xl py-2 pl-10 pr-4 text-sm text-white focus:outline-none focus:ring-1 focus:ring-orange-500"
+                    className="w-full bg-[var(--color-surface-alt-hex)] border border-[var(--color-border-hex)] rounded-xl py-2 pl-10 pr-4 text-sm text-[var(--color-text-hex)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary-hex)]"
                   />
                 </div>
                 <button className="btn btn-neutral btn-sm h-10 rounded-xl">Search</button>
               </div>
-              <button className="w-full btn btn-neutral btn-sm h-10 rounded-xl gap-2 text-xs">
-                <Navigation className="w-3 h-3" />
-                Use My Location
+              <button
+                onClick={handleUseMyLocation}
+                disabled={isLocating}
+                className="w-full btn btn-neutral btn-sm h-10 rounded-xl gap-2 text-xs"
+              >
+                {isLocating ? <Loader2 className="w-3 h-3 animate-spin" /> : <Navigation className="w-3 h-3" />}
+                {isLocating ? 'Locating...' : 'Use My Location'}
               </button>
             </div>
 
             {/* Radius */}
-            <div className="space-y-4 pt-4 border-t border-neutral-800">
+            <div className="space-y-4 pt-4 border-t border-[var(--color-border-hex)]">
               <div className="flex justify-between items-end">
-                <label className="text-xs font-black uppercase tracking-widest text-neutral-500">Radius</label>
-                <span className="text-orange-500 font-bold text-sm">{(radius / 1000).toFixed(1)} km</span>
+                <label className="text-xs font-black uppercase tracking-widest text-[var(--color-text-subtle-hex)]">Radius</label>
+                <span className="text-[var(--color-primary-hex)] font-bold text-sm">{(radius / 1000).toFixed(1)} km</span>
               </div>
               <input
                 type="range"
@@ -191,10 +230,10 @@ const SessionSetup = () => {
             </div>
 
             {/* Node Count */}
-            <div className="space-y-4 pt-4 border-t border-neutral-800">
+            <div className="space-y-4 pt-4 border-t border-[var(--color-border-hex)]">
               <div className="flex justify-between items-end">
-                <label className="text-xs font-black uppercase tracking-widest text-neutral-500">Intersections</label>
-                <span className="text-white font-bold text-sm">{nodeCount}</span>
+                <label className="text-xs font-black uppercase tracking-widest text-[var(--color-text-subtle-hex)]">Intersections</label>
+                <span className="text-[var(--color-text-hex)] font-bold text-sm">{nodeCount}</span>
               </div>
               {mode === 'singleplayer' ? (
                 <input
@@ -207,19 +246,19 @@ const SessionSetup = () => {
                   className="range range-xs"
                 />
               ) : (
-                <div className="flex items-center gap-2 p-3 bg-neutral-800 rounded-xl">
-                  <AlertCircle className="w-4 h-4 text-orange-500" />
-                  <span className="text-xs text-neutral-400">Fixed from Archipelago seed</span>
+                <div className="flex items-center gap-2 p-3 bg-[var(--color-surface-alt-hex)] rounded-xl">
+                  <AlertCircle className="w-4 h-4 text-[var(--color-primary-hex)]" />
+                  <span className="text-xs text-[var(--color-text-muted-hex)]">Fixed from Archipelago seed</span>
                 </div>
               )}
             </div>
 
             {/* Progress */}
             {isGenerating && (
-              <div className="space-y-2 pt-4 border-t border-neutral-800 animate-in fade-in duration-300">
+              <div className="space-y-2 pt-4 border-t border-[var(--color-border-hex)] animate-in fade-in duration-300">
                 <div className="flex justify-between text-xs mb-1">
-                  <span className="text-orange-500 font-bold animate-pulse">{status}</span>
-                  <span className="text-neutral-500">{Math.round(progress)}%</span>
+                  <span className="text-[var(--color-primary-hex)] font-bold animate-pulse">{status}</span>
+                  <span className="text-[var(--color-text-subtle-hex)]">{Math.round(progress)}%</span>
                 </div>
                 <progress className="progress progress-primary w-full h-2" value={progress} max="100"></progress>
               </div>
@@ -245,7 +284,7 @@ const SessionSetup = () => {
             </button>
 
             {errorMsg && (
-              <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-xs font-medium">
+              <div className="p-3 bg-[var(--color-error-hex)]/10 border border-[var(--color-error-hex)]/20 rounded-xl text-[var(--color-error-hex)] text-xs font-medium">
                 {errorMsg}
               </div>
             )}
@@ -254,7 +293,7 @@ const SessionSetup = () => {
 
         {/* Map Display */}
         <div className="lg:col-span-2 lg:order-2 order-1">
-          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl overflow-hidden h-[600px] shadow-2xl relative">
+          <div className="bg-[var(--color-surface-hex)] border border-[var(--color-border-hex)] rounded-3xl overflow-hidden h-[600px] shadow-2xl relative">
             <MapContainer
               center={center}
               zoom={13}
@@ -267,6 +306,7 @@ const SessionSetup = () => {
               />
               <MapResizer />
               <MapEvents onMapClick={handleMapClick} />
+              <MapCenterUpdater center={center} />
               <Marker position={center} icon={DefaultIcon} />
               <Circle
                 center={center}

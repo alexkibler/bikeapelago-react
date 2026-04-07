@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { User, Camera, Save, LogOut, ChevronRight, Edit3, Trash2 } from 'lucide-react';
+import { User, Camera, Save, LogOut, ChevronRight, Edit3 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { useAuthStore, pb } from '../store/authStore';
+import { useAuthStore, getToken } from '../store/authStore';
 
 const AthleteProfile = () => {
   const navigate = useNavigate();
-  const { user: authUser, logout, refresh } = useAuthStore();
+  const { user: authUser, logout } = useAuthStore();
 
   const [name, setName] = useState('');
   const [weight, setWeight] = useState(75.0);
@@ -17,8 +17,8 @@ const AthleteProfile = () => {
   // Populate from auth state
   useEffect(() => {
     if (authUser) {
-      const n = authUser['name'] || authUser['username'] || '';
-      const w = authUser['weight'] ?? 75.0;
+      const n = authUser.name || authUser.username || '';
+      const w = authUser.weight ?? 75.0;
       setName(n);
       setWeight(w);
       setTempName(n);
@@ -36,10 +36,18 @@ const AthleteProfile = () => {
     if (!authUser?.id) return;
     setSaving(true);
     try {
-      await pb.collection('users').update(authUser.id, { name: tempName, weight: tempWeight });
+      const token = getToken();
+      const res = await fetch(`/api/users/${authUser.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({ name: tempName, weight: tempWeight }),
+      });
+      if (!res.ok) throw new Error(`Failed to save profile: ${res.status}`);
       setName(tempName);
       setWeight(tempWeight);
-      await refresh(); // sync authStore
     } catch (err) {
       console.error('Failed to save profile', err);
     } finally {

@@ -1,16 +1,13 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Globe, User, Lock, Server, ArrowRight, Loader2, Info } from 'lucide-react';
-import { pb, useAuthStore } from '../store/authStore';
+import { Globe, User, Lock, Server, ArrowRight, Info } from 'lucide-react';
 
 const NewGame = () => {
   const navigate = useNavigate();
-  const { user } = useAuthStore();
   const [gameMode, setGameMode] = useState<'archipelago' | 'singleplayer'>('archipelago');
   const [serverUrl, setServerUrl] = useState('archipelago.gg:');
   const [slotName, setSlotName] = useState('');
   const [password, setPassword] = useState('');
-  const [isConnecting, setIsConnecting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -33,7 +30,7 @@ const NewGame = () => {
 
 
   return (
-    <div className="max-w-2xl mx-auto py-12">
+    <div className="max-w-2xl mx-auto py-12 px-6">
       <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-8 md:p-12 shadow-2xl relative overflow-hidden">
         {/* Glow effect */}
         <div className="absolute -top-24 -right-24 w-48 h-48 bg-orange-600/20 blur-[80px] rounded-full"></div>
@@ -130,20 +127,10 @@ const NewGame = () => {
           <div className="pt-4">
             <button
               type="submit"
-              disabled={isConnecting}
               className="w-full btn btn-orange btn-lg h-16 rounded-2xl font-black uppercase tracking-widest text-sm flex items-center justify-center gap-3 disabled:opacity-50 disabled:bg-neutral-800 group shadow-xl shadow-orange-600/10"
             >
-              {isConnecting ? (
-                <>
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  Connecting...
-                </>
-              ) : (
-                <>
-                  {gameMode === 'archipelago' ? 'Connect & Play' : 'Start Single Player'}
-                  <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                </>
-              )}
+              {gameMode === 'archipelago' ? 'Connect & Play' : 'Start Single Player'}
+              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
             </button>
           </div>
 

@@ -1,15 +1,17 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using Bikeapelago.Api.Models;
 using Bikeapelago.Api.Repositories;
+using Microsoft.Extensions.Logging;
 
 namespace Bikeapelago.Api.Services;
 
 public class NodeGenerationRequest
 {
-    public string SessionId { get; set; } = string.Empty;
+    public Guid SessionId { get; set; }
     public double CenterLat { get; set; }
     public double CenterLon { get; set; }
     public double Radius { get; set; }
@@ -17,61 +19,69 @@ public class NodeGenerationRequest
     public string Mode { get; set; } = "archipelago"; // or "singleplayer"
 }
 
-public class NodeGenerationService(OverpassService overpassService, IMapNodeRepository nodeRepository, IGameSessionRepository sessionRepository)
+public class NodeGenerationService(
+    IOsmDiscoveryService osmDiscoveryService,
+    IMapNodeRepository nodeRepository,
+    IGameSessionRepository sessionRepository,
+    ILogger<NodeGenerationService> logger)
 {
-    private readonly OverpassService _overpassService = overpassService;
+    private readonly IOsmDiscoveryService _osmDiscoveryService = osmDiscoveryService;
     private readonly IMapNodeRepository _nodeRepository = nodeRepository;
     private readonly IGameSessionRepository _sessionRepository = sessionRepository;
+    private readonly ILogger<NodeGenerationService> _logger = logger;
 
     public async Task<int> GenerateNodesAsync(NodeGenerationRequest request)
     {
-        Console.WriteLine($"[NodeGenerationService] Generating nodes for session {request.SessionId}. USE_MOCK_OVERPASS={Environment.GetEnvironmentVariable("USE_MOCK_OVERPASS")}");
-        // 1. Update session status to SetupInProgress
-        var session = await _sessionRepository.GetByIdAsync(request.SessionId) ?? throw new Exception("Session not found");
+        var total = Stopwatch.StartNew();
+        var sw = Stopwatch.StartNew();
 
-        // 2. Fetch intersections
-        var allIntersections = await _overpassService.FetchCyclingIntersectionsAsync(request.CenterLat, request.CenterLon, request.Radius);
+        // 1. Verify session exists
+        var session = await _sessionRepository.GetByIdAsync(request.SessionId)
+            ?? throw new Exception("Session not found");
+        _logger.LogInformation("[generate] GetSession: {Ms}ms", sw.ElapsedMilliseconds);
 
-        if (allIntersections.Count < request.NodeCount)
-        {
-            throw new Exception($"Found only {allIntersections.Count} intersections, need {request.NodeCount}. Increase radius.");
-        }
+        // 2. Fetch random nodes from PostGIS
+        sw.Restart();
+        var points = await _osmDiscoveryService.GetRandomNodesAsync(
+            request.CenterLat,
+            request.CenterLon,
+            request.Radius,
+            request.NodeCount);
+        _logger.LogInformation("[generate] OsmDiscovery ({Count} points): {Ms}ms", points.Count, sw.ElapsedMilliseconds);
 
-        // 3. Shuffle and select
-        var allIntersectionsArray = allIntersections.ToArray();
-        Random.Shared.Shuffle(allIntersectionsArray);
-        var selectedNodes = allIntersectionsArray.Take(request.NodeCount).ToList();
+        if (points.Count < request.NodeCount)
+            throw new Exception($"OSM Discovery returned only {points.Count} nodes, need {request.NodeCount}. Try increasing the radius.");
 
-        // 4. Delete existing nodes for session if any
+        var selectedPoints = points.Take(request.NodeCount).ToList();
+
+        // 3. Delete existing nodes
+        sw.Restart();
         await _nodeRepository.DeleteBySessionIdAsync(request.SessionId);
+        _logger.LogInformation("[generate] DeleteExisting: {Ms}ms", sw.ElapsedMilliseconds);
 
-        // 5. Create MapNodes in PocketBase
-        int createdCount = 0;
-        for (var i = 0; i < selectedNodes.Count; i++)
+        // 4. Bulk insert
+        sw.Restart();
+        var mapNodes = selectedPoints.Select((point, i) => new MapNode
         {
-            var osmNode = selectedNodes[i];
-            var mapNode = new MapNode
-            {
-                SessionId = session.Id,
-                ApLocationId = 800000 + (i + 1), // Archipelago mimic
-                OsmNodeId = osmNode.Id.ToString(),
-                Name = (Environment.GetEnvironmentVariable("USE_MOCK_OVERPASS") == "true") ? $"Mock Node {osmNode.Id}" : ((osmNode.Tags != null && osmNode.Tags.TryGetValue("name", out var nodeName)) ? nodeName : $"OSM Node {osmNode.Id}"),
-                Lat = osmNode.Lat,
-                Lon = osmNode.Lon,
-                State = request.Mode == "singleplayer" && i < 3 ? "Available" : "Hidden"
-            };
+            SessionId = session.Id,
+            ApLocationId = 800000 + (i + 1),
+            OsmNodeId = $"osm-{request.SessionId}-{i + 1}",
+            Name = $"Node {i + 1}",
+            Location = new NetTopologySuite.Geometries.Point(point.Lon, point.Lat) { SRID = 4326 },
+            State = request.Mode == "singleplayer" && i < 3 ? "Available" : "Hidden"
+        }).ToList();
+        await _nodeRepository.CreateRangeAsync(mapNodes);
+        _logger.LogInformation("[generate] BulkInsert ({Count} nodes): {Ms}ms", mapNodes.Count, sw.ElapsedMilliseconds);
 
-            await _nodeRepository.CreateAsync(mapNode);
-            createdCount++;
-        }
-
-        // 6. Update session metadata and switch to Active
-        session.CenterLat = request.CenterLat;
-        session.CenterLon = request.CenterLon;
+        // 5. Update session
+        sw.Restart();
+        session.Location = new NetTopologySuite.Geometries.Point(request.CenterLon, request.CenterLat) { SRID = 4326 };
         session.Radius = (int)request.Radius;
         session.Status = SessionStatus.Active;
         await _sessionRepository.UpdateAsync(session);
+        _logger.LogInformation("[generate] UpdateSession: {Ms}ms", sw.ElapsedMilliseconds);
 
-        return createdCount;
+        _logger.LogInformation("[generate] TOTAL: {Ms}ms", total.ElapsedMilliseconds);
+        return mapNodes.Count;
     }
 }

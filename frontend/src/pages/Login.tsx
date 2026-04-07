@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Bike, Lock, User, ArrowRight, Loader2 } from 'lucide-react';
-import { pb } from '../store/authStore';
 import { useAuthStore } from '../store/authStore';
 
 const Login = () => {
@@ -23,11 +22,20 @@ const Login = () => {
     setError('');
 
     try {
-      const authData = await pb.collection('users').authWithPassword(username, password);
-      login(authData.token, authData.record);
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identity: username, password }),
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({})) as { message?: string };
+        throw new Error(errData.message ?? 'Invalid credentials.');
+      }
+      const data = await res.json() as { token: string; record: Parameters<typeof login>[1] };
+      login(data.token, data.record);
       navigate('/');
-    } catch (err: any) {
-      setError(err?.message ?? 'Invalid credentials.');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Invalid credentials.');
     } finally {
       setLoading(false);
     }
