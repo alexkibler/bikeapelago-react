@@ -27,7 +27,7 @@ public class OsmDiscoveryService : IOsmDiscoveryService
             _logger.LogInformation("Using PBF OSM Discovery Service");
             _impl = serviceProvider.GetRequiredService<PbfOsmDiscoveryService>();
         }
-        else if (!string.IsNullOrEmpty(configuration.GetConnectionString("PostGis")))
+        else if (!string.IsNullOrEmpty(configuration.GetConnectionString("OsmDiscovery")))
         {
             _logger.LogInformation("Using PostGIS OSM Discovery Service");
             _impl = serviceProvider.GetRequiredService<PostGisOsmDiscoveryService>();

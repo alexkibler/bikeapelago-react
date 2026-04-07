@@ -21,7 +21,9 @@ public class OverpassOsmDiscoveryService(HttpClient httpClient, ILogger<Overpass
         // Overpass QL to find nodes near the center point. 
         // We'll filter for some bike-friendly tags.
         // We request nodes within the radius and then we'll randomly sample locally.
-        var query = $"[out:json][timeout:25];node(around:{radiusMeters},{lat},{lon})[\"highway\"~\"cycleway|residential|tertiary|path|track|living_street\"];out body;";
+        // Query ways with bike-friendly highway tags, then get their member nodes.
+        // Nodes themselves don't carry highway tags in OSM — only the parent way does.
+        var query = $"[out:json][timeout:25];way(around:{radiusMeters},{lat},{lon})[\"highway\"~\"cycleway|residential|tertiary|path|track|living_street\"];node(w);out body;";
         
         var response = await _httpClient.GetAsync($"{OverpassUrl}?data={Uri.EscapeDataString(query)}");
         response.EnsureSuccessStatusCode();

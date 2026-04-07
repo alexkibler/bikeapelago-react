@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using Bikeapelago.Api.Models;
 using Bikeapelago.Api.Repositories;
+using Microsoft.Extensions.Logging;
 
 namespace Bikeapelago.Api.Services;
 
@@ -20,67 +22,66 @@ public class NodeGenerationRequest
 public class NodeGenerationService(
     IOsmDiscoveryService osmDiscoveryService,
     IMapNodeRepository nodeRepository,
-    IGameSessionRepository sessionRepository)
+    IGameSessionRepository sessionRepository,
+    ILogger<NodeGenerationService> logger)
 {
     private readonly IOsmDiscoveryService _osmDiscoveryService = osmDiscoveryService;
     private readonly IMapNodeRepository _nodeRepository = nodeRepository;
     private readonly IGameSessionRepository _sessionRepository = sessionRepository;
+    private readonly ILogger<NodeGenerationService> _logger = logger;
 
     public async Task<int> GenerateNodesAsync(NodeGenerationRequest request)
     {
-        Console.WriteLine($"[NodeGenerationService] Generating {request.NodeCount} nodes for session {request.SessionId} via osm-discovery-api.");
+        var total = Stopwatch.StartNew();
+        var sw = Stopwatch.StartNew();
 
         // 1. Verify session exists
         var session = await _sessionRepository.GetByIdAsync(request.SessionId)
             ?? throw new Exception("Session not found");
+        _logger.LogInformation("[generate] GetSession: {Ms}ms", sw.ElapsedMilliseconds);
 
-        // 2. Fetch random nodes from the OSM Discovery API
-        //    The API returns [{lat, lon}] — no IDs or names.
-        //    We request more than needed so we have a buffer if the API returns fewer.
+        // 2. Fetch random nodes from PostGIS
+        sw.Restart();
         var points = await _osmDiscoveryService.GetRandomNodesAsync(
             request.CenterLat,
             request.CenterLon,
             request.Radius,
             request.NodeCount);
+        _logger.LogInformation("[generate] OsmDiscovery ({Count} points): {Ms}ms", points.Count, sw.ElapsedMilliseconds);
 
         if (points.Count < request.NodeCount)
-        {
-            throw new Exception(
-                $"OSM Discovery API returned only {points.Count} nodes, need {request.NodeCount}. " +
-                "Try increasing the radius.");
-        }
+            throw new Exception($"OSM Discovery returned only {points.Count} nodes, need {request.NodeCount}. Try increasing the radius.");
 
-        // 3. Trim to exactly NodeCount (API may return extras if count < available)
         var selectedPoints = points.Take(request.NodeCount).ToList();
 
-        // 4. Delete existing nodes for this session
+        // 3. Delete existing nodes
+        sw.Restart();
         await _nodeRepository.DeleteBySessionIdAsync(request.SessionId);
+        _logger.LogInformation("[generate] DeleteExisting: {Ms}ms", sw.ElapsedMilliseconds);
 
-        // 5. Create MapNodes in PocketBase
-        int createdCount = 0;
-        for (int i = 0; i < selectedPoints.Count; i++)
+        // 4. Bulk insert
+        sw.Restart();
+        var mapNodes = selectedPoints.Select((point, i) => new MapNode
         {
-            var point = selectedPoints[i];
-            var mapNode = new MapNode
-            {
-                SessionId = session.Id,
-                ApLocationId = 800000 + (i + 1), // Archipelago location ID mimic
-                OsmNodeId = $"osm-{request.SessionId.ToString()}-{i + 1}", // synthetic ID
-                Name = $"Node {i + 1}",
-                Location = new NetTopologySuite.Geometries.Point(point.Lon, point.Lat) { SRID = 4326 },
-                State = request.Mode == "singleplayer" && i < 3 ? "Available" : "Hidden"
-            };
+            SessionId = session.Id,
+            ApLocationId = 800000 + (i + 1),
+            OsmNodeId = $"osm-{request.SessionId}-{i + 1}",
+            Name = $"Node {i + 1}",
+            Location = new NetTopologySuite.Geometries.Point(point.Lon, point.Lat) { SRID = 4326 },
+            State = request.Mode == "singleplayer" && i < 3 ? "Available" : "Hidden"
+        }).ToList();
+        await _nodeRepository.CreateRangeAsync(mapNodes);
+        _logger.LogInformation("[generate] BulkInsert ({Count} nodes): {Ms}ms", mapNodes.Count, sw.ElapsedMilliseconds);
 
-            await _nodeRepository.CreateAsync(mapNode);
-            createdCount++;
-        }
-
-        // 6. Update session metadata and switch to Active
+        // 5. Update session
+        sw.Restart();
         session.Location = new NetTopologySuite.Geometries.Point(request.CenterLon, request.CenterLat) { SRID = 4326 };
         session.Radius = (int)request.Radius;
         session.Status = SessionStatus.Active;
         await _sessionRepository.UpdateAsync(session);
+        _logger.LogInformation("[generate] UpdateSession: {Ms}ms", sw.ElapsedMilliseconds);
 
-        return createdCount;
+        _logger.LogInformation("[generate] TOTAL: {Ms}ms", total.ElapsedMilliseconds);
+        return mapNodes.Count;
     }
 }

@@ -31,6 +31,12 @@ public class EfCoreMapNodeRepository(BikeapelagoDbContext context) : IMapNodeRep
         return node;
     }
 
+    public async Task CreateRangeAsync(IEnumerable<MapNode> nodes)
+    {
+        _context.MapNodes.AddRange(nodes);
+        await _context.SaveChangesAsync();
+    }
+
     public async Task<MapNode> UpdateAsync(MapNode node)
     {
         _context.MapNodes.Update(node);
