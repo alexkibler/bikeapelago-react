@@ -28,6 +28,14 @@ const MapEvents = ({ onMapClick }: { onMapClick: (lat: number, lng: number) => v
   return null;
 };
 
+const MapCenterUpdater = ({ center }: { center: [number, number] }) => {
+  const map = useMap();
+  useEffect(() => {
+    map.setView(center, map.getZoom());
+  }, [center, map]);
+  return null;
+};
+
 // Force map to recalculate its size after mounting (fixes blank tile issue)
 const MapResizer = () => {
   const map = useMap();
@@ -298,6 +306,7 @@ const SessionSetup = () => {
               />
               <MapResizer />
               <MapEvents onMapClick={handleMapClick} />
+              <MapCenterUpdater center={center} />
               <Marker position={center} icon={DefaultIcon} />
               <Circle
                 center={center}

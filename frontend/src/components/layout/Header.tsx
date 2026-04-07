@@ -1,10 +1,17 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
+import { LogOut } from 'lucide-react';
 import ThemeToggle from './ThemeToggle';
 
 const Header = () => {
-  const { user } = useAuthStore();
+  const navigate = useNavigate();
+  const { user, logout } = useAuthStore();
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
 
   return (
     <nav className="max-w-screen-xl h-12 mx-auto flex items-center justify-between px-6">
@@ -23,6 +30,16 @@ const Header = () => {
           </span>
         )}
         <ThemeToggle />
+        {user && (
+          <button
+            onClick={handleLogout}
+            className="p-2 rounded-lg transition-all duration-200 hover:bg-[var(--color-error-hex)]/10 text-[var(--color-text-muted-hex)] hover:text-[var(--color-error-hex)]"
+            aria-label="Logout"
+            title="Logout"
+          >
+            <LogOut className="w-5 h-5" />
+          </button>
+        )}
       </div>
     </nav>
   );

@@ -16,7 +16,7 @@ const ThemeToggle = () => {
   return (
     <button
       onClick={toggleTheme}
-      className="p-2 rounded-lg transition-colors hover:bg-surface-alt text-text-muted hover:text-text"
+      className="p-2 rounded-lg transition-all duration-200 hover:bg-[rgb(var(--color-surface-overlay))] text-[var(--color-text-muted-hex)] hover:text-[var(--color-text-hex)]"
       aria-label="Toggle theme"
       title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
     >
