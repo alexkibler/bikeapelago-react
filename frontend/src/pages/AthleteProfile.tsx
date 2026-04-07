@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { User, Camera, Save, LogOut, ChevronRight, Edit3, Trash2 } from 'lucide-react';
+import { User, Camera, Save, LogOut, ChevronRight, Edit3 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore, pb } from '../store/authStore';
 

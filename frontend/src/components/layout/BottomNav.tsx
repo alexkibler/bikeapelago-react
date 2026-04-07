@@ -1,11 +1,10 @@
 import React from 'react';
-import { useLocation, Link, useNavigate } from 'react-router-dom';
+import { useLocation, Link } from 'react-router-dom';
 import { Home, MessageSquare, UploadCloud, Map } from 'lucide-react';
 import { useGameStore } from '../../store/gameStore';
 
 const BottomNav = () => {
   const location = useLocation();
-  const navigate = useNavigate();
   const isGamePage = location.pathname.startsWith('/game');
   const pathname = location.pathname;
   const { activePanel, togglePanel } = useGameStore();

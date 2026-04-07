@@ -1,34 +1,22 @@
 import React, { useState, useRef } from 'react';
 import { useGameStore } from '../../store/gameStore';
-import { pb } from '../../store/authStore';
 import { Upload, FileCheck, Loader2, Play, CheckCircle2, XCircle } from 'lucide-react';
-import { SportsLib } from '@sports-alliance/sports-lib';
-import FitParser from 'fit-file-parser';
-
-// Haversine formula to calculate distance between two coordinates in meters
-function getDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  const R = 6371e3; // Earth radius in meters
-  const p1 = (lat1 * Math.PI) / 180;
-  const p2 = (lat2 * Math.PI) / 180;
-  const dp = ((lat2 - lat1) * Math.PI) / 180;
-  const dl = ((lon2 - lon1) * Math.PI) / 180;
-
-  const a =
-    Math.sin(dp / 2) * Math.sin(dp / 2) +
-    Math.cos(p1) * Math.cos(p2) * Math.sin(dl / 2) * Math.sin(dl / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
-  return R * c;
-}
+import { useFitAnalyzer } from '../../hooks/useFitAnalyzer';
 
 const UploadPanel = ({ sessionId }: { sessionId: string }) => {
   const { analysisResult, setAnalysisResult } = useGameStore();
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+
+  const {
+    analyzeFile,
+    confirmValidation,
+    loading,
+    error,
+    setError,
+    success,
+    setSuccess
+  } = useFitAnalyzer(sessionId, setAnalysisResult);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -39,140 +27,8 @@ const UploadPanel = ({ sessionId }: { sessionId: string }) => {
     }
   };
 
-  const handleAnalyze = async () => {
-    if (!selectedFile) return;
-
-    setLoading(true);
-    setError(null);
-    setAnalysisResult(null);
-
-    console.log('[UploadPanel] Starting analysis for:', selectedFile.name);
-
-    if ((window as any).PLAYWRIGHT_TEST) {
-      console.log('[UploadPanel] Mocking analysis for E2E test');
-      setAnalysisResult({
-        path: [{ lat: 40.7128, lon: -74.006 }],
-        stats: {
-          distanceMeters: 5000,
-          durationSeconds: 1200,
-          elevationGainMeters: 100,
-          avgSpeedKph: 15
-        },
-        newlyCheckedNodes: [{ id: 'mock_node_1', ap_location_id: 1001, lat: 40.7128, lon: -74.006 }]
-      });
-      setLoading(false);
-      return;
-    }
-
-    try {
-      const arrayBuffer = await selectedFile.arrayBuffer();
-      // ... rest of the logic ...
-      let eventData;
-      let path: { lat: number, lon: number, alt?: number }[] = [];
-      let stats: any = {};
-      // ... same logic as before ...
-
-      try {
-        eventData = await SportsLib.importFromFit(arrayBuffer);
-        const activities = eventData.getActivities();
-        if (activities.length === 0) throw new Error('No activities found in FIT file');
-        const activity = activities[0];
-
-        // Extract path
-        if (activity.hasStreamData('Position')) {
-          const positions = activity.getStreamDataByTime('Position');
-          const altitudes = activity.hasStreamData('Altitude') ? activity.getStreamDataByTime('Altitude') : [];
-          positions.forEach((pos: any, i: number) => {
-            if (pos.value) {
-              path.push({
-                lat: pos.value.latitude || pos.value.lat,
-                lon: pos.value.longitude || pos.value.lon,
-                alt: altitudes[i]?.value
-              });
-            }
-          });
-        }
-
-        // Extract stats
-        const getStatValue = (type: string) => activity.getStat(type)?.getValue() as number;
-        stats = {
-          distanceMeters: getStatValue('Distance') || 0,
-          elevationGainMeters: getStatValue('Ascent') || 0,
-          durationSeconds: activity.getDuration().getValue() || 0,
-          avgSpeedKph: (getStatValue('Average Speed') || 0) * 3.6
-        };
-      } catch (importErr: any) {
-        // Fallback to fit-file-parser if SportsLib fails
-        const fitParser = new FitParser({ force: true, speedUnit: 'm/s', lengthUnit: 'm', mode: 'both' });
-        const fitObject: any = await new Promise((resolve, reject) => {
-          fitParser.parse(arrayBuffer, (err: any, data: any) => err ? reject(err) : resolve(data));
-        });
-
-        if (fitObject.records?.length > 0) {
-          fitObject.records.forEach((record: any) => {
-            if (record.position_lat !== undefined && record.position_long !== undefined) {
-              path.push({ lat: record.position_lat, lon: record.position_long, alt: record.altitude });
-            }
-          });
-          const last = fitObject.records[fitObject.records.length - 1];
-          const first = fitObject.records[0];
-          stats = {
-            distanceMeters: last.distance || 0,
-            elevationGainMeters: 0, // Simplified for brevity
-            durationSeconds: (last.timestamp - first.timestamp) / 1000
-          };
-        } else {
-          throw new Error('Failed to parse FIT file');
-        }
-      }
-
-      if (path.length === 0) throw new Error('No GPS data found in FIT file');
-
-      // Fetch available nodes for this session
-      // In mock mode, this will use MockPocketBase
-      const availableNodes = await pb.collection('map_nodes').getFullList({
-        filter: `session = "${sessionId}" && state = "Available"`
-      });
-
-      const newlyCheckedNodes: any[] = [];
-      for (const node of availableNodes) {
-        const isReached = path.some(p => getDistance(node.lat, node.lon, p.lat, p.lon) <= 30);
-        if (isReached) {
-          newlyCheckedNodes.push({
-            id: node.id,
-            ap_location_id: node.ap_location_id,
-            lat: node.lat,
-            lon: node.lon
-          });
-        }
-      }
-
-      setAnalysisResult({ path, stats, newlyCheckedNodes });
-    } catch (err: any) {
-      setError(err.message || 'An error occurred during analysis');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const confirmValidation = async () => {
-    if (!analysisResult || analysisResult.newlyCheckedNodes.length === 0) return;
-
-    setLoading(true);
-    try {
-      const nodeIds = analysisResult.newlyCheckedNodes.map((n: any) => n.id);
-      await Promise.all(nodeIds.map((id: string) => 
-        pb.collection('map_nodes').update(id, { state: 'Checked' })
-      ));
-      
-      setSuccess(`Successfully validated ${nodeIds.length} location(s)!`);
-      setAnalysisResult(null);
-    } catch (err: any) {
-      setError(err.message || 'Failed to confirm checks');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const handleAnalyze = () => analyzeFile(selectedFile);
+  const handleConfirm = () => confirmValidation(analysisResult);
 
   return (
     <div className="flex flex-col h-full bg-neutral-900 text-white p-4 overflow-y-auto">
@@ -257,7 +113,7 @@ const UploadPanel = ({ sessionId }: { sessionId: string }) => {
             <h3 className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest mb-4">Locations Reached</h3>
             {analysisResult.newlyCheckedNodes.length > 0 ? (
               <div className="space-y-3">
-                {analysisResult.newlyCheckedNodes.map((node: any) => (
+                {analysisResult.newlyCheckedNodes.map((node) => (
                   <div key={node.id} className="flex items-center gap-3 bg-green-500/10 p-4 rounded-xl border border-green-500/20 text-green-400">
                      <CheckCircle2 className="w-5 h-5 shrink-0" />
                      <div className="flex flex-col">
@@ -283,7 +139,7 @@ const UploadPanel = ({ sessionId }: { sessionId: string }) => {
                Cancel
              </button>
              <button 
-               onClick={confirmValidation}
+               onClick={handleConfirm}
                disabled={analysisResult.newlyCheckedNodes.length === 0 || loading}
                className="bg-green-600 hover:bg-green-500 disabled:opacity-30 disabled:hover:bg-green-600 p-4 rounded-xl font-bold transition-all shadow-lg active:scale-[0.98] flex items-center justify-center gap-2"
              >

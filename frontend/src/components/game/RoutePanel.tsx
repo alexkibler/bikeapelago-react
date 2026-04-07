@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useGameStore } from '../../store/gameStore';
 import { getGraphhopperUrl } from '../../lib/graphhopper';
-import L from 'leaflet';
 import { Map, Download, Trash2, Loader2 } from 'lucide-react';
 
 const RoutePanel = () => {
@@ -19,7 +18,7 @@ const RoutePanel = () => {
       setLoading(true);
       setError(null);
       try {
-        if ((window as any).PLAYWRIGHT_TEST) {
+        if ((window as unknown as { PLAYWRIGHT_TEST?: boolean }).PLAYWRIGHT_TEST) {
           // Return mock data immediately for E2E tests
           setRouteData({
             distance: waypoints.length * 1.5,
@@ -47,7 +46,7 @@ const RoutePanel = () => {
         });
 
         if (!response.ok) throw new Error(`Routing failed with status ${response.status}`);
-        const data = await response.json();
+        const data = await response.json() as { paths: Array<{ distance: number, ascend: number, points: { coordinates: number[][] } }> };
         
         const path = data.paths[0];
         setRouteData({
@@ -55,8 +54,8 @@ const RoutePanel = () => {
           elevation: path.ascend || 0,
           polyline: JSON.stringify(path.points.coordinates)
         });
-      } catch (err: any) {
-        setError(err.message);
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : 'Routing failed');
       } finally {
         setLoading(false);
       }
@@ -68,14 +67,14 @@ const RoutePanel = () => {
   const downloadGPX = () => {
     if (!routeData.polyline) return;
     
-    const coordinates = JSON.parse(routeData.polyline);
+    const coordinates = JSON.parse(routeData.polyline) as [number, number, number?][];
     let gpx = `<?xml version="1.0" encoding="UTF-8"?>
 <gpx version="1.1" creator="Bikeapelago" xmlns="http://www.topografix.com/GPX/1/1">
   <trk>
     <name>Bikeapelago Route</name>
     <trkseg>`;
     
-    coordinates.forEach((coord: any) => {
+    coordinates.forEach((coord) => {
       gpx += `
       <trkpt lat="${coord[1]}" lon="${coord[0]}">
         <ele>${coord[2] || 0}</ele>

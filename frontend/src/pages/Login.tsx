@@ -26,8 +26,8 @@ const Login = () => {
       const authData = await pb.collection('users').authWithPassword(username, password);
       login(authData.token, authData.record);
       navigate('/');
-    } catch (err: any) {
-      setError(err?.message ?? 'Invalid credentials.');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Invalid credentials.');
     } finally {
       setLoading(false);
     }
