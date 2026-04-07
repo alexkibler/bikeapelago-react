@@ -15,10 +15,15 @@ public class BikeapelagoDbContext : DbContext
     public DbSet<MapNode> MapNodes { get; set; } = null!;
     public DbSet<Route> Routes { get; set; } = null!;
     public DbSet<Activity> Activities { get; set; } = null!;
+    public DbSet<ApiLog> ApiLogs { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+
+        modelBuilder.Entity<GameSession>()
+            .Property(g => g.Status)
+            .HasConversion<string>();
 
         // Map Spatial Data Types
         modelBuilder.Entity<GameSession>()

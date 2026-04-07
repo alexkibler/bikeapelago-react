@@ -32,8 +32,8 @@ async function runMigration() {
 
     // 1. Create Stage 1 Tables in Postgres
     await pgClient.query(`
-        CREATE TABLE IF NOT EXISTS Users (
-            "Id" VARCHAR(15) PRIMARY KEY,
+        CREATE TABLE IF NOT EXISTS "Users" (
+            "Id" VARCHAR(36) PRIMARY KEY,
             "Username" TEXT NOT NULL,
             "Name" TEXT,
             "Weight" DOUBLE PRECISION,
@@ -42,9 +42,9 @@ async function runMigration() {
             "Password" TEXT
         );
 
-        CREATE TABLE IF NOT EXISTS GameSessions (
-            "Id" VARCHAR(15) PRIMARY KEY,
-            "UserId" VARCHAR(15) REFERENCES Users("Id"),
+        CREATE TABLE IF NOT EXISTS "GameSessions" (
+            "Id" VARCHAR(36) PRIMARY KEY,
+            "UserId" VARCHAR(36) REFERENCES "Users"("Id"),
             "ApSeedName" TEXT,
             "ApServerUrl" TEXT,
             "ApSlotName" TEXT,
@@ -55,9 +55,9 @@ async function runMigration() {
             "UpdatedAt" TEXT
         );
 
-        CREATE TABLE IF NOT EXISTS MapNodes (
-            "Id" VARCHAR(15) PRIMARY KEY,
-            "SessionId" VARCHAR(15) REFERENCES GameSessions("Id"),
+        CREATE TABLE IF NOT EXISTS "MapNodes" (
+            "Id" VARCHAR(36) PRIMARY KEY,
+            "SessionId" VARCHAR(36) REFERENCES "GameSessions"("Id"),
             "Name" TEXT,
             "ApLocationId" INTEGER,
             "OsmNodeId" TEXT,
@@ -65,9 +65,9 @@ async function runMigration() {
             "State" TEXT
         );
 
-        CREATE TABLE IF NOT EXISTS Routes (
-            "Id" VARCHAR(15) PRIMARY KEY,
-            "UserId" VARCHAR(15) REFERENCES Users("Id"),
+        CREATE TABLE IF NOT EXISTS "Routes" (
+            "Id" VARCHAR(36) PRIMARY KEY,
+            "UserId" VARCHAR(36) REFERENCES "Users"("Id"),
             "Title" TEXT,
             "Sport" TEXT,
             "Distance" DOUBLE PRECISION,
@@ -76,9 +76,9 @@ async function runMigration() {
             "Path" GEOMETRY(LineString, 4326)
         );
 
-        CREATE TABLE IF NOT EXISTS Activities (
-            "Id" VARCHAR(15) PRIMARY KEY,
-            "UserId" VARCHAR(15) REFERENCES Users("Id"),
+        CREATE TABLE IF NOT EXISTS "Activities" (
+            "Id" VARCHAR(36) PRIMARY KEY,
+            "UserId" VARCHAR(36) REFERENCES "Users"("Id"),
             "Name" TEXT,
             "Description" TEXT,
             "Sport" TEXT,
@@ -95,7 +95,7 @@ async function runMigration() {
     const users = await getSqliteRows('SELECT * FROM users');
     for (const u of users) {
         await pgClient.query(
-            'INSERT INTO Users ("Id", "Username", "Name", "Weight", "Avatar", "Email", "Password") VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT ("Id") DO UPDATE SET "Password" = EXCLUDED."Password"',
+            'INSERT INTO "Users" ("Id", "Username", "Name", "Weight", "Avatar", "Email", "Password") VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT ("Id") DO UPDATE SET "Password" = EXCLUDED."Password"',
             [u.id, u.username || u.name, u.name, u.weight || 75.0, u.avatar, u.email, u.password]
         );
     }
@@ -109,7 +109,7 @@ async function runMigration() {
         const wkt = (s.center_lon != null && s.center_lat != null) ? `SRID=4326;POINT(${s.center_lon} ${s.center_lat})` : null;
         
         await pgClient.query(
-            'INSERT INTO GameSessions ("Id", "UserId", "ApSeedName", "ApServerUrl", "ApSlotName", "Location", "Radius", "Status", "CreatedAt", "UpdatedAt") VALUES ($1, $2, $3, $4, $5, ST_GeomFromEWKT($6), $7, $8, $9, $10) ON CONFLICT ("Id") DO NOTHING',
+            'INSERT INTO "GameSessions" ("Id", "UserId", "ApSeedName", "ApServerUrl", "ApSlotName", "Location", "Radius", "Status", "CreatedAt", "UpdatedAt") VALUES ($1, $2, $3, $4, $5, ST_GeomFromEWKT($6), $7, $8, $9, $10) ON CONFLICT ("Id") DO NOTHING',
             [s.id, s.user, s.ap_seed_name, s.ap_server_url, s.ap_slot_name, wkt, s.radius, s.status || 'SetupInProgress', s.created, s.updated]
         );
     }
@@ -122,7 +122,7 @@ async function runMigration() {
         const wkt = (n.lon != null && n.lat != null) ? `SRID=4326;POINT(${n.lon} ${n.lat})` : null;
         
         await pgClient.query(
-            'INSERT INTO MapNodes ("Id", "SessionId", "Name", "ApLocationId", "OsmNodeId", "Location", "State") VALUES ($1, $2, $3, $4, $5, ST_GeomFromEWKT($6), $7) ON CONFLICT ("Id") DO NOTHING',
+            'INSERT INTO "MapNodes" ("Id", "SessionId", "Name", "ApLocationId", "OsmNodeId", "Location", "State") VALUES ($1, $2, $3, $4, $5, ST_GeomFromEWKT($6), $7) ON CONFLICT ("Id") DO NOTHING',
             [n.id, n.session, n.name, n.ap_location_id, n.osm_node_id, wkt, n.state || 'Hidden']
         );
     }
@@ -155,7 +155,7 @@ async function runMigration() {
             }
 
             await pgClient.query(
-                'INSERT INTO Routes ("Id", "UserId", "Title", "Sport", "Distance", "Elevation", "Time", "Path") VALUES ($1, $2, $3, $4, $5, $6, $7, ST_GeomFromEWKT($8)) ON CONFLICT ("Id") DO NOTHING',
+                'INSERT INTO "Routes" ("Id", "UserId", "Title", "Sport", "Distance", "Elevation", "Time", "Path") VALUES ($1, $2, $3, $4, $5, $6, $7, ST_GeomFromEWKT($8)) ON CONFLICT ("Id") DO NOTHING',
                 [r.id, r.user, r.title, r.sport, r.distance, r.elevation, r.time, lineStringWkt]
             );
         }
@@ -174,7 +174,7 @@ async function runMigration() {
             let lineStringWkt = null;
 
             await pgClient.query(
-                'INSERT INTO Activities ("Id", "UserId", "Name", "Description", "Sport", "StartTime", "TotDistance", "TotElevation", "Path") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, ST_GeomFromEWKT($9)) ON CONFLICT ("Id") DO NOTHING',
+                'INSERT INTO "Activities" ("Id", "UserId", "Name", "Description", "Sport", "StartTime", "TotDistance", "TotElevation", "Path") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, ST_GeomFromEWKT($9)) ON CONFLICT ("Id") DO NOTHING',
                 [a.id, a.user, a.name, a.description, a.sport, a.start_time, a.tot_distance, a.tot_elevation, lineStringWkt]
             );
         }

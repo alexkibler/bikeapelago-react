@@ -5,10 +5,10 @@ namespace Bikeapelago.Api.Repositories;
 public interface IUserRepository
 {
     Task<User?> GetByIdAsync(Guid id);
-    Task<User?> GetByUsernameAsync(string username);
+    Task<User?> GetByUsernameOrEmailAsync(string identity);
     Task<User> CreateAsync(User user, string password);
     Task<User> UpdateAsync(User user);
-    Task<(string Token, User User)?> LoginAsync(string username, string password);
+    Task<(string Token, User User)?> LoginAsync(string identity, string password);
     Task<User?> GetCurrentUserAsync(string token);
 }
 

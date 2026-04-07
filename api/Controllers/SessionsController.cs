@@ -20,18 +20,24 @@ public class SessionsController(
     {
         try {
             var authHeader = Request.Headers["Authorization"].FirstOrDefault();
+            Console.WriteLine($"DEBUG: Authorization Header: {authHeader}");
             if (string.IsNullOrEmpty(authHeader) || !authHeader.StartsWith("Bearer "))
                 return Unauthorized(new { message = "No auth token provided" });
 
             var token = authHeader["Bearer ".Length..].Trim();
+            Console.WriteLine($"DEBUG: Extracted Token: '{token}'");
             
             var user = await _userRepository.GetCurrentUserAsync(token);
             if (user == null)
+            {
+                Console.WriteLine("DEBUG: User resolution failed");
                 return Unauthorized(new { message = "Invalid token" });
+            }
 
             var sessions = await _sessionRepository.GetByUserIdAsync(user.Id);
             return Ok(sessions);
         } catch (Exception ex) {
+            Console.WriteLine($"DEBUG: Exception in GetSessions: {ex}");
             return StatusCode(500, ex.ToString());
         }
     }
