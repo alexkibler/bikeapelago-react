@@ -48,3 +48,11 @@ if (typeof pb.authStore.onChange === 'function') {
     useAuthStore.setState({ user: model, isValid: !!token });
   });
 }
+
+/**
+ * Call this whenever a fetch returns 401.
+ * Clears the auth store so PrivateRoute redirects to /login.
+ */
+export function handleUnauthorized() {
+  pb.authStore.clear();
+}

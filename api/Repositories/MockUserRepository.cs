@@ -5,21 +5,21 @@ namespace Bikeapelago.Api.Repositories;
 
 public class MockUserRepository : IUserRepository
 {
-    public Task<User?> GetByIdAsync(string id)
+    public Task<User?> GetByIdAsync(Guid id)
     {
-        return Task.FromResult<User?>(new User { Id = "test-id", Username = "testuser", Name = "Test User" });
+        return Task.FromResult<User?>(new User { Id = id, Username = "testuser", Name = "Test User" });
     }
 
     public Task<User?> GetByUsernameAsync(string username)
     {
         if (username == "testuser")
-            return Task.FromResult<User?>(new User { Id = "test-id", Username = "testuser", Name = "Test User" });
+            return Task.FromResult<User?>(new User { Id = Guid.Empty, Username = "testuser", Name = "Test User" });
         return Task.FromResult<User?>(null);
     }
 
     public Task<User> CreateAsync(User user, string password)
     {
-        user.Id = Guid.NewGuid().ToString();
+        user.Id = Guid.NewGuid();
         return Task.FromResult(user);
     }
 
@@ -32,7 +32,7 @@ public class MockUserRepository : IUserRepository
     {
         if (username == "testuser" && password == "Password")
         {
-            var user = new User { Id = "test-id", Username = "testuser", Name = "Test User" };
+            var user = new User { Id = Guid.Empty, Username = "testuser", Name = "Test User" };
             return Task.FromResult<(string Token, User User)?>(("mock-jwt-token-for-e2e", user));
         }
         return Task.FromResult<(string Token, User User)?>(null);
@@ -41,6 +41,6 @@ public class MockUserRepository : IUserRepository
     public Task<User?> GetCurrentUserAsync(string token)
     {
         // In mock mode, any token resolves to the test user
-        return Task.FromResult<User?>(new User { Id = "test-id", Username = "testuser", Name = "Test User" });
+        return Task.FromResult<User?>(new User { Id = Guid.Empty, Username = "testuser", Name = "Test User" });
     }
 }

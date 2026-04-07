@@ -9,7 +9,7 @@ namespace Bikeapelago.Api.Services;
 
 public class NodeGenerationRequest
 {
-    public string SessionId { get; set; } = string.Empty;
+    public Guid SessionId { get; set; }
     public double CenterLat { get; set; }
     public double CenterLon { get; set; }
     public double Radius { get; set; }
@@ -17,47 +17,57 @@ public class NodeGenerationRequest
     public string Mode { get; set; } = "archipelago"; // or "singleplayer"
 }
 
-public class NodeGenerationService(OverpassService overpassService, IMapNodeRepository nodeRepository, IGameSessionRepository sessionRepository)
+public class NodeGenerationService(
+    IOsmDiscoveryService osmDiscoveryService,
+    IMapNodeRepository nodeRepository,
+    IGameSessionRepository sessionRepository)
 {
-    private readonly OverpassService _overpassService = overpassService;
+    private readonly IOsmDiscoveryService _osmDiscoveryService = osmDiscoveryService;
     private readonly IMapNodeRepository _nodeRepository = nodeRepository;
     private readonly IGameSessionRepository _sessionRepository = sessionRepository;
 
     public async Task<int> GenerateNodesAsync(NodeGenerationRequest request)
     {
-        Console.WriteLine($"[NodeGenerationService] Generating nodes for session {request.SessionId}. USE_MOCK_OVERPASS={Environment.GetEnvironmentVariable("USE_MOCK_OVERPASS")}");
-        // 1. Update session status to SetupInProgress
-        var session = await _sessionRepository.GetByIdAsync(request.SessionId) ?? throw new Exception("Session not found");
+        Console.WriteLine($"[NodeGenerationService] Generating {request.NodeCount} nodes for session {request.SessionId} via osm-discovery-api.");
 
-        // 2. Fetch intersections
-        var allIntersections = await _overpassService.FetchCyclingIntersectionsAsync(request.CenterLat, request.CenterLon, request.Radius);
+        // 1. Verify session exists
+        var session = await _sessionRepository.GetByIdAsync(request.SessionId)
+            ?? throw new Exception("Session not found");
 
-        if (allIntersections.Count < request.NodeCount)
+        // 2. Fetch random nodes from the OSM Discovery API
+        //    The API returns [{lat, lon}] — no IDs or names.
+        //    We request more than needed so we have a buffer if the API returns fewer.
+        var points = await _osmDiscoveryService.GetRandomNodesAsync(
+            request.CenterLat,
+            request.CenterLon,
+            request.Radius,
+            request.NodeCount);
+
+        if (points.Count < request.NodeCount)
         {
-            throw new Exception($"Found only {allIntersections.Count} intersections, need {request.NodeCount}. Increase radius.");
+            throw new Exception(
+                $"OSM Discovery API returned only {points.Count} nodes, need {request.NodeCount}. " +
+                "Try increasing the radius.");
         }
 
-        // 3. Shuffle and select
-        var allIntersectionsArray = allIntersections.ToArray();
-        Random.Shared.Shuffle(allIntersectionsArray);
-        var selectedNodes = allIntersectionsArray.Take(request.NodeCount).ToList();
+        // 3. Trim to exactly NodeCount (API may return extras if count < available)
+        var selectedPoints = points.Take(request.NodeCount).ToList();
 
-        // 4. Delete existing nodes for session if any
+        // 4. Delete existing nodes for this session
         await _nodeRepository.DeleteBySessionIdAsync(request.SessionId);
 
         // 5. Create MapNodes in PocketBase
         int createdCount = 0;
-        for (var i = 0; i < selectedNodes.Count; i++)
+        for (int i = 0; i < selectedPoints.Count; i++)
         {
-            var osmNode = selectedNodes[i];
+            var point = selectedPoints[i];
             var mapNode = new MapNode
             {
                 SessionId = session.Id,
-                ApLocationId = 800000 + (i + 1), // Archipelago mimic
-                OsmNodeId = osmNode.Id.ToString(),
-                Name = (Environment.GetEnvironmentVariable("USE_MOCK_OVERPASS") == "true") ? $"Mock Node {osmNode.Id}" : ((osmNode.Tags != null && osmNode.Tags.TryGetValue("name", out var nodeName)) ? nodeName : $"OSM Node {osmNode.Id}"),
-                Lat = osmNode.Lat,
-                Lon = osmNode.Lon,
+                ApLocationId = 800000 + (i + 1), // Archipelago location ID mimic
+                OsmNodeId = $"osm-{request.SessionId.ToString()}-{i + 1}", // synthetic ID
+                Name = $"Node {i + 1}",
+                Location = new NetTopologySuite.Geometries.Point(point.Lon, point.Lat) { SRID = 4326 },
                 State = request.Mode == "singleplayer" && i < 3 ? "Available" : "Hidden"
             };
 
@@ -66,8 +76,7 @@ public class NodeGenerationService(OverpassService overpassService, IMapNodeRepo
         }
 
         // 6. Update session metadata and switch to Active
-        session.CenterLat = request.CenterLat;
-        session.CenterLon = request.CenterLon;
+        session.Location = new NetTopologySuite.Geometries.Point(request.CenterLon, request.CenterLat) { SRID = 4326 };
         session.Radius = (int)request.Radius;
         session.Status = SessionStatus.Active;
         await _sessionRepository.UpdateAsync(session);

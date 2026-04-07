@@ -11,6 +11,7 @@ public class AuthController(IUserRepository userRepository) : ControllerBase
     private readonly IUserRepository _userRepository = userRepository;
 
     [HttpPost("login")]
+    [HttpPost("/api/pb/collections/users/auth-with-password")]
     public async Task<IActionResult> Login([FromBody] LoginRequest request)
     {
         var result = await _userRepository.LoginAsync(request.Username, request.Password);
@@ -18,13 +19,14 @@ public class AuthController(IUserRepository userRepository) : ControllerBase
         {
             return Ok(new {
                 token = result.Value.Token,
-                user = result.Value.User
+                record = result.Value.User
             });
         }
         return Unauthorized(new { message = "Invalid credentials" });
     }
 
     [HttpPost("register")]
+    [HttpPost("/api/pb/collections/users/records")]
     public async Task<IActionResult> Register([FromBody] RegisterRequest request)
     {
         try {

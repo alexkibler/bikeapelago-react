@@ -7,8 +7,7 @@ This document describes the architectural decisions and design patterns chosen f
 ```mermaid
 graph TD
   A[React Frontend] -->|REST API| B[.NET Web API]
-  B --> C[EF Core / SQLite]
-  B -->|Auth/Data| D[PocketBase Proxy]
+  B --> C[EF Core / PostGIS]
   B -->|Archipelago| E[Archipelago JS/C#]
   B -->|Geocoding| F[External API]
   B -->|Routing| G[GraphHopper]
@@ -29,7 +28,7 @@ The UI uses **Tailwind CSS** with **DaisyUI** as the component layer to maintain
 The backend is built using ASP.NET Core 8.0, following clean architecture principles:
 - **Controllers**: Entry points for HTTP requests.
 - **Services**: Business logic, including geocoding logic, session validation, and Archipelago item processing.
-- **Data Access**: Entity Framework Core with SQLite for local persistence (mapping to `GameSessions`, `Locations`, etc.).
+- **Data Access**: Entity Framework Core with **PostgreSQL/PostGIS** for persistence (mapping to `GameSessions`, `Locations`, etc.).
 
 ### Authentication
 JWT-based authentication is used to provide stateless security between the React frontend and .NET backend. A custom `IdentityService` manages user registration and login.
@@ -41,7 +40,7 @@ JWT-based authentication is used to provide stateless security between the React
 | `+layout.svelte`        | `Layout.tsx` (Component)      |
 | `+page.svelte` (Home)   | `Home.tsx` (Page Component)   |
 | `/game/[id]/` (Map)     | `GameView.tsx` + `MapCore`    |
-| `pb` (PocketBase SDK)   | `apiService` + .NET Backend   |
+| `pb` (PocketBase SDK)   | `apiService` (.NET)         |
 | `$lib/ap.ts`            | `ArchipelagoService` (.NET)  |
 
 ## Deployment Strategy

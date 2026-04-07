@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Layout from './components/layout/Layout';
 import Home from './pages/Home';
 import GameView from './pages/GameView';
@@ -7,20 +7,26 @@ import YamlCreator from './pages/YamlCreator';
 import AthleteProfile from './pages/AthleteProfile';
 import NewGame from './pages/NewGame';
 import Login from './pages/Login';
+import { useAuthStore } from './store/authStore';
 import './App.css';
+
+function PrivateRoute({ children }: { children: React.ReactNode }) {
+  const isValid = useAuthStore((s) => s.isValid);
+  return isValid ? <>{children}</> : <Navigate to="/login" replace />;
+}
 
 function App() {
   return (
     <Router>
       <Layout>
         <Routes>
-          <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
-          <Route path="/game/:id" element={<GameView />} />
-          <Route path="/new-game" element={<NewGame />} />
-          <Route path="/setup-session" element={<SessionSetup />} />
-          <Route path="/yaml-creator" element={<YamlCreator />} />
-          <Route path="/athlete" element={<AthleteProfile />} />
+          <Route path="/" element={<PrivateRoute><Home /></PrivateRoute>} />
+          <Route path="/game/:id" element={<PrivateRoute><GameView /></PrivateRoute>} />
+          <Route path="/new-game" element={<PrivateRoute><NewGame /></PrivateRoute>} />
+          <Route path="/setup-session" element={<PrivateRoute><SessionSetup /></PrivateRoute>} />
+          <Route path="/yaml-creator" element={<PrivateRoute><YamlCreator /></PrivateRoute>} />
+          <Route path="/athlete" element={<PrivateRoute><AthleteProfile /></PrivateRoute>} />
         </Routes>
       </Layout>
     </Router>

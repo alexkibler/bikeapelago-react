@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { MapContainer, TileLayer, Marker, ZoomControl, useMap, useMapEvents, Polyline } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, ZoomControl, useMap, useMapEvents, Polyline, Circle } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Loader2, X } from 'lucide-react';
@@ -20,6 +20,24 @@ const MapResizer = () => {
   useEffect(() => {
     setTimeout(() => map.invalidateSize(), 100);
   }, [map]);
+  return null;
+};
+
+// Auto-fits map to the bounding box of all nodes whenever they change
+const MapAutoFitter = ({ nodes }: { nodes: any[] }) => {
+  const map = useMap();
+  const fittedRef = useRef(false);
+
+  useEffect(() => {
+    if (nodes.length === 0 || fittedRef.current) return;
+    const latlngs = nodes.map(n => L.latLng(n.lat, n.lon));
+    const bounds = L.latLngBounds(latlngs);
+    if (bounds.isValid()) {
+      map.fitBounds(bounds, { padding: [48, 48], maxZoom: 15 });
+      fittedRef.current = true;
+    }
+  }, [map, nodes]);
+
   return null;
 };
 
@@ -133,6 +151,123 @@ const GameStatsBar = ({ session, nodes }: { session: any, nodes: any[] }) => {
   );
 };
 
+const ArchipelagoReconnectDialog = ({
+  error,
+  initialUrl,
+  initialSlot,
+  onRetry,
+  onCancel,
+}: {
+  error: string;
+  initialUrl: string;
+  initialSlot: string;
+  onRetry: (url: string, slot: string, password: string) => void;
+  onCancel: () => void;
+}) => {
+  const [url, setUrl] = React.useState(initialUrl);
+  const [slot, setSlot] = React.useState(initialSlot);
+  const [password, setPassword] = React.useState('');
+  const { status: apStatus } = useArchipelagoStore();
+  const isRetrying = apStatus === 'connecting';
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (url.trim() && slot.trim()) onRetry(url.trim(), slot.trim(), password);
+  };
+
+  const inputClass = "w-full px-3 py-2 rounded-lg bg-[rgb(var(--color-surface-overlay))] border border-[var(--color-border-hex)] text-xs text-[var(--color-text-hex)] placeholder:text-[var(--color-text-muted-hex)] focus:outline-none focus:border-[var(--color-primary-hex)] transition-colors";
+
+  return (
+    <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="ap-reconnect-title">
+      {/* Backdrop */}
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={!isRetrying ? onCancel : undefined} aria-hidden="true" />
+      {/* Panel */}
+      <div className="relative w-full max-w-sm bg-[var(--color-surface-hex)] border border-[var(--color-border-strong-hex)] rounded-2xl shadow-2xl overflow-hidden">
+        {/* Red accent top bar */}
+        <div className="h-1 w-full bg-[var(--color-error-hex)]" />
+        <div className="p-6">
+          {/* Header */}
+          <div className="flex items-start gap-3 mb-5">
+            <div className="flex-shrink-0 w-9 h-9 rounded-full bg-[var(--color-error-hex)]/15 flex items-center justify-center">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--color-error-hex)]">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="12" y1="8" x2="12" y2="12"/>
+                <line x1="12" y1="16" x2="12.01" y2="16"/>
+              </svg>
+            </div>
+            <div className="flex-1 min-w-0">
+              <h2 id="ap-reconnect-title" className="text-sm font-bold text-[var(--color-text-hex)] mb-0.5">Archipelago Connection Failed</h2>
+              <p className="text-[10px] text-[var(--color-text-muted-hex)] leading-relaxed break-words">{error}</p>
+            </div>
+          </div>
+
+          {/* Reconnect form */}
+          <form onSubmit={handleSubmit} className="space-y-3">
+            <div>
+              <label htmlFor="ap-reconnect-url" className="block text-[10px] font-bold text-[var(--color-text-muted-hex)] uppercase tracking-wider mb-1">Server URL</label>
+              <input
+                id="ap-reconnect-url"
+                type="text"
+                value={url}
+                onChange={e => setUrl(e.target.value)}
+                placeholder="archipelago.gg:12345"
+                className={inputClass}
+                disabled={isRetrying}
+                autoFocus
+              />
+            </div>
+            <div>
+              <label htmlFor="ap-reconnect-slot" className="block text-[10px] font-bold text-[var(--color-text-muted-hex)] uppercase tracking-wider mb-1">Slot Name</label>
+              <input
+                id="ap-reconnect-slot"
+                type="text"
+                value={slot}
+                onChange={e => setSlot(e.target.value)}
+                placeholder="YourSlotName"
+                className={inputClass}
+                disabled={isRetrying}
+              />
+            </div>
+            <div>
+              <label htmlFor="ap-reconnect-password" className="block text-[10px] font-bold text-[var(--color-text-muted-hex)] uppercase tracking-wider mb-1">Password <span className="normal-case font-normal">(optional)</span></label>
+              <input
+                id="ap-reconnect-password"
+                type="password"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                placeholder="Leave blank if none"
+                className={inputClass}
+                disabled={isRetrying}
+              />
+            </div>
+
+            <div className="flex gap-2 pt-1">
+              <button
+                type="button"
+                onClick={onCancel}
+                disabled={isRetrying}
+                className="flex-1 px-4 py-2 text-xs font-bold rounded-lg border border-[var(--color-border-hex)] text-[var(--color-text-muted-hex)] hover:bg-[rgb(var(--color-surface-overlay))] transition-colors disabled:opacity-40"
+              >
+                Cancel
+              </button>
+              <button
+                id="ap-reconnect-submit"
+                type="submit"
+                disabled={isRetrying || !url.trim() || !slot.trim()}
+                className="flex-1 px-4 py-2 text-xs font-bold rounded-lg bg-[var(--color-primary-hex)] hover:opacity-90 text-white transition-opacity active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {isRetrying ? (
+                  <><Loader2 className="w-3 h-3 animate-spin" /> Connecting…</>
+                ) : 'Try Again'}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const GameView = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -141,8 +276,51 @@ const GameView = () => {
   const [session, setSession] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState('');
+  const [showReconnect, setShowReconnect] = useState(false);
+  const [pendingConnection, setPendingConnection] = useState<{ url: string; slot: string } | null>(null);
 
-  const { checkedLocationIds } = useArchipelagoStore();
+  const { checkedLocationIds, status: apStatus, error: apError } = useArchipelagoStore();
+
+  // Show reconnect dialog on connection failure; hide it if we successfully connect
+  useEffect(() => {
+    if (apStatus === 'error' && apError) {
+      setShowReconnect(true);
+    } else if (apStatus === 'connected') {
+      setShowReconnect(false);
+    }
+  }, [apStatus, apError]);
+
+  // Save new connection info to DB on successful reconnect
+  useEffect(() => {
+    if (apStatus === 'connected' && pendingConnection && session) {
+      const updateSessionDB = async () => {
+        try {
+          const token = pb.authStore.token;
+          const headers = {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+          };
+          const res = await fetch(`/api/sessions/${session.id}`, {
+            method: 'PATCH',
+            headers,
+            body: JSON.stringify({
+              ap_server_url: pendingConnection.url,
+              ap_slot_name: pendingConnection.slot
+            })
+          });
+          if (res.ok) {
+            const updated = await res.json();
+            setSession(updated);
+          }
+        } catch (err) {
+          console.error('Failed to save updated connection info', err);
+        } finally {
+          setPendingConnection(null);
+        }
+      };
+      updateSessionDB();
+    }
+  }, [apStatus, pendingConnection, session]);
   
   // Activate Geolocation tracking
   useGeolocation();
@@ -257,6 +435,18 @@ const GameView = () => {
 
   return (
     <div className="relative w-full h-full flex flex-col bg-[var(--color-surface-alt-hex)]">
+      {showReconnect && apError && session && (
+        <ArchipelagoReconnectDialog
+          error={apError}
+          initialUrl={session.ap_server_url ?? ''}
+          initialSlot={session.ap_slot_name ?? ''}
+          onRetry={(url, slot, pw) => {
+            setPendingConnection({ url, slot });
+            archipelago.connect(url, slot, pw);
+          }}
+          onCancel={() => setShowReconnect(false)}
+        />
+      )}
       <GameStatsBar session={session} nodes={nodes} />
 
       <div className="flex-1 w-full relative flex overflow-hidden pb-20 md:pb-0">
@@ -275,7 +465,24 @@ const GameView = () => {
             />
             <MapResizer />
             <MapEvents />
+            <MapAutoFitter nodes={nodes} />
             <ZoomControl position="bottomleft" />
+
+            {/* Radius circle around session center */}
+            {session.center_lat && session.center_lon && session.radius && (
+              <Circle
+                center={[session.center_lat, session.center_lon]}
+                radius={session.radius}
+                pathOptions={{
+                  color: '#f97316',
+                  weight: 2,
+                  opacity: 0.5,
+                  fillColor: '#f97316',
+                  fillOpacity: 0.04,
+                  dashArray: '8 6',
+                }}
+              />
+            )}
             
             {nodes.map(node => (
               <Marker 

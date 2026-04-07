@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { pb } from '../store/authStore';
+import { pb, handleUnauthorized } from '../store/authStore';
 
 export interface MapNode {
   id: string;
@@ -35,6 +35,7 @@ export function useSessionData(id: string | undefined) {
 
       const sessionRes = await fetch(`/api/sessions/${id}`, { headers });
       if (!sessionRes.ok) {
+        if (sessionRes.status === 401) { handleUnauthorized(); return; }
         // Fallback for E2E tests if ID is mock_session_123
         if (id === 'mock_session_123') {
            setSession({ id: 'mock_session_123', ap_seed_name: 'Mock Seed', ap_slot_name: 'Mock Slot', center_lat: 40.7128, center_lon: -74.006 });
@@ -50,7 +51,10 @@ export function useSessionData(id: string | undefined) {
       setSession(sessionData);
 
       const nodesRes = await fetch(`/api/sessions/${id}/nodes`, { headers });
-      if (!nodesRes.ok) throw new Error('Failed to load nodes');
+      if (!nodesRes.ok) {
+        if (nodesRes.status === 401) { handleUnauthorized(); return; }
+        throw new Error('Failed to load nodes');
+      }
       const nodesData = await nodesRes.json();
       setNodes(nodesData);
     } catch (err: unknown) {

@@ -1,0 +1,8 @@
+{
+	"game": "Bikeapelago",
+	"creators": ["Alex"],
+	"description": "Real-world cycling intersections as Archipelago Locations. Players upload .fit GPS files to validate checks IRL.",
+	"minimum_ap_version": "0.4.4",
+	"version": "0.1.0",
+	"compatible_version": 1
+}
