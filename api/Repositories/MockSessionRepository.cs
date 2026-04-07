@@ -9,26 +9,26 @@ public class MockSessionRepository : IGameSessionRepository
     private static readonly List<GameSession> _sessions =
     [
         new GameSession {
-            Id = "session-1",
-            UserId = "test-id",
+            Id = Guid.Empty,
+            UserId = Guid.Empty,
             ApSeedName = "Adventure Path #42",
             Status = SessionStatus.Active
         }
     ];
 
-    public Task<GameSession?> GetByIdAsync(string id)
+    public Task<GameSession?> GetByIdAsync(Guid id)
     {
-        return Task.FromResult(_sessions.Find(s => s.Id == id));
+        return Task.FromResult<GameSession?>(_sessions.Find(s => s.Id == id));
     }
 
-    public Task<IEnumerable<GameSession>> GetByUserIdAsync(string userId)
+    public Task<IEnumerable<GameSession>> GetByUserIdAsync(Guid userId)
     {
-        return Task.FromResult(_sessions.Where(s => s.UserId == userId));
+        return Task.FromResult(_sessions.Where(s => s.UserId == userId).AsEnumerable());
     }
 
     public Task<GameSession> CreateAsync(GameSession session)
     {
-        session.Id = Guid.NewGuid().ToString();
+        session.Id = Guid.NewGuid();
         _sessions.Add(session);
         return Task.FromResult(session);
     }
@@ -40,7 +40,7 @@ public class MockSessionRepository : IGameSessionRepository
         return Task.FromResult(session);
     }
 
-    public Task<bool> DeleteAsync(string id)
+    public Task<bool> DeleteAsync(Guid id)
     {
         _sessions.RemoveAll(s => s.Id == id);
         return Task.FromResult(true);

@@ -165,7 +165,7 @@ const SessionSetup = () => {
 
 
   return (
-    <div className="py-8 space-y-8">
+    <div className="py-8 space-y-8 max-w-screen-xl mx-auto px-6">
       {/* Header */}
       <header className="max-w-4xl mx-auto text-center">
         <h1 className="text-3xl font-black text-[var(--color-text-hex)] mb-2">Configure Your Session</h1>

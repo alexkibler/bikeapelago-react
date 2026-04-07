@@ -11,7 +11,7 @@ const BottomNav = () => {
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-[2000] border-t border-[var(--color-border-hex)] bg-[var(--color-surface-hex)] px-0 pb-safe pt-0 md:hidden">
-      <div className="mx-auto flex max-w-lg items-center justify-around px-4 pt-2 pb-2">
+      <div className="mx-auto flex max-w-lg items-center justify-around px-6 pt-2 pb-2">
         {isGamePage ? (
           <>
             <Link to="/" className="flex flex-col items-center gap-1 p-2 text-[var(--color-text-muted-hex)] transition-colors hover:text-[var(--color-primary-hex)]">

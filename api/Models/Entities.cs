@@ -1,5 +1,7 @@
+using System;
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
+using NetTopologySuite.Geometries;
 
 namespace Bikeapelago.Api.Models;
 
@@ -7,7 +9,7 @@ public class User
 {
     [Key]
     [JsonPropertyName("id")]
-    public string Id { get; set; } = string.Empty;
+    public Guid Id { get; set; } = Guid.NewGuid();
 
     [Required]
     [JsonPropertyName("username")]
@@ -33,11 +35,11 @@ public class GameSession
 {
     [Key]
     [JsonPropertyName("id")]
-    public string Id { get; set; } = string.Empty;
+    public Guid Id { get; set; } = Guid.NewGuid();
 
     [Required]
     [JsonPropertyName("user")]
-    public string UserId { get; set; } = string.Empty;
+    public Guid UserId { get; set; }
 
     [JsonPropertyName("ap_seed_name")]
     public string? ApSeedName { get; set; }
@@ -48,11 +50,8 @@ public class GameSession
     [JsonPropertyName("ap_slot_name")]
     public string? ApSlotName { get; set; }
 
-    [JsonPropertyName("center_lat")]
-    public double? CenterLat { get; set; }
-
-    [JsonPropertyName("center_lon")]
-    public double? CenterLon { get; set; }
+    [JsonIgnore] // Use DTO for JSON serialization of Point
+    public Point? Location { get; set; }
 
     [JsonPropertyName("radius")]
     public int? Radius { get; set; }
@@ -72,11 +71,11 @@ public class MapNode
 {
     [Key]
     [JsonPropertyName("id")]
-    public string Id { get; set; } = string.Empty;
+    public Guid Id { get; set; } = Guid.NewGuid();
 
     [Required]
     [JsonPropertyName("session")]
-    public string SessionId { get; set; } = string.Empty;
+    public Guid SessionId { get; set; }
 
     [JsonPropertyName("name")]
     public string Name { get; set; } = string.Empty;
@@ -87,14 +86,72 @@ public class MapNode
     [JsonPropertyName("osm_node_id")]
     public string OsmNodeId { get; set; } = string.Empty;
 
-    [JsonPropertyName("lat")]
-    public double Lat { get; set; }
-
-    [JsonPropertyName("lon")]
-    public double Lon { get; set; }
+    [JsonIgnore] // Use DTO for JSON serialization of Point
+    public Point? Location { get; set; }
 
     [JsonPropertyName("state")]
     public string State { get; set; } = "Hidden"; // "Hidden" | "Available" | "Checked"
+}
+
+public class Route
+{
+    [Key]
+    [JsonPropertyName("id")]
+    public Guid Id { get; set; } = Guid.NewGuid();
+
+    [Required]
+    [JsonPropertyName("user")]
+    public Guid UserId { get; set; }
+
+    [JsonPropertyName("title")]
+    public string? Title { get; set; }
+
+    [JsonPropertyName("sport")]
+    public string? Sport { get; set; }
+
+    [JsonPropertyName("distance")]
+    public double? Distance { get; set; }
+
+    [JsonPropertyName("elevation")]
+    public double? Elevation { get; set; }
+
+    [JsonPropertyName("time")]
+    public double? Time { get; set; }
+
+    [JsonIgnore]
+    public LineString? Path { get; set; }
+}
+
+public class Activity
+{
+    [Key]
+    [JsonPropertyName("id")]
+    public Guid Id { get; set; } = Guid.NewGuid();
+
+    [Required]
+    [JsonPropertyName("user")]
+    public Guid UserId { get; set; }
+
+    [JsonPropertyName("name")]
+    public string? Name { get; set; }
+
+    [JsonPropertyName("description")]
+    public string? Description { get; set; }
+
+    [JsonPropertyName("sport")]
+    public string? Sport { get; set; }
+
+    [JsonPropertyName("start_time")]
+    public string? StartTime { get; set; }
+
+    [JsonPropertyName("tot_distance")]
+    public double? TotDistance { get; set; }
+
+    [JsonPropertyName("tot_elevation")]
+    public double? TotElevation { get; set; }
+
+    [JsonIgnore]
+    public LineString? Path { get; set; }
 }
 
 public enum SessionStatus
@@ -105,8 +162,8 @@ public enum SessionStatus
     Archived
 }
 
-// Helper for PocketBase list responses
-public class PocketBaseListResponse<T>
+// Helper for generic list responses
+public class PaginatedListResponse<T>
 {
     [JsonPropertyName("page")]
     public int Page { get; set; }
@@ -117,5 +174,5 @@ public class PocketBaseListResponse<T>
     [JsonPropertyName("totalPages")]
     public int TotalPages { get; set; }
     [JsonPropertyName("items")]
-    public List<T> Items { get; set; } = [];
+    public virtual List<T> Items { get; set; } = [];
 }

@@ -1,73 +1,53 @@
-# React + TypeScript + Vite
+# Bikeapelago: React Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+The Bikeapelago frontend is a high-performance React application designed for real-time interaction with the .NET backend and the [Archipelago](https://archipelago.gg/) network.
 
-Currently, two official plugins are available:
+## Tech Stack
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- **React 18**: Component-based UI library.
+- **Vite**: Ultra-fast build tool and development server.
+- **Zustand**: Minimalist state management for game and auth state.
+- **Tailwind CSS + DaisyUI**: Modern, utility-first styling with accessible component themes.
+- **React Leaflet**: Interactive map rendering and location tracking.
+- **Playwright**: Comprehensive E2E testing framework.
 
-## React Compiler
+## Project Structure
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- `src/components/`: Reusable UI components (Game views, Layouts).
+- `src/hooks/`: Custom React hooks for business logic and data fetching.
+- `src/lib/`: Core utilities for Archipelago, Geocoding, and GraphHopper.
+- `src/pages/`: Main application routes (Home, Login, GameView).
+- `src/store/`: Zustand state stores for centralized application state.
+- `tests/e2e/`: Full suite of Playwright tests verifying critical user flows.
 
-## Expanding the ESLint configuration
+## Getting Started
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+### Installation
+```bash
+npm install
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+### Run Dev Server
+```bash
+npm run dev
 ```
+
+### Run E2E Tests
+```bash
+npm run test:e2e
+```
+
+## Configuration
+
+The application is configured via environment variables in `.env` files.
+
+### Key Variables
+- `VITE_API_URL`: The base URL for the .NET API.
+
+## Deployment
+
+The frontend is built as a static SPA:
+```bash
+npm run build
+```
+The output will be in the `dist/` directory, which can be served by Nginx or integrated into the .NET API's static file hosting.

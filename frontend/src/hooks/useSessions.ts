@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { pb } from '../store/authStore';
+import { pb, handleUnauthorized } from '../store/authStore';
 
 export interface GameSession {
   id: string;
@@ -22,6 +22,7 @@ export function useSessions() {
           headers: token ? { 'Authorization': `Bearer ${token}` } : {}
         });
         if (!res.ok) {
+            if (res.status === 401) { handleUnauthorized(); return; }
             const errText = await res.text();
             throw new Error(`HTTP ${res.status} - ${errText}`);
         }

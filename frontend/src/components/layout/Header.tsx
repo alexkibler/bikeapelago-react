@@ -7,7 +7,7 @@ const Header = () => {
   const { user } = useAuthStore();
 
   return (
-    <nav className="max-w-screen-xl h-12 mx-auto flex items-center justify-between px-4">
+    <nav className="max-w-screen-xl h-12 mx-auto flex items-center justify-between px-6">
       <div className="flex items-center">
         <Link to="/" className="flex items-center">
           <span className="text-[var(--color-primary-hex)] uppercase font-extrabold text-lg tracking-tight italic">
