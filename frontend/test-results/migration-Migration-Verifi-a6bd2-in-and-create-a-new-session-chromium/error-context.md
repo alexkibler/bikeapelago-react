@@ -22,33 +22,19 @@ Call log:
 
 ```yaml
 - generic [ref=e3]:
-  - complementary [ref=e4]:
-    - link "bikeapelago" [ref=e6] [cursor=pointer]:
-      - /url: /
-      - generic [ref=e7]: bikeapelago
-    - navigation [ref=e8]:
-      - link "Dashboard" [ref=e9] [cursor=pointer]:
-        - /url: /
-        - img [ref=e10]
-        - generic [ref=e13]: Dashboard
-      - link "Play Now" [ref=e14] [cursor=pointer]:
-        - /url: /new-game
-        - img [ref=e15]
-        - generic [ref=e18]: Play Now
-      - link "Create YAML" [ref=e19] [cursor=pointer]:
-        - /url: /yaml-creator
-        - img [ref=e20]
-        - generic [ref=e23]: Create YAML
-    - button "Sign Out" [ref=e25] [cursor=pointer]:
-      - img [ref=e26]
-      - generic [ref=e29]: Sign Out
-  - main [ref=e31]:
-    - generic [ref=e32]:
-      - generic [ref=e33]:
-        - generic [ref=e34]: Active Game Sessions
-        - heading "Welcome Back, Rider" [level=1] [ref=e36]
-        - paragraph [ref=e37]: Select a session to resume your journey through the Archipelago.
-      - paragraph [ref=e38]: Failed to load sessions.
+  - generic [ref=e4]: "[plugin:vite:import-analysis] Failed to resolve import \"../../../../src/lib/mock\" from \"src/store/authStore.ts\". Does the file exist?"
+  - generic [ref=e5]: /app/frontend/src/store/authStore.ts:3:31
+  - generic [ref=e6]: "1 | import { create } from \"zustand\"; 2 | import PocketBase from \"pocketbase\"; 3 | import { MockPocketBase } from \"../../../../src/lib/mock\"; | ^ 4 | // Point PocketBase to the .NET proxy rather than directly to the DB container 5 | const url = import.meta.env.VITE_PUBLIC_API_URL ? `${import.meta.env.VITE_PUBLIC_API_URL}/api/pb` : \"/api/pb\";"
+  - generic [ref=e7]: at TransformPluginContext._formatLog (file:///app/frontend/node_modules/vite/dist/node/chunks/node.js:30339:39) at TransformPluginContext.error (file:///app/frontend/node_modules/vite/dist/node/chunks/node.js:30336:14) at normalizeUrl (file:///app/frontend/node_modules/vite/dist/node/chunks/node.js:27624:18) at async file:///app/frontend/node_modules/vite/dist/node/chunks/node.js:27687:30 at async Promise.all (index 2) at async TransformPluginContext.transform (file:///app/frontend/node_modules/vite/dist/node/chunks/node.js:27655:4) at async EnvironmentPluginContainer.transform (file:///app/frontend/node_modules/vite/dist/node/chunks/node.js:30128:14) at async loadAndTransform (file:///app/frontend/node_modules/vite/dist/node/chunks/node.js:24459:26) at async viteTransformMiddleware (file:///app/frontend/node_modules/vite/dist/node/chunks/node.js:24253:20)
+  - generic [ref=e8]:
+    - text: Click outside, press Esc key, or fix the code to dismiss.
+    - text: You can also disable this overlay by setting
+    - code [ref=e9]: server.hmr.overlay
+    - text: to
+    - code [ref=e10]: "false"
+    - text: in
+    - code [ref=e11]: vite.config.ts
+    - text: .
 ```
 
 # Test source
