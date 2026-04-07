@@ -25,6 +25,7 @@ public class NodeGenerationService(OverpassService overpassService, IMapNodeRepo
 
     public async Task<int> GenerateNodesAsync(NodeGenerationRequest request)
     {
+        Console.WriteLine($"[NodeGenerationService] Generating nodes for session {request.SessionId}. USE_MOCK_OVERPASS={Environment.GetEnvironmentVariable("USE_MOCK_OVERPASS")}");
         // 1. Update session status to SetupInProgress
         var session = await _sessionRepository.GetByIdAsync(request.SessionId) ?? throw new Exception("Session not found");
 
@@ -54,7 +55,7 @@ public class NodeGenerationService(OverpassService overpassService, IMapNodeRepo
                 SessionId = session.Id,
                 ApLocationId = 800000 + (i + 1), // Archipelago mimic
                 OsmNodeId = osmNode.Id.ToString(),
-                Name = $"OSM Node {osmNode.Id}", // Svelte does geocoding, skip for now or add proxy call
+                Name = (Environment.GetEnvironmentVariable("USE_MOCK_OVERPASS") == "true") ? $"Mock Node {osmNode.Id}" : ((osmNode.Tags != null && osmNode.Tags.TryGetValue("name", out var nodeName)) ? nodeName : $"OSM Node {osmNode.Id}"),
                 Lat = osmNode.Lat,
                 Lon = osmNode.Lon,
                 State = request.Mode == "singleplayer" && i < 3 ? "Available" : "Hidden"

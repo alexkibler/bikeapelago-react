@@ -87,7 +87,7 @@ const UploadPanel = ({ sessionId }: { sessionId: string }) => {
               path.push({
                 lat: pos.value.latitude || pos.value.lat,
                 lon: pos.value.longitude || pos.value.lon,
-                alt: altitudes[i]?.value
+                alt: altitudes[i]?.value ?? undefined
               });
             }
           });
@@ -108,6 +108,7 @@ const UploadPanel = ({ sessionId }: { sessionId: string }) => {
           fitParser.parse(arrayBuffer, (err: any, data: any) => err ? reject(err) : resolve(data));
         });
 
+        console.log('[UploadPanel] Fallback fitObject:', fitObject);
         if (fitObject.records?.length > 0) {
           fitObject.records.forEach((record: any) => {
             if (record.position_lat !== undefined && record.position_long !== undefined) {

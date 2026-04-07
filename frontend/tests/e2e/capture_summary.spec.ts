@@ -3,38 +3,29 @@ import { FitWriter } from '@markw65/fit-file-writer';
 import * as fs from 'fs';
 import * as path from 'path';
 
-test('Capture Ride Summary Screenshot', async ({ context, page }) => {
-	// Set auth cookie
-	await context.addCookies([
-		{
-			name: 'mock_pb_auth',
-			value: JSON.stringify({
-				token: 'mock_token',
-				model: {
-					id: 'mock_user_123',
-					username: 'mockuser',
-					email: 'mock@example.com'
-				}
-			}),
-			domain: 'localhost',
-			path: '/'
-		}
-	]);
-
-	// Ensure mock mode
+test('Capture Ride Summary Screenshot', async ({ page }) => {
+	// 0. Enable Mock Mode for consistent summary UI
 	await page.addInitScript(() => {
 		(window as any).PLAYWRIGHT_TEST = true;
 	});
 
-	await page.goto('/game/mock_session_123');
-	await page.waitForLoadState('networkidle');
+	// 1. Start a New Game (Single Player)
+	await page.goto('/new-game');
+	await page.click('button:has-text("Single Player")');
+	await page.click('button:has-text("Start Single Player")');
 
-	const connectButton = page.locator('button:has-text("Connect & Play")');
-	if (await connectButton.isVisible()) {
-		await connectButton.click();
-	}
+	// 2. Configure Session
+	await page.waitForURL(/\/setup-session/);
+	// Pittsburgh is the default center in SessionSetup.tsx
+	await page.click('button:has-text("Create Session")');
 
-	// Generate a valid FIT file
+	// 3. Wait for Game View
+	await page.waitForURL(/\/game\//, { timeout: 60000 });
+	const sessionId = page.url().split('/').pop();
+	console.log(`Created session: ${sessionId}`);
+
+	// 4. Generate a FIT file that will trigger at least one node check
+	// We'll use points around the default Pittsburgh center: [40.4406, -79.9959]
 	const toSemicircles = (deg: number) => Math.round(deg * (Math.pow(2, 31) / 180));
 	const writer = new FitWriter();
 	writer.writeMessage('file_id', {
@@ -64,28 +55,26 @@ test('Capture Ride Summary Screenshot', async ({ context, page }) => {
 		sport: 'cycling',
 		total_elapsed_time: 3600,
 		total_timer_time: 3600,
-		total_distance: 25000,
-		total_ascent: 450
+		total_distance: 5000,
+		total_ascent: 100
 	});
 	writer.writeMessage('lap', {
 		timestamp: writer.time(startTime),
 		start_time: writer.time(startTime),
 		total_elapsed_time: 3600,
 		total_timer_time: 3600,
-		total_distance: 25000,
-		total_ascent: 450
+		total_distance: 5000,
+		total_ascent: 100
 	});
 
-	// Path points around NYC center
-	for (let i = 0; i < 10; i++) {
+	// Points around Pittsburgh
+	for (let i = 0; i < 20; i++) {
 		writer.writeMessage('record', {
 			timestamp: writer.time(new Date(startTime.getTime() + i * 1000)),
-			position_lat: toSemicircles(40.7128 + i * 0.001),
-			position_long: toSemicircles(-74.006 + i * 0.001),
-			altitude: 250 + i * 2,
-			heart_rate: 140 + i,
-			power: 200 + i * 5,
-			distance: i * 100
+			position_lat: toSemicircles(40.4406 + i * 0.0001),
+			position_long: toSemicircles(-79.9959 + i * 0.0001),
+			altitude: 250,
+			distance: i * 50
 		});
 	}
 
@@ -96,11 +85,10 @@ test('Capture Ride Summary Screenshot', async ({ context, page }) => {
 		Buffer.from(fitData.buffer, fitData.byteOffset, fitData.byteLength)
 	);
 
-	// Upload
+	// 5. Upload and Capture
 	const uploadTab = page.locator('button:has-text("Upload")').filter({ visible: true });
 	await uploadTab.click();
 
-	// Ensure panel is open
 	await expect(page.locator('.panel-title')).toContainText('Upload', { timeout: 15000 });
 
 	const fileInput = page.locator('input#file-upload');
@@ -109,16 +97,21 @@ test('Capture Ride Summary Screenshot', async ({ context, page }) => {
 	await page.click('button:has-text("Analyze Ride")');
 
 	// Wait for summary UI
-	await expect(page.locator('text=Distance')).toBeVisible({ timeout: 15000 });
+	await expect(page.locator('text=DISTANCE')).toBeVisible({ timeout: 30000 });
 
-	// Wait for map zoom/polyline animations and network to settle
+	// Wait for map and fonts
 	await page.waitForLoadState('networkidle');
 	await page.evaluate(() => document.fonts.ready);
 
 	// Capture screenshot
 	const screenshotPath = path.join(process.cwd(), 'static/docs/screenshots/7_Ride_Summary.png');
+	// Ensure directory exists
+	const dir = path.dirname(screenshotPath);
+	if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+	
 	await page.screenshot({ path: screenshotPath, fullPage: true });
 	console.log(`Screenshot saved to ${screenshotPath}`);
 
 	if (fs.existsSync(fitFilePath)) fs.unlinkSync(fitFilePath);
 });
+

@@ -62,6 +62,26 @@ public class OverpassService(HttpClient httpClient, Microsoft.Extensions.Configu
 
     public async Task<List<OsmNode>> FetchCyclingIntersectionsAsync(double lat, double lon, double radius)
     {
+        if (Environment.GetEnvironmentVariable("USE_MOCK_OVERPASS") == "true")
+        {
+            // Generate a grid of points around the requested center for testing
+            var mockNodes = new List<OsmNode>();
+            for (int i = -5; i <= 5; i++)
+            {
+                for (int j = -5; j <= 5; j++)
+                {
+                    mockNodes.Add(new OsmNode
+                    {
+                        Id = 1000000 + (i + 5) * 11 + (j + 5),
+                        Lat = lat + (i * 0.001),
+                        Lon = lon + (j * 0.001),
+                        Tags = new Dictionary<string, string> { { "name", $"Mock intersection {i},{j}" } }
+                    });
+                }
+            }
+            return mockNodes;
+        }
+
         var query = $$"""
             [out:json][timeout:25];
             way["highway"~"^(residential|tertiary|unclassified|living_street|cycleway|track)$"]["bicycle"!="no"](around:{{radius}},{{lat}},{{lon}});
