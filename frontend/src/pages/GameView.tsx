@@ -63,7 +63,7 @@ const GameStatsBar = ({ session, nodes }: { session: any, nodes: any[] }) => {
                       status === 'error' ? 'bg-[var(--color-error-hex)]' : 'bg-[var(--color-border-hex)]';
 
   return (
-    <div className="w-full bg-[#1e1e1e] border-b border-[#262626] px-4 py-2 flex items-center justify-between shrink-0 h-12 z-10">
+    <div className="absolute top-0 left-0 right-0 bg-[var(--color-surface-hex)]/90 backdrop-blur-md border-b border-[var(--color-border-strong-hex)] px-4 py-2 flex items-center justify-between h-12 z-[1000]">
       <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-[var(--color-border-hex)] bg-[rgb(var(--color-surface-overlay))] relative group min-w-0">
         <div className={`w-2 h-2 rounded-full flex-shrink-0 ${statusColor}`}></div>
         <span className="text-xs font-medium text-[var(--color-text-muted-hex)] truncate">
@@ -190,16 +190,16 @@ const GameView = () => {
 
   if (loading) {
     return (
-      <div className="h-full flex items-center justify-center bg-neutral-900">
-        <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
+      <div className="h-full flex items-center justify-center bg-[var(--color-surface-alt-hex)]">
+        <Loader2 className="w-8 h-8 animate-spin text-[var(--color-primary-hex)]" />
       </div>
     );
   }
 
   if (errorMsg || !session) {
     return (
-      <div className="h-full flex flex-col items-center justify-center space-y-4 bg-neutral-900">
-        <p className="text-red-500 font-bold">{errorMsg || 'Session not found'}</p>
+      <div className="h-full flex flex-col items-center justify-center space-y-4 bg-[var(--color-surface-alt-hex)]">
+        <p className="text-[var(--color-error-hex)] font-bold">{errorMsg || 'Session not found'}</p>
         <button onClick={() => navigate('/')} className="btn-orange px-6 py-2 rounded-lg font-bold">Back to Sessions</button>
       </div>
     );
@@ -214,7 +214,7 @@ const GameView = () => {
   const analysisPath = analysisResult?.path ? analysisResult.path.map((p: { lat: number, lon: number }) => [p.lat, p.lon] as [number, number]) : [];
 
   return (
-    <div className="w-full h-full flex flex-col bg-neutral-900">
+    <div className="relative w-full h-full flex flex-col bg-[var(--color-surface-alt-hex)]">
       <GameStatsBar session={session} nodes={nodes} />
 
       <div className="flex-1 w-full relative flex overflow-hidden pb-20 md:pb-0">
@@ -296,16 +296,16 @@ const GameView = () => {
               </button>
             )}
 
-            <div className="bg-[#1e1e1e]/90 backdrop-blur-md rounded-xl border border-white/10 shadow-2xl overflow-hidden flex flex-col">
+            <div className="bg-[var(--color-surface-hex)]/90 backdrop-blur-md rounded-xl border border-[var(--color-border-strong-hex)] shadow-2xl overflow-hidden flex flex-col">
                <button
                   onClick={() => mapRef.current?.zoomIn()}
-                  className="p-3 hover:bg-white/10 text-white transition-colors border-b border-white/5"
+                  className="p-3 hover:bg-[rgb(var(--color-surface-overlay))] text-[var(--color-text-hex)] transition-colors border-b border-[var(--color-border-hex)]"
                >
                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
                </button>
                <button
                   onClick={() => mapRef.current?.zoomOut()}
-                  className="p-3 hover:bg-white/10 text-white transition-colors"
+                  className="p-3 hover:bg-[rgb(var(--color-surface-overlay))] text-[var(--color-text-hex)] transition-colors"
                >
                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
                </button>
@@ -314,15 +314,15 @@ const GameView = () => {
 
           {/* Quick Stats Overlay (Floating when no panel open) */}
           {!activePanel && (
-            <div className="absolute bottom-4 left-4 right-4 md:right-4 md:left-auto md:w-80 bg-[#1e1e1e]/90 backdrop-blur-md rounded-xl p-4 border border-white/10 z-5 flex justify-between items-center shadow-2xl">
+            <div className="absolute bottom-4 left-4 right-4 md:right-4 md:left-auto md:w-80 bg-[var(--color-surface-hex)]/90 backdrop-blur-md rounded-xl p-4 border border-[var(--color-border-strong-hex)] z-5 flex justify-between items-center shadow-2xl">
                 <div className="flex gap-4">
                   <div className="flex flex-col">
-                    <span className="text-[10px] font-bold text-neutral-400 tracking-wider uppercase">Distance</span>
-                    <span className="text-white font-bold text-lg leading-none">{routeData.distance.toFixed(2)}<span className="text-xs text-neutral-400 font-normal ml-1">km</span></span>
+                    <span className="text-[10px] font-bold text-[var(--color-text-muted-hex)] tracking-wider uppercase">Distance</span>
+                    <span className="text-[var(--color-text-hex)] font-bold text-lg leading-none">{routeData.distance.toFixed(2)}<span className="text-xs text-[var(--color-text-muted-hex)] font-normal ml-1">km</span></span>
                   </div>
                   <div className="flex flex-col">
-                    <span className="text-[10px] font-bold text-neutral-400 tracking-wider uppercase">Elev Gain</span>
-                    <span className="text-white font-bold text-lg leading-none">{routeData.elevation.toFixed(0)}<span className="text-xs text-neutral-400 font-normal ml-1">m</span></span>
+                    <span className="text-[10px] font-bold text-[var(--color-text-muted-hex)] tracking-wider uppercase">Elev Gain</span>
+                    <span className="text-[var(--color-text-hex)] font-bold text-lg leading-none">{routeData.elevation.toFixed(0)}<span className="text-xs text-[var(--color-text-muted-hex)] font-normal ml-1">m</span></span>
                   </div>
                 </div>
                 {routeData.polyline && (
@@ -337,10 +337,10 @@ const GameView = () => {
 
         {/* Side Panels */}
         {activePanel && (
-          <div className="w-full md:w-96 border-l border-white/10 flex flex-col bg-[#1e1e1e] z-10 absolute inset-0 md:relative md:bg-neutral-900">
-             <div className="flex items-center justify-between p-4 border-b border-white/5 md:hidden">
-                <span className="font-bold text-white uppercase tracking-widest text-xs">{activePanel}</span>
-                <button onClick={() => setActivePanel(null)} className="p-2 hover:bg-white/5 rounded-lg text-neutral-400">
+          <div className="w-full md:w-96 border-l border-[var(--color-border-hex)] flex flex-col bg-[var(--color-surface-hex)] z-10 absolute inset-0 md:relative md:bg-[var(--color-surface-alt-hex)]">
+             <div className="flex items-center justify-between p-4 border-b border-[var(--color-border-hex)] md:hidden">
+                <span className="font-bold text-[var(--color-text-hex)] uppercase tracking-widest text-xs">{activePanel}</span>
+                <button onClick={() => setActivePanel(null)} className="p-2 hover:bg-[rgb(var(--color-surface-overlay))] rounded-lg text-[var(--color-text-muted-hex)]">
                   <X className="w-5 h-5" />
                 </button>
              </div>

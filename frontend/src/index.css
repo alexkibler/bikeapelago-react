@@ -43,6 +43,14 @@
   --color-info-hex: #3b82f6;
 }
 
+/* Map Dark Mode */
+[data-theme="dark"] .leaflet-layer,
+[data-theme="dark"] .leaflet-control-zoom-in,
+[data-theme="dark"] .leaflet-control-zoom-out,
+[data-theme="dark"] .leaflet-control-attribution {
+  filter: invert(1) hue-rotate(180deg) brightness(95%) contrast(90%);
+}
+
 /* Light theme */
 [data-theme="light"] {
   /* Surfaces */
