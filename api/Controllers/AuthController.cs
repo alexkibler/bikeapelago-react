@@ -6,14 +6,18 @@ namespace Bikeapelago.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class AuthController(IUserRepository userRepository) : ControllerBase
+public class AuthController : ControllerBase
 {
-    private readonly IUserRepository _userRepository = userRepository;
+    private readonly IUserRepository _userRepository;
 
-    [HttpPost("login")]
-    [HttpPost("login/")]
+    public AuthController(IUserRepository userRepository)
+    {
+        _userRepository = userRepository;
+    }
+
+    [HttpPost("/api/auth/login")]
     [HttpPost("/api/pb/collections/users/auth-with-password")]
-    [HttpPost("/api/pb/collections/users/auth-with-password/")]
+    [HttpPost("/api/pb/api/collections/users/auth-with-password")]
     public async Task<IActionResult> Login([FromBody] LoginRequest request)
     {
         var result = await _userRepository.LoginAsync(request.Username, request.Password);
@@ -27,7 +31,7 @@ public class AuthController(IUserRepository userRepository) : ControllerBase
         return Unauthorized(new { message = "Invalid credentials" });
     }
 
-    [HttpPost("register")]
+    [HttpPost("/api/auth/register")]
     [HttpPost("/api/pb/collections/users/records")]
     public async Task<IActionResult> Register([FromBody] RegisterRequest request)
     {
