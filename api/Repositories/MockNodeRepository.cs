@@ -8,19 +8,34 @@ public class MockNodeRepository : IMapNodeRepository
 {
     private static readonly List<MapNode> _nodes = [];
 
-    public Task<IEnumerable<MapNode>> GetBySessionIdAsync(string sessionId)
+    public Task<IEnumerable<MapNode>> GetBySessionIdAsync(Guid sessionId)
     {
-        return Task.FromResult<IEnumerable<MapNode>>(_nodes.Where(n => n.SessionId == sessionId));
+        return Task.FromResult(_nodes.Where(n => n.SessionId == sessionId).AsEnumerable());
+    }
+
+    public Task<MapNode?> GetByIdAsync(Guid id)
+    {
+        return Task.FromResult(_nodes.FirstOrDefault(n => n.Id == id));
     }
 
     public Task<MapNode> CreateAsync(MapNode node)
     {
-        if (string.IsNullOrEmpty(node.Id))
+        if (node.Id == Guid.Empty)
         {
-            node.Id = Guid.NewGuid().ToString();
+            node.Id = Guid.NewGuid();
         }
         _nodes.Add(node);
         return Task.FromResult(node);
+    }
+
+    public Task CreateRangeAsync(IEnumerable<MapNode> nodes)
+    {
+        foreach (var node in nodes)
+        {
+            if (node.Id == Guid.Empty) node.Id = Guid.NewGuid();
+            _nodes.Add(node);
+        }
+        return Task.CompletedTask;
     }
 
     public Task<MapNode> UpdateAsync(MapNode node)
@@ -30,7 +45,7 @@ public class MockNodeRepository : IMapNodeRepository
         return Task.FromResult(node);
     }
 
-    public Task DeleteBySessionIdAsync(string sessionId)
+    public Task DeleteBySessionIdAsync(Guid sessionId)
     {
         _nodes.RemoveAll(n => n.SessionId == sessionId);
         return Task.CompletedTask;

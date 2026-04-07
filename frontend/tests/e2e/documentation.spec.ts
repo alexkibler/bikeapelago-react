@@ -10,7 +10,7 @@ test.describe('Walkthrough Documentation Screenshots', () => {
 	const isMobile = process.env.PROJECT === 'mobile';
 	const suffix = isMobile ? '_mobile' : '_desktop';
 
-	async function capture(page: any, name: string) {
+	async function capture(page: unknown, name: string) {
 		// Wait for network/fonts to settle for visual capture
 		await page.waitForLoadState('networkidle');
 		await page.evaluate(() => document.fonts.ready);

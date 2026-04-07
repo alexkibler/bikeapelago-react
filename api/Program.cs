@@ -1,20 +1,24 @@
-using Microsoft.EntityFrameworkCore;
-using Bikeapelago.Api.Data;
 using Bikeapelago.Api.Repositories;
 using Bikeapelago.Api.Services;
+using Bikeapelago.Api.Data;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using Bikeapelago.Api.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// 1. Add HttpClient and PocketBase Service
-builder.Services.AddHttpContextAccessor();
-builder.Services.AddHttpClient<PocketBaseService>();
 
-// 2. Add Database Context (Maintained for future swap)
-builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection") ?? "Data Source=bikeapelago.db"));
+
+
+// 2.5 Common Services
+builder.Services.AddHttpContextAccessor();
+
+var connString = builder.Configuration.GetConnectionString("PostGis") ?? "Host=localhost;Port=5432;Database=bikeapelago;Username=osm;Password=osm_secret";
+builder.Services.AddDbContext<BikeapelagoDbContext>(options => 
+    options.UseNpgsql(connString, o => o.UseNetTopologySuite())
+);
 
 // 3. Register Repositories (Conditional for E2E/Tests)
 if (builder.Configuration["USE_MOCK_AUTH"] == "true" || Environment.GetEnvironmentVariable("USE_MOCK_AUTH") == "true")
@@ -25,13 +29,21 @@ if (builder.Configuration["USE_MOCK_AUTH"] == "true" || Environment.GetEnvironme
 }
 else
 {
-    builder.Services.AddScoped<IUserRepository, PocketBaseUserRepository>();
-    builder.Services.AddScoped<IGameSessionRepository, PocketBaseSessionRepository>();
-    builder.Services.AddScoped<IMapNodeRepository, PocketBaseNodeRepository>();
+    builder.Services.AddScoped<IUserRepository, EfCoreUserRepository>();
+    builder.Services.AddScoped<IGameSessionRepository, EfCoreSessionRepository>();
+    builder.Services.AddScoped<IMapNodeRepository, EfCoreMapNodeRepository>();
 }
 
 // 3.5 Register External Services / Generators
-builder.Services.AddHttpClient<OverpassService>();
+builder.Services.AddHttpClient<OverpassOsmDiscoveryService>();
+builder.Services.AddScoped<PbfOsmDiscoveryService>(sp => 
+{
+    var logger = sp.GetRequiredService<ILogger<PbfOsmDiscoveryService>>();
+    var path = builder.Configuration["OsmDiscovery:PbfPath"] ?? "./data/map.osm.pbf";
+    return new PbfOsmDiscoveryService(logger, path);
+});
+builder.Services.AddScoped<PostGisOsmDiscoveryService>();
+builder.Services.AddScoped<IOsmDiscoveryService, OsmDiscoveryService>();
 builder.Services.AddScoped<NodeGenerationService>();
 
 // 4. Add Authentication (Stubbed JWT)
@@ -60,7 +72,8 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowVite", policy =>
     {
-        policy.WithOrigins("http://localhost:5173", "http://localhost:5174")
+        var origins = builder.Configuration.GetSection("AllowedOrigins").Get<string[]>() ?? Array.Empty<string>();
+        policy.WithOrigins(origins)
               .AllowAnyHeader()
               .AllowAnyMethod();
     });
@@ -72,12 +85,7 @@ builder.Services.AddReverseProxy()
 
 var app = builder.Build();
 
-// 7. Database Initialization (EF Core)
-using (var scope = app.Services.CreateScope())
-{
-    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    await db.Database.EnsureCreatedAsync();
-}
+app.UseMiddleware<ErrorLoggingMiddleware>();
 
 // 8. Middleware Pipeline
 if (app.Environment.IsDevelopment())

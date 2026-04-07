@@ -1,18 +1,19 @@
 import React, { useEffect, useState } from 'react';
 import { useGameStore } from '../../store/gameStore';
 import { getGraphhopperUrl } from '../../lib/graphhopper';
+import { calculateDistance } from '../../lib/geoUtils';
 import { Map, Download, Trash2, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
 
 const NodeListItem = ({ node, onClick }: { node: any, onClick: () => void }) => {
   return (
-    <button 
+    <button
       onClick={onClick}
-      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/5 transition-colors text-left border-b border-white/5 last:border-0 group"
+      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-[rgb(var(--color-surface-overlay))] transition-colors text-left border-b border-[var(--color-border-hex)] last:border-0 group"
     >
-      <span className="text-[10px] font-mono text-neutral-500 w-12 group-hover:text-orange-500 transition-colors">
+      <span className="text-[10px] font-mono text-[var(--color-text-subtle-hex)] w-12 group-hover:text-[var(--color-primary-hex)] transition-colors">
         #{node.ap_location_id || node.id.substring(0, 4)}
       </span>
-      <span className="text-sm text-neutral-300 font-medium flex-1 truncate">
+      <span className="text-sm text-[var(--color-text-muted-hex)] font-medium flex-1 truncate">
         {node.name}
       </span>
     </button>
@@ -20,22 +21,22 @@ const NodeListItem = ({ node, onClick }: { node: any, onClick: () => void }) => 
 };
 
 const CategoryHeader = ({ title, count, color, isOpen, onClick }: { title: string, count: number, color: string, isOpen: boolean, onClick: () => void }) => (
-  <button 
+  <button
     onClick={onClick}
-    className="w-full flex items-center justify-between p-4 bg-white/5 hover:bg-white/[0.08] transition-colors border-b border-white/10"
+    className="w-full flex items-center justify-between p-4 bg-[rgb(var(--color-surface-overlay))] hover:bg-[rgb(var(--color-surface-overlay))]/[0.08] transition-colors border-b border-[var(--color-border-hex)]"
   >
     <div className="flex items-center gap-3">
       <div className={`w-2.5 h-2.5 rounded-full`} style={{ backgroundColor: color }}></div>
-      <span className="font-bold text-sm tracking-wide">
+      <span className="font-bold text-sm tracking-wide text-[var(--color-text-hex)]">
         {title} ({count})
       </span>
     </div>
-    {isOpen ? <ChevronUp className="w-4 h-4 text-neutral-500" /> : <ChevronDown className="w-4 h-4 text-neutral-500" />}
+    {isOpen ? <ChevronUp className="w-4 h-4 text-[var(--color-text-subtle-hex)]" /> : <ChevronDown className="w-4 h-4 text-[var(--color-text-subtle-hex)]" />}
   </button>
 );
 
 const RoutePanel = () => {
-  const { waypoints, clearWaypoints, setRouteData, routeData, nodes, addWaypoint, addWaypoints } = useGameStore();
+  const { waypoints, clearWaypoints, setRouteData, routeData, nodes, addWaypoint, addWaypoints, userLocation } = useGameStore();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
@@ -85,7 +86,7 @@ const RoutePanel = () => {
         });
 
         if (!response.ok) throw new Error(`Routing failed with status ${response.status}`);
-        const data = await response.json();
+        const data = await response.json() as { paths: Array<{ distance: number, ascend: number, points: { coordinates: number[][] } }> };
         
         const path = data.paths[0];
         setRouteData({
@@ -93,8 +94,8 @@ const RoutePanel = () => {
           elevation: path.ascend || 0,
           polyline: JSON.stringify(path.points.coordinates)
         });
-      } catch (err: any) {
-        setError(err.message);
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : 'Routing failed');
       } finally {
         setLoading(false);
       }
@@ -106,14 +107,14 @@ const RoutePanel = () => {
   const downloadGPX = () => {
     if (!routeData.polyline) return;
     
-    const coordinates = JSON.parse(routeData.polyline);
+    const coordinates = JSON.parse(routeData.polyline) as [number, number, number?][];
     let gpx = `<?xml version="1.0" encoding="UTF-8"?>
 <gpx version="1.1" creator="Bikeapelago" xmlns="http://www.topografix.com/GPX/1/1">
   <trk>
     <name>Bikeapelago Route</name>
     <trkseg>`;
     
-    coordinates.forEach((coord: any) => {
+    coordinates.forEach((coord) => {
       gpx += `
       <trkpt lat="${coord[1]}" lon="${coord[0]}">
         <ele>${coord[2] || 0}</ele>
@@ -137,9 +138,25 @@ const RoutePanel = () => {
   };
 
   const handleRouteToAvailable = () => {
-    const availableNodes = nodes.filter(n => n.state === 'Available');
+    let availableNodes = nodes.filter(n => n.state === 'Available');
+    
+    // Sort by proximity to user location if available
+    if (userLocation) {
+      availableNodes = [...availableNodes].sort((a, b) => {
+        const distA = calculateDistance(userLocation[0], userLocation[1], a.lat, a.lon);
+        const distB = calculateDistance(userLocation[0], userLocation[1], b.lat, b.lon);
+        return distA - distB;
+      });
+    }
+
     const points: [number, number][] = availableNodes.map(n => [n.lat, n.lon]);
-    addWaypoints(points);
+    
+    // If starting fresh and we have a user location, make it the first point
+    if (waypoints.length === 0 && userLocation) {
+      addWaypoints([userLocation, ...points]);
+    } else {
+      addWaypoints(points);
+    }
   };
 
   const availableNodes = nodes.filter(n => n.state === 'Available');
@@ -147,11 +164,11 @@ const RoutePanel = () => {
   const hiddenNodes = nodes.filter(n => n.state === 'Hidden');
 
   return (
-    <div className="flex flex-col h-full bg-neutral-900 text-white overflow-hidden relative">
+    <div className="flex flex-col h-full bg-[var(--color-surface-hex)] text-[var(--color-text-hex)] overflow-hidden relative">
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-white/10 shrink-0">
+      <div className="flex items-center justify-between p-4 border-b border-[var(--color-border-hex)] shrink-0">
         <div className="flex items-center gap-2">
-          <Map className="w-5 h-5 text-orange-500" />
+          <Map className="w-5 h-5 text-[var(--color-primary-hex)]" />
           <h2 className="text-xl font-black uppercase tracking-tight">Route Builder</h2>
         </div>
       </div>
@@ -160,105 +177,105 @@ const RoutePanel = () => {
       <div className="flex-1 overflow-y-auto p-4 space-y-6 pb-32">
         {/* Action Buttons */}
         <div className="space-y-3">
-          <button 
+          <button
             onClick={handleRouteToAvailable}
-            className="w-full bg-orange-600 hover:bg-orange-500 text-white font-black py-4 rounded-xl transition-all shadow-lg shadow-orange-900/20 active:scale-[0.98]"
+            className="w-full bg-[var(--color-primary-hex)] hover:bg-[var(--color-primary-hover-hex)] text-white font-black py-4 rounded-xl transition-all shadow-lg shadow-primary/20 active:scale-[0.98]"
           >
             Route To Available
           </button>
-          <button 
+          <button
             onClick={clearWaypoints}
-            className="w-full bg-white/5 hover:bg-white/10 text-neutral-300 font-bold py-3 rounded-xl transition-all border border-white/10"
+            className="w-full bg-[rgb(var(--color-surface-overlay))] hover:bg-[rgb(var(--color-surface-overlay))]/[0.08] text-[var(--color-text-muted-hex)] font-bold py-3 rounded-xl transition-all border border-[var(--color-border-hex)]"
           >
             Clear Route
           </button>
         </div>
 
         {/* Node Categories */}
-        <div className="rounded-xl border border-white/10 overflow-hidden bg-neutral-950/20">
-          <CategoryHeader 
-            title="Available" 
-            count={availableNodes.length} 
-            color="#f97316" 
+        <div className="rounded-xl border border-[var(--color-border-hex)] overflow-hidden bg-[var(--color-surface-hex)]/5">
+          <CategoryHeader
+            title="Available"
+            count={availableNodes.length}
+            color="rgb(var(--color-primary))"
             isOpen={openCategories.Available}
             onClick={() => toggleCategory('Available')}
           />
           {openCategories.Available && (
-            <div className="max-h-64 overflow-y-auto bg-neutral-950/40">
+            <div className="max-h-64 overflow-y-auto bg-[var(--color-surface-hex)]/10">
               {availableNodes.map(node => (
                 <NodeListItem key={node.id} node={node} onClick={() => addWaypoint([node.lat, node.lon])} />
               ))}
-              {availableNodes.length === 0 && <p className="p-4 text-xs text-neutral-600 italic">No available nodes.</p>}
+              {availableNodes.length === 0 && <p className="p-4 text-xs text-[var(--color-text-subtle-hex)] italic">No available nodes.</p>}
             </div>
           )}
 
-          <CategoryHeader 
-            title="Checked" 
-            count={checkedNodes.length} 
-            color="#22c55e" 
+          <CategoryHeader
+            title="Checked"
+            count={checkedNodes.length}
+            color="rgb(var(--color-success))"
             isOpen={openCategories.Checked}
             onClick={() => toggleCategory('Checked')}
           />
           {openCategories.Checked && (
-            <div className="max-h-64 overflow-y-auto bg-neutral-950/40">
+            <div className="max-h-64 overflow-y-auto bg-[var(--color-surface-hex)]/10">
               {checkedNodes.map(node => (
                 <NodeListItem key={node.id} node={node} onClick={() => addWaypoint([node.lat, node.lon])} />
               ))}
-              {checkedNodes.length === 0 && <p className="p-4 text-xs text-neutral-600 italic">No checked nodes.</p>}
+              {checkedNodes.length === 0 && <p className="p-4 text-xs text-[var(--color-text-subtle-hex)] italic">No checked nodes.</p>}
             </div>
           )}
 
-          <CategoryHeader 
-            title="Hidden" 
-            count={hiddenNodes.length} 
-            color="#525252" 
+          <CategoryHeader
+            title="Hidden"
+            count={hiddenNodes.length}
+            color="rgb(var(--color-border))"
             isOpen={openCategories.Hidden}
             onClick={() => toggleCategory('Hidden')}
           />
           {openCategories.Hidden && (
-            <div className="max-h-64 overflow-y-auto bg-neutral-950/40">
+            <div className="max-h-64 overflow-y-auto bg-[var(--color-surface-hex)]/10">
               {hiddenNodes.map(node => (
                 <NodeListItem key={node.id} node={node} onClick={() => addWaypoint([node.lat, node.lon])} />
               ))}
-              {hiddenNodes.length === 0 && <p className="p-4 text-xs text-neutral-600 italic">No hidden nodes.</p>}
+              {hiddenNodes.length === 0 && <p className="p-4 text-xs text-[var(--color-text-subtle-hex)] italic">No hidden nodes.</p>}
             </div>
           )}
         </div>
 
         {loading && (
-          <div className="flex items-center justify-center py-4 text-orange-500">
+          <div className="flex items-center justify-center py-4 text-[var(--color-primary-hex)]">
             <Loader2 className="w-6 h-6 animate-spin" />
           </div>
         )}
 
         {error && (
-          <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-500 text-sm">
+          <div className="p-3 bg-[var(--color-error-hex)]/10 border border-[var(--color-error-hex)]/20 rounded-lg text-[var(--color-error-hex)] text-sm">
             {error}
           </div>
         )}
       </div>
 
-      {/* Footer Stats - Floating Style */}
-      <div className="absolute bottom-0 left-0 right-0 p-4 bg-neutral-900/90 backdrop-blur-xl border-t border-white/10 z-20">
+      {/* Footer Stats */}
+      <div className="p-4 bg-[var(--color-surface-hex)]/90 backdrop-blur-xl border-t border-[var(--color-border-hex)] shrink-0">
         <div className="flex items-center justify-between gap-4">
           <div className="flex gap-6">
             <div className="flex flex-col">
-              <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest">Distance</span>
-              <span className="text-xl font-black text-white">{routeData.distance.toFixed(2)}<span className="text-xs font-normal text-neutral-500 ml-1">km</span></span>
+              <span className="text-[10px] font-bold text-[var(--color-text-subtle-hex)] uppercase tracking-widest">Distance</span>
+              <span className="text-xl font-black text-[var(--color-text-hex)]">{routeData.distance.toFixed(2)}<span className="text-xs font-normal text-[var(--color-text-subtle-hex)] ml-1">km</span></span>
             </div>
             <div className="flex flex-col">
-              <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest">Elev Gain</span>
-              <span className="text-xl font-black text-white">{routeData.elevation.toFixed(0)}<span className="text-xs font-normal text-neutral-500 ml-1">m</span></span>
+              <span className="text-[10px] font-bold text-[var(--color-text-subtle-hex)] uppercase tracking-widest">Elev Gain</span>
+              <span className="text-xl font-black text-[var(--color-text-hex)]">{routeData.elevation.toFixed(0)}<span className="text-xs font-normal text-[var(--color-text-subtle-hex)] ml-1">m</span></span>
             </div>
           </div>
 
-          <button 
+          <button
             onClick={downloadGPX}
             disabled={!routeData.polyline}
             className={`flex items-center gap-2 px-6 py-3 rounded-xl font-black transition-all ${
-              routeData.polyline 
-              ? 'bg-[#4a3a2a] text-orange-500 hover:bg-[#5a4a3a] border border-orange-900/30 shadow-lg' 
-              : 'bg-white/5 text-neutral-600 border border-white/5 cursor-not-allowed'
+              routeData.polyline
+              ? 'bg-[var(--color-primary-hex)]/20 text-[var(--color-primary-hex)] hover:bg-[var(--color-primary-hex)]/30 border border-[var(--color-primary-hex)]/30 shadow-lg'
+              : 'bg-[rgb(var(--color-surface-overlay))] text-[var(--color-text-subtle-hex)] border border-[var(--color-border-hex)] cursor-not-allowed'
             }`}
           >
             <Download className="w-4 h-4" />

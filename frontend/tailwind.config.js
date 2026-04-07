@@ -3,12 +3,6 @@ export default {
   content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
   theme: {
     extend: {
-      colors: {
-        orange: {
-          500: '#f97316',
-          600: '#ea580c',
-        }
-      }
     },
   },
   plugins: [require('daisyui')],
@@ -16,11 +10,11 @@ export default {
     themes: [
       {
         bikeapelago: {
-          "primary": "#f97316",
+          "primary": "var(--color-primary-hex)",
           "secondary": "#fbbf24",
           "accent": "#f59e0b",
           "neutral": "#1f2937",
-          "base-100": "#111827",
+          "base-100": "var(--color-surface-hex)",
           "info": "#3abff8",
           "success": "#36d399",
           "warning": "#fbbd23",
