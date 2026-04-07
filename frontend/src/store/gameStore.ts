@@ -9,7 +9,11 @@ interface GameState {
   
   waypoints: [number, number][];
   addWaypoint: (point: [number, number]) => void;
+  addWaypoints: (points: [number, number][]) => void;
   clearWaypoints: () => void;
+  
+  nodes: any[];
+  setNodes: (nodes: any[]) => void;
   
   routeData: {
     distance: number;
@@ -33,8 +37,14 @@ export const useGameStore = create<GameState>((set) => ({
   addWaypoint: (point) => set((state) => ({ 
     waypoints: [...state.waypoints, point] 
   })),
+  addWaypoints: (points) => set((state) => ({ 
+    waypoints: [...state.waypoints, ...points] 
+  })),
   clearWaypoints: () => set({ waypoints: [], routeData: { distance: 0, elevation: 0, polyline: null } }),
   
+  nodes: [],
+  setNodes: (nodes) => set({ nodes }),
+
   routeData: {
     distance: 0,
     elevation: 0,
