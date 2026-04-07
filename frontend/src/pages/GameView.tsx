@@ -54,6 +54,7 @@ const getMarkerIcon = (state: string) => {
 
 const GameStatsBar = ({ session, nodes }: { session: any, nodes: any[] }) => {
   const { status, error } = useArchipelagoStore();
+  const [showStatsInfo, setShowStatsInfo] = useState(false);
   const checked = nodes.filter(n => n.state === 'Checked').length;
   const available = nodes.filter(n => n.state === 'Available').length;
   const hidden = nodes.filter(n => n.state === 'Hidden').length;
@@ -76,16 +77,57 @@ const GameStatsBar = ({ session, nodes }: { session: any, nodes: any[] }) => {
         )}
       </div>
 
-      <div className="flex items-center gap-4 font-black text-xs uppercase tracking-tight ml-4">
-        <div className="flex items-baseline gap-1">
-          <span className="text-[var(--color-text-hex)] leading-none text-sm">{hidden}</span>
-        </div>
-        <div className="flex items-baseline gap-1">
-          <span className="text-[var(--color-primary-hex)] leading-none text-sm">{available}</span>
-        </div>
-        <div className="flex items-baseline gap-1">
-          <span className="text-[var(--color-success-hex)] leading-none text-sm">{checked}</span>
-        </div>
+      <div className="relative">
+        <button 
+          onClick={() => setShowStatsInfo(!showStatsInfo)}
+          className="flex items-center gap-4 font-black text-xs uppercase tracking-tight ml-4 p-1.5 rounded-lg hover:bg-[rgb(var(--color-surface-overlay))] transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--color-border-hex)]"
+          aria-label="Toggle node statistics"
+          aria-expanded={showStatsInfo}
+        >
+          <div className="flex items-baseline gap-1" title="Hidden Locations">
+            <span className="text-[var(--color-text-hex)] leading-none text-sm">{hidden}</span>
+          </div>
+          <div className="flex items-baseline gap-1" title="Available Locations">
+            <span className="text-[var(--color-primary-hex)] leading-none text-sm">{available}</span>
+          </div>
+          <div className="flex items-baseline gap-1" title="Checked Locations">
+            <span className="text-[var(--color-success-hex)] leading-none text-sm">{checked}</span>
+          </div>
+        </button>
+
+        {showStatsInfo && (
+          <div className="absolute top-full right-0 mt-3 w-48 bg-[var(--color-surface-hex)] border border-[var(--color-border-strong-hex)] rounded-xl shadow-xl overflow-hidden z-[1010]">
+            <div className="flex flex-col">
+              <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--color-border-hex)]/50">
+                <div className="flex items-center gap-2">
+                  <div className="w-2.5 h-2.5 rounded-full bg-[var(--color-text-hex)]"></div>
+                  <span className="text-[10px] font-bold text-[var(--color-text-muted-hex)] tracking-wider uppercase">Hidden</span>
+                </div>
+                <span className="text-[var(--color-text-hex)] font-bold">{hidden}</span>
+              </div>
+              <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--color-border-hex)]/50">
+                <div className="flex items-center gap-2">
+                  <div className="w-2.5 h-2.5 rounded-full bg-[var(--color-primary-hex)]"></div>
+                  <span className="text-[10px] font-bold text-[var(--color-text-muted-hex)] tracking-wider uppercase">Available</span>
+                </div>
+                <span className="text-[var(--color-primary-hex)] font-bold">{available}</span>
+              </div>
+              <div className="flex items-center justify-between px-4 py-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-2.5 h-2.5 rounded-full bg-[var(--color-success-hex)]"></div>
+                  <span className="text-[10px] font-bold text-[var(--color-text-muted-hex)] tracking-wider uppercase">Checked</span>
+                </div>
+                <span className="text-[var(--color-success-hex)] font-bold">{checked}</span>
+              </div>
+            </div>
+            {/* Click away layer to close */}
+            <div 
+               className="fixed inset-0 z-[-1]" 
+               onClick={() => setShowStatsInfo(false)}
+               aria-hidden="true"
+            />
+          </div>
+        )}
       </div>
     </div>
   );
