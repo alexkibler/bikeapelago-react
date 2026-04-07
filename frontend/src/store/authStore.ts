@@ -1,18 +1,10 @@
 import { create } from 'zustand';
 import PocketBase, { type AuthModel } from 'pocketbase';
 
-// Simple mock fallback to fix TS build issue while porting Svelte types
-const MockPocketBase = class {
-  authStore = { isValid: false, model: null, clear: () => {}, save: () => {}, onChange: () => {} };
-  collection = () => ({ authRefresh: () => Promise.resolve(), authWithPassword: () => Promise.resolve({ token: 'mock', record: {} }), getFullList: () => Promise.resolve([]) });
-  autoCancellation = () => {};
-};
-
 // Point PocketBase to the .NET proxy rather than directly to the DB container
 const url = import.meta.env.VITE_PUBLIC_API_URL ? `${import.meta.env.VITE_PUBLIC_API_URL}/api/pb` : '/api/pb';
-const isMockMode = import.meta.env.VITE_PUBLIC_MOCK_MODE === 'true';
 
-export const pb = isMockMode ? (new MockPocketBase() as unknown as PocketBase) : new PocketBase(url);
+export const pb = new PocketBase(url);
 pb.autoCancellation(false);
 
 interface AuthState {

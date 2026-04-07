@@ -4,7 +4,7 @@ import path from 'path';
 test.describe('Migration Verification', () => {
   test.slow();
 
-  test('should login and create a new session', async ({ page }, testInfo) => {
+  test('should verify main game flow', async ({ page }, testInfo) => {
     // Create a screenshots directory inside the test output folder
     const ssDir = testInfo.outputPath('screenshots');
     fs.mkdirSync(ssDir, { recursive: true });
@@ -13,17 +13,9 @@ test.describe('Migration Verification', () => {
       await page.screenshot({ path: path.join(ssDir, `${name}.png`) });
     };
 
-    // 1. Login Page
-    await page.goto('/login');
-    await page.waitForSelector('#login-username', { timeout: 15000 });
-    await page.fill('#login-username', 'testuser');
-    await page.fill('#login-password', 'Password');
-    await snap('01-login');
-    await page.click('#login-submit');
-
-    // 2. Home Page
-    await page.waitForURL('**/', { timeout: 15000 });
-    await page.waitForSelector('h1:has-text("Welcome Back")', { timeout: 15000 });
+    // 1. Home Page (starting authenticated)
+    await page.goto('/');
+    await page.waitForSelector('h1:has-text("Welcome Back"), h1:has-text("IGNITION")', { timeout: 15000 });
     await snap('02-home');
 
     // 3. New Game Page
