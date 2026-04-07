@@ -1,0 +1,6 @@
+@Bikeapelago.Api_HostAddress = http://localhost:5054
+
+GET {{Bikeapelago.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

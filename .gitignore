@@ -1,0 +1,44 @@
+# .NET / C#
+bin/
+obj/
+*.dll
+*.exe
+*.pdb
+*.user
+*.aps
+.vs/
+.vscode/
+*.log
+*.trx
+
+# Database
+*.db
+*.db-journal
+
+# Node / Frontend
+node_modules/
+dist/
+build/
+coverage/
+.env.local
+.env.*.local
+
+# Dependencies
+package-lock.json
+yarn.lock
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Build artifacts
+.next/
+out/
+
+# Testing
+.nyc_output/
+*.lcov
