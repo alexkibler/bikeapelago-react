@@ -106,6 +106,15 @@ Single merged PBF: `graphhopper/data/us-states-merged.osm.pbf`
 
 See `import-states.sh` in the repo root for the import procedure.
 
+### Updating OSM Data (Zero Downtime)
+
+`import-states.sh` uses a blue/green table swap:
+1. Import into `planet_osm_nodes_new` (staging) via `osm2pgsql-flex-staging.lua`
+2. Atomically rename: `planet_osm_nodes` → `planet_osm_nodes_old`, `planet_osm_nodes_new` → `planet_osm_nodes`
+3. Drop `planet_osm_nodes_old`
+
+Active game sessions are unaffected — their nodes are stored in `MapNodes`. Only new `/generate` calls hit `planet_osm_nodes`, and they stay live throughout the swap.
+
 ### Import Gotchas
 
 - **Must use `--create` (not `--append`) without `--slim`**: The flex lua script only defines the output table, not slim node cache tables. `--append` requires `--slim`.

@@ -2,6 +2,7 @@ import React from 'react';
 import { useLocation, Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import { useGameStore, type GamePanel } from '../../store/gameStore';
+import ThemeToggle from './ThemeToggle';
 
 const Sidebar = () => {
   const location = useLocation();
@@ -25,10 +26,13 @@ const Sidebar = () => {
   return (
     <aside className="hidden md:flex flex-col w-64 h-screen bg-[var(--color-surface-hex)] border-r border-[var(--color-border-hex)] sticky top-0 shrink-0 z-[1001]">
       {/* Logo Section */}
-      <div className="p-6">
+      <div className="p-6 flex items-center justify-between">
         <Link to="/" className="flex items-center">
           <span className="text-[var(--color-primary-hex)] uppercase font-extrabold text-2xl tracking-tighter italic">bikeapelago</span>
         </Link>
+        <div className="flex items-center">
+          <ThemeToggle />
+        </div>
       </div>
 
       {/* Navigation Links */}

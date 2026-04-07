@@ -1,5 +1,6 @@
 using System;
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
 using NetTopologySuite.Geometries;
 
@@ -65,6 +66,14 @@ public class GameSession
 
     [JsonPropertyName("updated")]
     public string UpdatedAt { get; set; } = string.Empty;
+
+    [NotMapped]
+    [JsonPropertyName("center_lat")]
+    public double CenterLat => Location?.Y ?? 0;
+
+    [NotMapped]
+    [JsonPropertyName("center_lon")]
+    public double CenterLon => Location?.X ?? 0;
 }
 
 public class MapNode
@@ -91,6 +100,14 @@ public class MapNode
 
     [JsonPropertyName("state")]
     public string State { get; set; } = "Hidden"; // "Hidden" | "Available" | "Checked"
+
+    [NotMapped]
+    [JsonPropertyName("lat")]
+    public double Lat => Location?.Y ?? 0;
+
+    [NotMapped]
+    [JsonPropertyName("lon")]
+    public double Lon => Location?.X ?? 0;
 }
 
 public class Route
