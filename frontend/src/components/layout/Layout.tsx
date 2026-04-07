@@ -22,13 +22,13 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   }, [isValid, location.pathname, navigate]);
 
   return (
-    <div className={`min-h-screen bg-neutral-700 flex flex-col md:flex-row ${isGamePage ? 'h-screen' : ''}`}>
+    <div className={`min-h-screen bg-[var(--color-surface-alt-hex)] flex flex-col md:flex-row ${isGamePage ? 'h-screen' : ''}`}>
       {/* Desktop Sidebar (hidden on mobile) */}
       <Sidebar />
 
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Mobile Header */}
-        <div className="bg-neutral-800 border-b-neutral-600 border-b-2 sticky top-0 shrink-0 md:hidden z-50">
+        <div className="bg-[var(--color-surface-alt-hex)] sticky top-0 shrink-0 md:hidden z-50">
           <Header />
         </div>
 

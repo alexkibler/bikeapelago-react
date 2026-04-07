@@ -24,6 +24,9 @@ interface GameState {
   
   analysisResult: import('../hooks/useFitAnalyzer').FitAnalysisResult | null;
   setAnalysisResult: (result: import('../hooks/useFitAnalyzer').FitAnalysisResult | null) => void;
+  
+  userLocation: [number, number] | null;
+  setUserLocation: (point: [number, number] | null) => void;
 }
 
 export const useGameStore = create<GameState>((set) => ({
@@ -53,5 +56,8 @@ export const useGameStore = create<GameState>((set) => ({
   setRouteData: (data) => set({ routeData: data }),
   
   analysisResult: null,
-  setAnalysisResult: (result) => set({ analysisResult: result })
+  setAnalysisResult: (result) => set({ analysisResult: result }),
+  
+  userLocation: null,
+  setUserLocation: (location) => set({ userLocation: location })
 }));

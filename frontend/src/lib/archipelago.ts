@@ -4,6 +4,7 @@ import type { ChatMessage } from '../store/archipelagoStore';
 
 class ArchipelagoClient {
   private client: Client;
+  private isConnecting: boolean = false;
 
   constructor() {
     this.client = new Client();
@@ -18,7 +19,7 @@ class ArchipelagoClient {
       useArchipelagoStore.getState().setError(null);
       
       const checked = this.client.room.checkedLocations;
-      useArchipelagoStore.getState().setCheckedLocations(checked);
+      useArchipelagoStore.getState().setCheckedLocations(Array.from(checked));
       
       useArchipelagoStore.getState().addMessage({
         text: `Connected to Archipelago as ${this.client.players.self.alias}`,
@@ -70,30 +71,35 @@ class ArchipelagoClient {
   }
 
   async connect(url: string, slotName: string, password?: string) {
-    if (this.client.authenticated) {
+    if (this.client.authenticated || this.isConnecting) {
         return;
     }
+    
+    this.isConnecting = true;
 
     useArchipelagoStore.getState().setStatus('connecting');
     useArchipelagoStore.getState().setError(null);
 
-    // Clean up URL: remove http/https if present
-    let cleanUrl = url.replace(/^(ws:\/\/|wss:\/\/)/, '');
+    // Determine the protocol: ws for localhost, wss for others
+    const host = url.replace(/^(https?:\/\/|wss?:\/\/)/, '');
+    const isLocal = host.startsWith('localhost') || host.startsWith('127.0.0.1');
+    const protocol = isLocal ? 'ws://' : 'wss://';
+    const finalUrl = `${protocol}${host}`;
     
     try {
       // login handles both socket connection and authentication
-      await this.client.login(cleanUrl, slotName, 'Bikeapelago', {
+      await this.client.login(finalUrl, slotName, 'Bikeapelago', {
         password: password || '',
         items: itemsHandlingFlags.all,
         slotData: true
       });
     } catch (err: any) {
-      console.error('Login failed:', err);
-      // login error might have been handled by connectionRefused already, but just in case
       if (useArchipelagoStore.getState().status !== 'error') {
         useArchipelagoStore.getState().setStatus('error');
         useArchipelagoStore.getState().setError(err.message || 'Failed to connect');
       }
+    } finally {
+      this.isConnecting = false;
     }
   }
 
