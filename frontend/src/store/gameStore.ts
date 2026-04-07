@@ -18,8 +18,8 @@ interface GameState {
   };
   setRouteData: (data: { distance: number, elevation: number, polyline: string | null }) => void;
   
-  analysisResult: any | null;
-  setAnalysisResult: (result: any | null) => void;
+  analysisResult: import('../hooks/useFitAnalyzer').FitAnalysisResult | null;
+  setAnalysisResult: (result: import('../hooks/useFitAnalyzer').FitAnalysisResult | null) => void;
 }
 
 export const useGameStore = create<GameState>((set) => ({

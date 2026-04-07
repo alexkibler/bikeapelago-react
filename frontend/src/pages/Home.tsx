@@ -1,43 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
-import { PlayCircle, Globe, User, ArrowRight, Plus, Monitor, Loader2 } from 'lucide-react';
-import { pb } from '../store/authStore';
-
-interface GameSession {
-  id: string;
-  ap_seed_name: string | null;
-  ap_server_url: string | null;
-  ap_slot_name: string | null;
-  status: string;
-}
+import { PlayCircle, User, ArrowRight, Plus, Monitor, Loader2 } from 'lucide-react';
+import { useSessions, type GameSession } from '../hooks/useSessions';
 
 const Home = () => {
-  const [sessions, setSessions] = useState<GameSession[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const fetchSessions = async () => {
-      try {
-        const token = pb.authStore.token;
-        const res = await fetch('/api/sessions', {
-          headers: token ? { 'Authorization': `Bearer ${token}` } : {}
-        });
-        if (!res.ok) {
-            const errText = await res.text();
-            throw new Error(`HTTP ${res.status} - ${errText}`);
-        }
-        const data = await res.json();
-        setSessions(data);
-      } catch (err) {
-        setError('Failed to load sessions.');
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchSessions();
-  }, []);
+  const { sessions, loading, error } = useSessions();
 
   const isAp = (session: GameSession) => !!session.ap_server_url;
 

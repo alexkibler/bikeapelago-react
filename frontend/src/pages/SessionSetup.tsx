@@ -73,7 +73,13 @@ const SessionSetup = () => {
       const token = pb.authStore.token;
       
       // 1. Create DB Session
-      const payload: any = {
+      const payload: {
+        user: string;
+        status: string;
+        radius: number;
+        ap_server_url?: string;
+        ap_slot_name?: string;
+      } = {
         user: user?.id ?? '',
         status: 'SetupInProgress',
         radius: radius // the selected radius allows the DB save to succeed cleanly now!
@@ -94,11 +100,11 @@ const SessionSetup = () => {
       });
 
       if (!createRes.ok) {
-        const err = await createRes.json().catch(() => ({}));
+        const err = await createRes.json().catch(() => ({})) as { message?: string };
         throw new Error(err.message ?? `Session creation failed: ${createRes.status}`);
       }
 
-      const session = await createRes.json();
+      const session = await createRes.json() as { id: string };
       const newSessionId = session.id;
 
       setProgress(40);
@@ -121,7 +127,7 @@ const SessionSetup = () => {
       });
 
       if (!genRes.ok) {
-        const err = await genRes.json().catch(() => ({}));
+        const err = await genRes.json().catch(() => ({})) as { message?: string };
         throw new Error(err.message ?? `Generation failed: ${genRes.status}`);
       }
 
@@ -129,8 +135,8 @@ const SessionSetup = () => {
       setStatus('Success! Re-routing...');
       
       setTimeout(() => navigate(`/game/${newSessionId}`), 500);
-    } catch (err: any) {
-      setErrorMsg(err.message ?? 'Generation process failed.');
+    } catch (err: unknown) {
+      setErrorMsg(err instanceof Error ? err.message : 'Generation process failed.');
       setIsGenerating(false);
       setProgress(0);
     }

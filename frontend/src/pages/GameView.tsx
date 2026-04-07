@@ -1,13 +1,13 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { MapContainer, TileLayer, Marker, ZoomControl, useMap, useMapEvents, Polyline } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Loader2, X } from 'lucide-react';
-import { pb } from '../store/authStore';
 import { useGameStore } from '../store/gameStore';
 import RoutePanel from '../components/game/RoutePanel';
 import UploadPanel from '../components/game/UploadPanel';
+import { useSessionData, type GameSessionData, type MapNode } from '../hooks/useSessionData';
 
 // Map resizer to handle container boundary updates when Layout triggers changes
 const MapResizer = () => {
@@ -47,7 +47,7 @@ const getMarkerIcon = (state: string) => {
   });
 };
 
-const GameStatsBar = ({ session, nodes }: { session: any, nodes: any[] }) => {
+const GameStatsBar = ({ session, nodes }: { session: GameSessionData | null, nodes: MapNode[] }) => {
   const checked = nodes.filter(n => n.state === 'Checked').length;
   const available = nodes.filter(n => n.state === 'Available').length;
   const total = nodes.length;
@@ -84,51 +84,7 @@ const GameView = () => {
   const navigate = useNavigate();
   const { activePanel, setActivePanel, routeData, waypoints, analysisResult } = useGameStore();
   
-  const [session, setSession] = useState<any>(null);
-  const [nodes, setNodes] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [errorMsg, setErrorMsg] = useState('');
-
-  const fetchData = useCallback(async () => {
-    try {
-      const token = pb.authStore.token;
-      const headers = {
-        'Content-Type': 'application/json',
-        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-      };
-
-      const sessionRes = await fetch(`/api/sessions/${id}`, { headers });
-      if (!sessionRes.ok) {
-        // Fallback for E2E tests if ID is mock_session_123
-        if (id === 'mock_session_123') {
-           setSession({ id: 'mock_session_123', ap_seed_name: 'Mock Seed', ap_slot_name: 'Mock Slot', center_lat: 40.7128, center_lon: -74.006 });
-           setNodes([
-             { id: 'mock_node_1', name: 'Mock Node 1', lat: 40.7128, lon: -74.006, state: 'Available', ap_location_id: 1001 },
-             { id: 'mock_node_2', name: 'Mock Node 2', lat: 40.7158, lon: -74.009, state: 'Available', ap_location_id: 1002 }
-           ]);
-           return;
-        }
-        throw new Error('Session not found');
-      }
-      const sessionData = await sessionRes.json();
-      setSession(sessionData);
-
-      const nodesRes = await fetch(`/api/sessions/${id}/nodes`, { headers });
-      if (!nodesRes.ok) throw new Error('Failed to load nodes');
-      const nodesData = await nodesRes.json();
-      setNodes(nodesData);
-    } catch (err: any) {
-      setErrorMsg(err.message);
-    } finally {
-      setLoading(false);
-    }
-  }, [id]);
-
-  useEffect(() => {
-    if (id) {
-      fetchData();
-    }
-  }, [id, fetchData]);
+  const { session, nodes, loading, errorMsg } = useSessionData(id);
 
   if (loading) {
     return (
@@ -152,8 +108,8 @@ const GameView = () => {
     session.center_lon ?? -74.006
   ];
 
-  const parsedPolyline = routeData.polyline ? JSON.parse(routeData.polyline).map((p: any) => [p[1], p[0]]) : [];
-  const analysisPath = analysisResult?.path ? analysisResult.path.map((p: any) => [p.lat, p.lon]) : [];
+  const parsedPolyline = routeData.polyline ? JSON.parse(routeData.polyline).map((p: [number, number]) => [p[1], p[0]] as [number, number]) : [];
+  const analysisPath = analysisResult?.path ? analysisResult.path.map((p: { lat: number, lon: number }) => [p.lat, p.lon] as [number, number]) : [];
 
   return (
     <div className="w-full h-full flex flex-col bg-neutral-900">

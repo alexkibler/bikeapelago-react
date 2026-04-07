@@ -1,6 +1,5 @@
 import { test, expect } from '@playwright/test';
 import { FitWriter } from '@markw65/fit-file-writer';
-import fs from 'fs';
 import path from 'path';
 
 test.describe('E2E Map Routing, GPX Download, FIT Conversion, and Upload', () => {

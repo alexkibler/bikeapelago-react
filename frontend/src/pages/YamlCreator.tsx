@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Download, FileCode, CheckCircle, Info, ArrowRight, Server, UploadCloud } from 'lucide-react';
+import { Download, FileCode, CheckCircle, Info, Server } from 'lucide-react';
 
 const YamlCreator = () => {
   const [slotName, setSlotName] = useState('');
