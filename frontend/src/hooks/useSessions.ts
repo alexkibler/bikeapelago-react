@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { pb, handleUnauthorized } from '../store/authStore';
+import { getToken, handleUnauthorized } from '../store/authStore';
 
 export interface GameSession {
   id: string;
@@ -17,7 +17,7 @@ export function useSessions() {
   useEffect(() => {
     const fetchSessions = async () => {
       try {
-        const token = pb.authStore.token;
+        const token = getToken();
         const res = await fetch('/api/sessions', {
           headers: token ? { 'Authorization': `Bearer ${token}` } : {}
         });

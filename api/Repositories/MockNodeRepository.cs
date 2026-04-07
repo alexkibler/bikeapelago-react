@@ -13,6 +13,11 @@ public class MockNodeRepository : IMapNodeRepository
         return Task.FromResult(_nodes.Where(n => n.SessionId == sessionId).AsEnumerable());
     }
 
+    public Task<MapNode?> GetByIdAsync(Guid id)
+    {
+        return Task.FromResult(_nodes.FirstOrDefault(n => n.Id == id));
+    }
+
     public Task<MapNode> CreateAsync(MapNode node)
     {
         if (node.Id == Guid.Empty)

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { pb, handleUnauthorized } from '../store/authStore';
+import { getToken, handleUnauthorized } from '../store/authStore';
 
 export interface MapNode {
   id: string;
@@ -27,7 +27,7 @@ export function useSessionData(id: string | undefined) {
   const fetchData = useCallback(async () => {
     if (!id) return;
     try {
-      const token = pb.authStore.token;
+      const token = getToken();
       const headers = {
         'Content-Type': 'application/json',
         ...(token ? { 'Authorization': `Bearer ${token}` } : {})
