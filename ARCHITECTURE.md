@@ -1,51 +1,138 @@
-# Bikeapelago Migration Architecture
+# Bikeapelago Architecture
 
-This document describes the architectural decisions and design patterns chosen for the React/.NET migration.
+This document describes the architectural decisions and design patterns for the React/.NET implementation.
 
 ## High-Level Diagram
 
-```mermaid
-graph TD
-  A[React Frontend] -->|REST API| B[.NET Web API]
-  B --> C[EF Core / PostGIS]
-  B -->|Archipelago| E[Archipelago JS/C#]
-  B -->|Geocoding| F[External API]
-  B -->|Routing| G[GraphHopper]
+```
+React Frontend (Vite)
+        │
+        │ REST (via Vite proxy → localhost:5054)
+        ▼
+.NET 10 Web API (ASP.NET Core)
+        │
+        ├── EF Core → PostgreSQL/PostGIS (bikeapelago DB)
+        │     └── GameSessions, MapNodes, Users, Routes, Activities
+        │
+        ├── PostGisOsmDiscoveryService → PostgreSQL/PostGIS (osm_discovery DB)
+        │     └── planet_osm_nodes (flex-imported, 4326, GiST indexed)
+        │
+        ├── YARP Reverse Proxy
+        │     ├── /api/pb/** → PocketBase (legacy, phasing out)
+        │     └── /api/gh/** → GraphHopper
+        │
+        └── GraphHopper (routing validation)
 ```
 
 ## Frontend: React + Zustand
 
-The frontend is a single-page application (SPA) built with Vite and React. State management is handled through Zustand, separated into logical stores:
-- `userStore`: Manages authentication state and profile information.
-- `gameStore`: Manages current session data, Archipelago state, and location tracking.
-- `mapStore`: Manages Leaflet map state, routing parameters, and active waypoints.
+SPA built with Vite and React. State management via Zustand:
+- `userStore`: Auth state and profile
+- `gameStore`: Session data, Archipelago state, location tracking
+- `mapStore`: Leaflet map state, routing params, active waypoints
 
-### Styling
-The UI uses **Tailwind CSS** with **DaisyUI** as the component layer to maintain aesthetic consistency with the original Svelte version.
+**Styling**: Tailwind CSS + DaisyUI
 
-## Backend: .NET 8 Web API
+## Backend: .NET 10 Web API
 
-The backend is built using ASP.NET Core 8.0, following clean architecture principles:
-- **Controllers**: Entry points for HTTP requests.
-- **Services**: Business logic, including geocoding logic, session validation, and Archipelago item processing.
-- **Data Access**: Entity Framework Core with **PostgreSQL/PostGIS** for persistence (mapping to `GameSessions`, `Locations`, etc.).
+ASP.NET Core 10, repository pattern, dependency injection:
+- **Controllers**: Thin HTTP endpoints (Sessions, Nodes, Auth)
+- **Services**: Business logic — node generation, OSM discovery, routing
+- **Repositories**: EF Core (prod) + Mock (tests/E2E) implementations
 
 ### Authentication
-JWT-based authentication is used to provide stateless security between the React frontend and .NET backend. A custom `IdentityService` manages user registration and login.
+JWT-based. Stateless. `IUserRepository` handles registration/login.
 
-## Feature Mapping (Svelte -> React/.NET)
+### Node Generation (`/api/sessions/{id}/generate`)
 
-| Original Svelte Feature | New React/.NET Implementation |
-| :---------------------- | :--------------------------- |
-| `+layout.svelte`        | `Layout.tsx` (Component)      |
-| `+page.svelte` (Home)   | `Home.tsx` (Page Component)   |
-| `/game/[id]/` (Map)     | `GameView.tsx` + `MapCore`    |
-| `pb` (PocketBase SDK)   | `apiService` (.NET)         |
-| `$lib/ap.ts`            | `ArchipelagoService` (.NET)  |
+The generate flow:
+1. Fetch random nodes from `osm_discovery` PostGIS DB via `PostGisOsmDiscoveryService`
+2. Delete existing nodes for the session
+3. Bulk insert new `MapNode` records (single `SaveChangesAsync` — NOT per-row)
+4. Update session status to Active
 
-## Deployment Strategy
+**Critical**: Use `CreateRangeAsync` not `CreateAsync` in a loop. Per-row saves caused 5000 individual transactions and consistent timeouts even for 25 nodes.
 
-The migration supports a containerized deployment:
-1.  **Backend Container**: Runs the .NET application.
-2.  **Frontend Build**: Static files served by Nginx or the .NET host.
-3.  **Database**: Mounted SQLite volume or connection to a managed Postgres instance.
+### OSM Discovery Service Selection
+
+`OsmDiscoveryService` selects implementation at startup:
+1. `USE_MOCK_OVERPASS=true` → MockOsmDiscoveryService (for E2E tests)
+2. `ConnectionStrings:OsmDiscovery` set → **PostGisOsmDiscoveryService** (preferred)
+3. `OsmDiscovery:PbfPath` set → PbfOsmDiscoveryService
+4. Fallback → OverpassOsmDiscoveryService (**avoid** — slow external HTTP, causes 504s)
+
+Always set `ConnectionStrings:OsmDiscovery` in `appsettings.Development.json` to avoid falling back to Overpass.
+
+## OSM Data Infrastructure
+
+### Database: `osm_discovery` (PostgreSQL + PostGIS)
+
+The game queries `planet_osm_nodes` — imported via osm2pgsql flex output:
+- **Table**: `planet_osm_nodes` — columns: `id`, `geom geometry(Point,4326)`
+- **Index**: GiST spatial index on `geom` (created by osm2pgsql after import)
+- **Projection**: 4326 (WGS84) — no coordinate transforms needed at query time
+
+### Why flex output over pgsql output
+
+The old pgsql output (`planet_osm_point`) stores geometry in 3857 (Web Mercator) and creates 60+ tag columns we don't need. The flex output creates a lean table in 4326 with just a geometry column. This means:
+- No `ST_Transform` in queries → GiST index is used directly
+- Smaller rows → faster scans and smaller index
+- pgsql output is officially deprecated by osm2pgsql
+
+### Query Pattern
+
+```sql
+SELECT ST_X(geom)::float8, ST_Y(geom)::float8
+FROM planet_osm_nodes
+WHERE ST_DWithin(
+    geom::geography,
+    ST_SetSRID(ST_MakePoint(@lon, @lat), 4326)::geography,
+    @radius
+)
+ORDER BY RANDOM()
+LIMIT @count
+```
+
+Filtering on native `geom` (4326) lets PostGIS use the GiST index. The `::geography` cast makes the radius accurate in meters.
+
+### OSM Data File
+
+Coverage: **Contiguous US + Ontario**
+
+Single merged PBF: `graphhopper/data/us-states-merged.osm.pbf`
+- Downloaded from Geofabrik: `us-latest.osm.pbf` + `ontario-latest.osm.pbf`
+- Merged with osmium: `osmium merge us-latest.osm.pbf ontario-latest.osm.pbf -o us-states-merged.osm.pbf`
+- Used by both osm2pgsql (node discovery) and GraphHopper (routing)
+
+See `import-states.sh` in the repo root for the import procedure.
+
+### Import Gotchas
+
+- **Must use `--create` (not `--append`) without `--slim`**: The flex lua script only defines the output table, not slim node cache tables. `--append` requires `--slim`.
+- **Use the arm64 image**: `osm2pgsql-arm64:latest` (built locally). `iboates/osm2pgsql` is amd64-only and runs under Rosetta emulation — slower and causes platform warnings.
+- **Don't use `iboates/osm2pgsql` with `--slim --append`**: Causes "extra data after last expected column" errors due to version mismatch with the lua script.
+- **Kill zombie DB connections before importing**: A stuck importer can leave backend connections holding locks on `planet_osm_ways`, blocking `DROP TABLE`. Use `pg_terminate_backend()` to clear them.
+- **pgsql output is incompatible with flex append**: Don't mix output modes across imports into the same database.
+
+## GraphHopper
+
+Routing engine for node validation and navigation.
+
+- Runs as Docker container, reads from the merged PBF file
+- Configured via `graphhopper/config.yml`
+- Takes a single PBF file via `PBF_FILE` env var — does not support multiple files natively
+- Proxied through the .NET API at `/api/gh/**`
+
+## Deployment
+
+All services run via `docker-compose.yml` in the repo root:
+
+| Service | Port | Notes |
+|---|---|---|
+| `bikeapelago-api` | 8080 | .NET API |
+| `bikeapelago-react` | 8182 | Nginx + React SPA |
+| `postgis` | 5432 | Shared PostGIS instance (two DBs: `bikeapelago`, `osm_discovery`) |
+| `graphhopper` | 8989 | Routing engine |
+| `osm-importer` | — | Runs once and exits |
+
+In development, the Vite dev server proxies `/api` to `localhost:5054`.

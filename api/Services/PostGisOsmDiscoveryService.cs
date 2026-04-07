@@ -19,8 +19,8 @@ public class PostGisOsmDiscoveryService : IOsmDiscoveryService
     public PostGisOsmDiscoveryService(ILogger<PostGisOsmDiscoveryService> logger, IConfiguration config, HttpClient httpClient)
     {
         _logger = logger;
-        _connectionString = config.GetConnectionString("PostGis")
-            ?? throw new InvalidOperationException("PostGis connection string is required.");
+        _connectionString = config.GetConnectionString("OsmDiscovery")
+            ?? throw new InvalidOperationException("OsmDiscovery connection string is required.");
         _httpClient = httpClient;
     }
 
@@ -32,12 +32,11 @@ public class PostGisOsmDiscoveryService : IOsmDiscoveryService
         await conn.OpenAsync();
         await using var cmd = conn.CreateCommand();
         
-        // This query matches the one in NodeRepository.cs from the external repo
         cmd.CommandText = """
-            SELECT ST_X(ST_Transform(geom, 4326))::float8, ST_Y(ST_Transform(geom, 4326))::float8
+            SELECT ST_X(geom)::float8, ST_Y(geom)::float8
             FROM planet_osm_nodes
             WHERE ST_DWithin(
-                ST_Transform(geom, 4326)::geography,
+                geom::geography,
                 ST_SetSRID(ST_MakePoint(@lon, @lat), 4326)::geography,
                 @radius
             )

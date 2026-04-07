@@ -28,6 +28,16 @@ public class MockNodeRepository : IMapNodeRepository
         return Task.FromResult(node);
     }
 
+    public Task CreateRangeAsync(IEnumerable<MapNode> nodes)
+    {
+        foreach (var node in nodes)
+        {
+            if (node.Id == Guid.Empty) node.Id = Guid.NewGuid();
+            _nodes.Add(node);
+        }
+        return Task.CompletedTask;
+    }
+
     public Task<MapNode> UpdateAsync(MapNode node)
     {
         var idx = _nodes.FindIndex(n => n.Id == node.Id);
