@@ -50,29 +50,29 @@ const getMarkerIcon = (state: string) => {
 const GameStatsBar = ({ session, nodes }: { session: any, nodes: any[] }) => {
   const checked = nodes.filter(n => n.state === 'Checked').length;
   const available = nodes.filter(n => n.state === 'Available').length;
-  const total = nodes.length;
+  const hidden = nodes.filter(n => n.state === 'Hidden').length;
 
   return (
     <div className="w-full bg-[#1e1e1e] border-b border-white/10 px-4 py-2 flex items-center justify-between shrink-0 h-14 z-10">
       <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-white/10 bg-white/5">
-        <div className="w-2 h-2 rounded-full bg-green-500"></div>
+        <div className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]"></div>
         <span className="text-sm font-medium text-neutral-300">
           {session?.ap_seed_name || 'Visual Test Seed'} • {session?.ap_slot_name || 'test'}
         </span>
       </div>
       
-      <div className="flex items-center gap-4 font-bold text-sm">
-        <div className="flex flex-col items-center">
-          <span className="text-[10px] text-neutral-500 uppercase tracking-tighter">TOTAL</span>
-          <span className="text-white leading-none">{total}</span>
+      <div className="flex items-center gap-6 font-black text-xs uppercase tracking-tighter">
+        <div className="flex items-baseline gap-1.5">
+          <span className="text-white leading-none text-sm">{hidden}</span>
+          <span className="text-neutral-500">HIDDEN</span>
         </div>
-        <div className="flex flex-col items-center">
-          <span className="text-[10px] text-neutral-500 uppercase tracking-tighter">CHECKED</span>
-          <span className="text-green-500 leading-none">{checked}</span>
+        <div className="flex items-baseline gap-1.5">
+          <span className="text-orange-500 leading-none text-sm">{available}</span>
+          <span className="text-neutral-500">AVAILABLE</span>
         </div>
-        <div className="flex flex-col items-center">
-          <span className="text-[10px] text-neutral-500 uppercase tracking-tighter">AVail</span>
-          <span className="text-orange-500 leading-none">{available}</span>
+        <div className="flex items-baseline gap-1.5">
+          <span className="text-green-500 leading-none text-sm">{checked}</span>
+          <span className="text-neutral-500">CHECKED</span>
         </div>
       </div>
     </div>
@@ -82,10 +82,9 @@ const GameStatsBar = ({ session, nodes }: { session: any, nodes: any[] }) => {
 const GameView = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { activePanel, setActivePanel, routeData, waypoints, analysisResult } = useGameStore();
+  const { activePanel, setActivePanel, routeData, waypoints, analysisResult, nodes, setNodes } = useGameStore();
   
   const [session, setSession] = useState<any>(null);
-  const [nodes, setNodes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState('');
 
@@ -122,7 +121,7 @@ const GameView = () => {
     } finally {
       setLoading(false);
     }
-  }, [id]);
+  }, [id, setNodes]);
 
   useEffect(() => {
     if (id) {
