@@ -15,6 +15,7 @@ interface AuthState {
   isValid: boolean;
   login: (token: string, user: User) => void;
   logout: () => void;
+  updateUser: (user: User) => void;
   refresh: () => Promise<void>;
   getToken: () => string | null;
   handleUnauthorized: () => void;
@@ -54,6 +55,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     localStorage.removeItem(STORAGE_TOKEN_KEY);
     localStorage.removeItem(STORAGE_USER_KEY);
     set({ user: null, token: null, isValid: false });
+  },
+
+  updateUser: (user) => {
+    localStorage.setItem(STORAGE_USER_KEY, JSON.stringify(user));
+    set({ user });
   },
 
   // JWT is stateless with a 7-day expiry — no server refresh needed

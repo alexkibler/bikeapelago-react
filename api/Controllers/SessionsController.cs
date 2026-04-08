@@ -153,4 +153,27 @@ public class SessionsController(
             return BadRequest(new { message = ex.Message });
         }
     }
+
+    [HttpDelete("all")]
+    public async Task<IActionResult> DeleteAllSessions()
+    {
+        try
+        {
+            var authHeader = Request.Headers["Authorization"].FirstOrDefault();
+            if (string.IsNullOrEmpty(authHeader) || !authHeader.StartsWith("Bearer "))
+                return Unauthorized(new { message = "No auth token provided" });
+
+            var token = authHeader["Bearer ".Length..].Trim();
+            var user = await _userRepository.GetCurrentUserAsync(token);
+            if (user == null)
+                return Unauthorized(new { message = "Invalid token" });
+
+            await _sessionRepository.DeleteAllByUserIdAsync(user.Id);
+            return NoContent();
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
 }

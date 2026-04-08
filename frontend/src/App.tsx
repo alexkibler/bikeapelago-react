@@ -7,6 +7,7 @@ import YamlCreator from './pages/YamlCreator';
 import AthleteProfile from './pages/AthleteProfile';
 import NewGame from './pages/NewGame';
 import Login from './pages/Login';
+import Settings from './pages/Settings';
 import { useAuthStore } from './store/authStore';
 import './App.css';
 
@@ -27,6 +28,7 @@ function App() {
           <Route path="/setup-session" element={<PrivateRoute><SessionSetup /></PrivateRoute>} />
           <Route path="/yaml-creator" element={<PrivateRoute><YamlCreator /></PrivateRoute>} />
           <Route path="/athlete" element={<PrivateRoute><AthleteProfile /></PrivateRoute>} />
+          <Route path="/settings" element={<PrivateRoute><Settings /></PrivateRoute>} />
         </Routes>
       </Layout>
     </Router>
