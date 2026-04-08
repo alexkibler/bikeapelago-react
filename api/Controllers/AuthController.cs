@@ -44,6 +44,19 @@ public class AuthController : ControllerBase
     [HttpPatch("/api/users/{id}")]
     public async Task<IActionResult> UpdateUser(Guid id, [FromBody] UpdateUserRequest request)
     {
+        var authHeader = Request.Headers["Authorization"].FirstOrDefault();
+        if (string.IsNullOrEmpty(authHeader) || !authHeader.StartsWith("Bearer "))
+            return Unauthorized(new { message = "No auth token provided" });
+
+        var token = authHeader["Bearer ".Length..].Trim();
+        var currentUser = await _userRepository.GetCurrentUserAsync(token);
+
+        if (currentUser == null)
+            return Unauthorized(new { message = "Invalid token" });
+
+        if (currentUser.Id != id)
+            return Forbid();
+
         var user = await _userRepository.GetByIdAsync(id);
         if (user == null) return NotFound(new { message = "User not found." });
 
