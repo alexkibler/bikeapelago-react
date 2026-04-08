@@ -45,6 +45,9 @@ public class GameSession
     [JsonPropertyName("ap_seed_name")]
     public string? ApSeedName { get; set; }
 
+    [JsonPropertyName("name")]
+    public string? Name { get; set; }
+
     [JsonPropertyName("ap_server_url")]
     public string? ApServerUrl { get; set; }
 
@@ -69,11 +72,19 @@ public class GameSession
 
     [NotMapped]
     [JsonPropertyName("center_lat")]
-    public double CenterLat => Location?.Y ?? 0;
+    public double? CenterLat 
+    { 
+        get => Location?.Y;
+        set => Location = new Point(Location?.X ?? 0, value ?? 0) { SRID = 4326 };
+    }
 
     [NotMapped]
     [JsonPropertyName("center_lon")]
-    public double CenterLon => Location?.X ?? 0;
+    public double? CenterLon 
+    { 
+        get => Location?.X;
+        set => Location = new Point(value ?? 0, Location?.Y ?? 0) { SRID = 4326 };
+    }
 }
 
 public class MapNode
@@ -103,11 +114,19 @@ public class MapNode
 
     [NotMapped]
     [JsonPropertyName("lat")]
-    public double Lat => Location?.Y ?? 0;
+    public double? Lat 
+    { 
+        get => Location?.Y;
+        set => Location = new Point(Location?.X ?? 0, value ?? 0) { SRID = 4326 };
+    }
 
     [NotMapped]
     [JsonPropertyName("lon")]
-    public double Lon => Location?.X ?? 0;
+    public double? Lon 
+    { 
+        get => Location?.X;
+        set => Location = new Point(value ?? 0, Location?.Y ?? 0) { SRID = 4326 };
+    }
 }
 
 public class Route

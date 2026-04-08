@@ -55,7 +55,7 @@ const Home = () => {
                 </div>
 
                 <h3 className="text-xl text-white font-bold mb-3 group-hover:text-orange-500 transition-colors truncate">
-                  {session.ap_seed_name ?? 'Unnamed Session'}
+                  {session.name || session.ap_seed_name || 'Unnamed Session'}
                 </h3>
 
                 {isAp(session) ? (

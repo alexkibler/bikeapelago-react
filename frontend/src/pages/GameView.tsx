@@ -86,7 +86,7 @@ const GameStatsBar = ({ session, nodes }: { session: any, nodes: any[] }) => {
       <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-[var(--color-border-hex)] bg-[rgb(var(--color-surface-overlay))] relative group min-w-0">
         <div className={`w-2 h-2 rounded-full flex-shrink-0 ${statusColor}`}></div>
         <span className="text-xs font-medium text-[var(--color-text-muted-hex)] truncate">
-          {session?.ap_seed_name || 'Visual Test Seed'} • {session?.ap_slot_name || 'test'}
+          {session?.name || session?.ap_seed_name || 'Unnamed Session'} • {session?.ap_slot_name || 'Local Rider'}
         </span>
         {error && (
           <div className="absolute top-full left-0 mt-2 p-2 bg-[var(--color-error-hex)]/90 border border-[var(--color-error-hex)] rounded text-[10px] text-[var(--color-text-hex)] opacity-0 group-hover:opacity-100 transition-opacity z-50 w-48">

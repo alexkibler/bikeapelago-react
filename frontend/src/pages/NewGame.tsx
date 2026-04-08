@@ -5,6 +5,7 @@ import { Globe, User, Lock, Server, ArrowRight, Info } from 'lucide-react';
 const NewGame = () => {
   const navigate = useNavigate();
   const [gameMode, setGameMode] = useState<'archipelago' | 'singleplayer'>('archipelago');
+  const [sessionName, setSessionName] = useState('');
   const [serverUrl, setServerUrl] = useState('archipelago.gg:');
   const [slotName, setSlotName] = useState('');
   const [password, setPassword] = useState('');
@@ -20,6 +21,7 @@ const NewGame = () => {
     // Direct redirect without creating a DB session placeholder yet
     const params = new URLSearchParams();
     params.set('mode', gameMode);
+    if (sessionName.trim()) params.set('name', sessionName.trim());
     if (gameMode === 'archipelago') {
       params.set('serverUrl', serverUrl);
       params.set('slotName', slotName);
@@ -41,6 +43,19 @@ const NewGame = () => {
         </header>
 
         <form onSubmit={handleSubmit} className="space-y-8 relative">
+          <div className="space-y-2">
+            <label className="text-xs font-black uppercase tracking-widest text-neutral-500 ml-1">Session Name</label>
+            <div className="relative group">
+              <input
+                type="text"
+                value={sessionName}
+                onChange={(e) => setSessionName(e.target.value)}
+                placeholder="My Awesome Adventure"
+                className="w-full bg-neutral-800 border border-neutral-700 rounded-xl py-4 px-6 text-white focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all"
+              />
+            </div>
+          </div>
+
           {/* Game Mode Selection */}
           <div className="grid grid-cols-2 gap-4">
             <button
