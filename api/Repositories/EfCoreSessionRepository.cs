@@ -21,6 +21,7 @@ public class EfCoreSessionRepository(BikeapelagoDbContext context) : IGameSessio
     {
         return await _context.GameSessions
             .Where(s => s.UserId == userId)
+            .OrderByDescending(s => s.CreatedAt)
             .ToListAsync();
     }
 

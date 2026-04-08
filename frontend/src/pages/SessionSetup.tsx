@@ -51,6 +51,7 @@ const SessionSetup = () => {
   
   const serverUrl = searchParams.get('serverUrl') || '';
   const slotName = searchParams.get('slotName') || '';
+  const sessionName = searchParams.get('name') || '';
   const mode = searchParams.get('mode') || 'archipelago';
 
   const { user } = useAuthStore();
@@ -104,14 +105,20 @@ const SessionSetup = () => {
       // 1. Create DB Session
       const payload: {
         user: string;
+        name: string;
         status: string;
         radius: number;
+        center_lat: number;
+        center_lon: number;
         ap_server_url?: string;
         ap_slot_name?: string;
       } = {
         user: user?.id ?? '',
+        name: sessionName,
         status: 'SetupInProgress',
-        radius: radius // the selected radius allows the DB save to succeed cleanly now!
+        radius: radius, // the selected radius allows the DB save to succeed cleanly now!
+        center_lat: center[0],
+        center_lon: center[1]
       };
       
       if (mode === 'archipelago') {
