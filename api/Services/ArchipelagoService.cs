@@ -105,6 +105,7 @@ public class ArchipelagoService(IHubContext<ArchipelagoHub> hubContext, ILogger<
             try { await existingSession.Socket.DisconnectAsync(); } catch { }
         }
 
+        _logger.LogInformation("Connecting Session {SessionId} to Archipelago server at {Url} as {Slot}", sessionId, url, slotName);
         session = ArchipelagoSessionFactory.CreateSession(url);
         
         session.Items.ItemReceived += (helper) => {

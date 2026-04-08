@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Bikeapelago.Api.Models;
 using Bikeapelago.Api.Repositories;
 using System.Text.Json.Serialization;
+using Microsoft.AspNetCore.Identity;
 
 namespace Bikeapelago.Api.Controllers;
 
@@ -10,10 +11,14 @@ namespace Bikeapelago.Api.Controllers;
 public class AuthController : ControllerBase
 {
     private readonly IUserRepository _userRepository;
+    private readonly UserManager<User> _userManager;
+    private readonly RoleManager<IdentityRole<Guid>> _roleManager;
 
-    public AuthController(IUserRepository userRepository)
+    public AuthController(IUserRepository userRepository, UserManager<User> userManager, RoleManager<IdentityRole<Guid>> roleManager)
     {
         _userRepository = userRepository;
+        _userManager = userManager;
+        _roleManager = roleManager;
     }
 
     [HttpPost("/api/auth/login")]
@@ -62,16 +67,21 @@ public class AuthController : ControllerBase
         var user = await _userRepository.GetByIdAsync(id);
         if (user == null) return NotFound(new { message = "User not found." });
 
-        if (request.Username != null) user.Username = request.Username;
+        if (request.Username != null) user.UserName = request.Username;
         if (request.Name != null) user.Name = request.Name;
         if (request.Weight.HasValue) user.Weight = request.Weight.Value;
+        
+        var result = await _userManager.UpdateAsync(user);
+        if (!result.Succeeded) return BadRequest(new { message = string.Join(", ", result.Errors.Select(e => e.Description)) });
+
         if (request.Password != null)
         {
-            user.Password = BCrypt.Net.BCrypt.HashPassword(request.Password);
+            await _userManager.RemovePasswordAsync(user);
+            var addResult = await _userManager.AddPasswordAsync(user, request.Password);
+            if (!addResult.Succeeded) return BadRequest(new { message = string.Join(", ", addResult.Errors.Select(e => e.Description)) });
         }
 
-        var updated = await _userRepository.UpdateAsync(user);
-        return Ok(updated);
+        return Ok(user);
     }
 
     [HttpPost("/api/auth/register")]
@@ -80,11 +90,17 @@ public class AuthController : ControllerBase
     {
         try {
             var user = new User {
-                Username = request.Username,
+                UserName = request.Username,
+                Email = request.Username.Contains("@") ? request.Username : null,
                 Name = request.Name
             };
-            var createdUser = await _userRepository.CreateAsync(user, request.Password);
-            return Ok(createdUser);
+            
+            var result = await _userManager.CreateAsync(user, request.Password);
+            if (!result.Succeeded) return BadRequest(new { message = string.Join(", ", result.Errors.Select(e => e.Description)) });
+
+            await _userManager.AddToRoleAsync(user, "User");
+            
+            return Ok(user);
         } catch (Exception ex) {
             return BadRequest(new { message = ex.Message });
         }

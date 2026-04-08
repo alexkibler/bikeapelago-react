@@ -1,20 +1,19 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
+using Microsoft.AspNetCore.Identity;
 using NetTopologySuite.Geometries;
 
 namespace Bikeapelago.Api.Models;
 
-public class User
+public class User : IdentityUser<Guid>
 {
-    [Key]
-    [JsonPropertyName("id")]
-    public Guid Id { get; set; } = Guid.NewGuid();
+    // Id is inherited from IdentityUser<Guid>
 
-    [Required]
     [JsonPropertyName("username")]
-    public string Username { get; set; } = string.Empty;
+    public override string? UserName { get; set; }
 
     [JsonPropertyName("name")]
     public string? Name { get; set; }
@@ -26,10 +25,12 @@ public class User
     public string? Avatar { get; set; }
 
     [JsonPropertyName("email")]
-    public string? Email { get; set; }
+    public override string? Email { get; set; }
 
     [JsonIgnore]
-    public string? Password { get; set; }
+    public string? Password { get; set; } 
+    // Note: PasswordHash is inherited, but we might keep this for local compatibility if needed 
+    // although UserManager will handle it.
 }
 
 public class GameSession
@@ -132,66 +133,6 @@ public class MapNode
     }
 }
 
-public class Route
-{
-    [Key]
-    [JsonPropertyName("id")]
-    public Guid Id { get; set; } = Guid.NewGuid();
-
-    [Required]
-    [JsonPropertyName("user")]
-    public Guid UserId { get; set; }
-
-    [JsonPropertyName("title")]
-    public string? Title { get; set; }
-
-    [JsonPropertyName("sport")]
-    public string? Sport { get; set; }
-
-    [JsonPropertyName("distance")]
-    public double? Distance { get; set; }
-
-    [JsonPropertyName("elevation")]
-    public double? Elevation { get; set; }
-
-    [JsonPropertyName("time")]
-    public double? Time { get; set; }
-
-    [JsonIgnore]
-    public LineString? Path { get; set; }
-}
-
-public class Activity
-{
-    [Key]
-    [JsonPropertyName("id")]
-    public Guid Id { get; set; } = Guid.NewGuid();
-
-    [Required]
-    [JsonPropertyName("user")]
-    public Guid UserId { get; set; }
-
-    [JsonPropertyName("name")]
-    public string? Name { get; set; }
-
-    [JsonPropertyName("description")]
-    public string? Description { get; set; }
-
-    [JsonPropertyName("sport")]
-    public string? Sport { get; set; }
-
-    [JsonPropertyName("start_time")]
-    public string? StartTime { get; set; }
-
-    [JsonPropertyName("tot_distance")]
-    public double? TotDistance { get; set; }
-
-    [JsonPropertyName("tot_elevation")]
-    public double? TotElevation { get; set; }
-
-    [JsonIgnore]
-    public LineString? Path { get; set; }
-}
 
 public class ApiLog
 {

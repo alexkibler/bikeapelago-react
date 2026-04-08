@@ -7,13 +7,13 @@ public class MockUserRepository : IUserRepository
 {
     public Task<User?> GetByIdAsync(Guid id)
     {
-        return Task.FromResult<User?>(new User { Id = id, Username = "testuser", Name = "Test User" });
+        return Task.FromResult<User?>(new User { Id = id, UserName = "testuser", Name = "Test User" });
     }
 
     public Task<User?> GetByUsernameOrEmailAsync(string identity)
     {
         if (identity == "testuser" || identity == "test@example.com")
-            return Task.FromResult<User?>(new User { Id = Guid.Empty, Username = "testuser", Name = "Test User", Email = "test@example.com" });
+            return Task.FromResult<User?>(new User { Id = Guid.Empty, UserName = "testuser", Name = "Test User", Email = "test@example.com" });
         return Task.FromResult<User?>(null);
     }
 
@@ -32,7 +32,7 @@ public class MockUserRepository : IUserRepository
     {
         if ((identity == "testuser" || identity == "test@example.com") && password == "Password")
         {
-            var user = new User { Id = Guid.Empty, Username = "testuser", Name = "Test User" };
+            var user = new User { Id = Guid.Empty, UserName = "testuser", Name = "Test User" };
             return Task.FromResult<(string Token, User User)?>(("mock-jwt-token-for-e2e", user));
         }
         return Task.FromResult<(string Token, User User)?>(null);
@@ -41,6 +41,6 @@ public class MockUserRepository : IUserRepository
     public Task<User?> GetCurrentUserAsync(string token)
     {
         // In mock mode, any token resolves to the test user
-        return Task.FromResult<User?>(new User { Id = Guid.Empty, Username = "testuser", Name = "Test User" });
+        return Task.FromResult<User?>(new User { Id = Guid.Empty, UserName = "testuser", Name = "Test User" });
     }
 }

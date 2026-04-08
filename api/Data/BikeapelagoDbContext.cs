@@ -1,20 +1,20 @@
 using Bikeapelago.Api.Models;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
-using Route = Bikeapelago.Api.Models.Route;
+
 
 namespace Bikeapelago.Api.Data;
 
-public class BikeapelagoDbContext : DbContext
+public class BikeapelagoDbContext : IdentityDbContext<User, IdentityRole<Guid>, Guid>
 {
     public BikeapelagoDbContext(DbContextOptions<BikeapelagoDbContext> options) : base(options)
     {
     }
 
-    public DbSet<User> Users { get; set; } = null!;
     public DbSet<GameSession> GameSessions { get; set; } = null!;
     public DbSet<MapNode> MapNodes { get; set; } = null!;
-    public DbSet<Route> Routes { get; set; } = null!;
-    public DbSet<Activity> Activities { get; set; } = null!;
+
     public DbSet<ApiLog> ApiLogs { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -34,13 +34,7 @@ public class BikeapelagoDbContext : DbContext
             .Property(m => m.Location)
             .HasColumnType("geometry (point)");
 
-        modelBuilder.Entity<Route>()
-            .Property(r => r.Path)
-            .HasColumnType("geometry (linestring)");
 
-        modelBuilder.Entity<Activity>()
-            .Property(a => a.Path)
-            .HasColumnType("geometry (linestring)");
 
         // Add foreign key relationships explicitly if needed
         modelBuilder.Entity<GameSession>()
@@ -55,16 +49,6 @@ public class BikeapelagoDbContext : DbContext
             .HasForeignKey(m => m.SessionId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        modelBuilder.Entity<Route>()
-            .HasOne<User>()
-            .WithMany()
-            .HasForeignKey(r => r.UserId)
-            .OnDelete(DeleteBehavior.Cascade);
 
-        modelBuilder.Entity<Activity>()
-            .HasOne<User>()
-            .WithMany()
-            .HasForeignKey(a => a.UserId)
-            .OnDelete(DeleteBehavior.Cascade);
     }
 }
