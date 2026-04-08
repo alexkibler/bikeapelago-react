@@ -3,6 +3,7 @@ import { User, Lock, Trash2, AlertTriangle, Check, Loader2, ShieldAlert, Save, A
 import { useAuthStore, getToken } from '../store/authStore';
 import { useNavigate } from 'react-router-dom';
 import { useSessions } from '../hooks/useSessions';
+import { toast } from '../store/toastStore';
 
 const Settings = () => {
     const navigate = useNavigate();
@@ -48,7 +49,7 @@ const Settings = () => {
             setUsernameSuccess(true);
             setTimeout(() => setUsernameSuccess(false), 3000);
         } catch (err) {
-            alert('Failed to update username. It might be taken.');
+            toast.error('Failed to update username. It might be taken.');
         } finally {
             setIsUpdatingUsername(false);
         }
@@ -98,9 +99,9 @@ const Settings = () => {
         try {
             await deleteAllSessions();
             setDeleteStep(0);
-            alert('All sessions deleted successfully.');
+            toast.success('All sessions deleted successfully.');
         } catch (err) {
-            alert('Failed to delete sessions.');
+            toast.error('Failed to delete sessions.');
             setDeleteStep(0);
         } finally {
             setIsDeletingAll(false);

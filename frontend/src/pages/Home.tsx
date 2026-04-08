@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { PlayCircle, User, ArrowRight, Plus, Monitor, Loader2, Download, Trash2, AlertTriangle } from 'lucide-react';
 import { useSessions, type GameSession } from '../hooks/useSessions';
 import { useAuthStore } from '../store/authStore';
+import { toast } from '../store/toastStore';
 
 const DeleteSessionDialog = ({ 
   session, 
@@ -75,8 +76,9 @@ const Home = () => {
     try {
       await deleteSession(sessionToDelete.id);
       setSessionToDelete(null);
+      toast.success('Session deleted successfully.');
     } catch (err) {
-      alert('Failed to delete session. Please try again.');
+      toast.error('Failed to delete session. Please try again.');
     } finally {
       setIsDeleting(false);
     }
