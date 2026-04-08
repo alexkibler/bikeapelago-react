@@ -12,7 +12,12 @@ export default defineConfig(({ mode }) => {
     server: {
       proxy: {
         '/api': {
-          target: env.VITE_PUBLIC_API_URL || 'http://localhost:5054',
+          target: env.VITE_PUBLIC_API_URL || 'http://127.0.0.1:5054',
+          changeOrigin: true,
+        },
+        '/hubs': {
+          target: env.VITE_PUBLIC_API_URL || 'http://127.0.0.1:5054',
+          ws: true,
           changeOrigin: true,
         }
       }

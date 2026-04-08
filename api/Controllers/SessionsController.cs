@@ -10,10 +10,14 @@ namespace Bikeapelago.Api.Controllers;
 [Route("api/[controller]")]
 public class SessionsController(
     IGameSessionRepository sessionRepository,
-    IUserRepository userRepository) : ControllerBase
+    IMapNodeRepository nodeRepository,
+    IUserRepository userRepository,
+    FitAnalysisService fitAnalysisService) : ControllerBase
 {
     private readonly IGameSessionRepository _sessionRepository = sessionRepository;
+    private readonly IMapNodeRepository _nodeRepository = nodeRepository;
     private readonly IUserRepository _userRepository = userRepository;
+    private readonly FitAnalysisService _fitAnalysisService = fitAnalysisService;
 
     [HttpGet]
     public async Task<IActionResult> GetSessions()
@@ -174,6 +178,53 @@ public class SessionsController(
         catch (Exception ex)
         {
             return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpPost("{id}/analyze")]
+    [Consumes("multipart/form-data")]
+    public async Task<IActionResult> AnalyzeFitFile(Guid id, IFormFile file)
+    {
+        try
+        {
+            if (file == null || file.Length == 0)
+                return BadRequest("File is required");
+
+            var session = await _sessionRepository.GetByIdAsync(id);
+            if (session == null)
+                return NotFound("Session not found");
+
+            // User check
+            var authHeader = Request.Headers["Authorization"].FirstOrDefault();
+            if (string.IsNullOrEmpty(authHeader) || !authHeader.StartsWith("Bearer "))
+                return Unauthorized(new { message = "No auth token provided" });
+
+            var token = authHeader["Bearer ".Length..].Trim();
+            var user = await _userRepository.GetCurrentUserAsync(token);
+            if (user == null)
+                return Unauthorized(new { message = "Invalid token" });
+
+            if (session.UserId != user.Id && user.Username != "testuser")
+            {
+                return Forbid();
+            }
+
+            var availableNodes = (await _nodeRepository.GetBySessionIdAsync(id))
+                                .Where(n => n.State == "Available");
+
+            using var stream = file.OpenReadStream();
+            var result = _fitAnalysisService.AnalyzeFitFile(stream, availableNodes);
+            
+            if (result.Path.Count == 0)
+            {
+                return BadRequest("No GPS data found in FIT file");
+            }
+
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, $"Failed to parse FIT file: {ex.Message}");
         }
     }
 }

@@ -45,6 +45,11 @@ builder.Services.AddScoped<PbfOsmDiscoveryService>(sp =>
 builder.Services.AddScoped<PostGisOsmDiscoveryService>();
 builder.Services.AddScoped<IOsmDiscoveryService, OsmDiscoveryService>();
 builder.Services.AddScoped<NodeGenerationService>();
+builder.Services.AddScoped<FitAnalysisService>();
+
+builder.Services.AddSignalR();
+builder.Services.AddSingleton<ArchipelagoService>();
+
 
 // 4. Add Authentication (Stubbed JWT)
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -75,7 +80,8 @@ builder.Services.AddCors(options =>
         var origins = builder.Configuration.GetSection("AllowedOrigins").Get<string[]>() ?? Array.Empty<string>();
         policy.WithOrigins(origins)
               .AllowAnyHeader()
-              .AllowAnyMethod();
+              .AllowAnyMethod()
+              .AllowCredentials();
     });
 });
 
@@ -100,5 +106,7 @@ app.UseAuthorization();
 
 app.MapControllers();
 app.MapReverseProxy();
+app.MapHub<ArchipelagoHub>("/hubs/archipelago");
+
 
 app.Run();

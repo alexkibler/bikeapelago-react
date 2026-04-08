@@ -1,6 +1,6 @@
 import React from 'react';
 import { useLocation, Link } from 'react-router-dom';
-import { Home, MessageSquare, UploadCloud, Map } from 'lucide-react';
+import { Home, MessageSquare, Package, Map } from 'lucide-react';
 import { useGameStore } from '../../store/gameStore';
 
 const BottomNav = () => {
@@ -25,10 +25,10 @@ const BottomNav = () => {
               <span className="text-[10px] font-bold uppercase tracking-wider">Chat</span>
             </button>
             <button
-              onClick={() => togglePanel('upload')}
-              className={`flex flex-col items-center gap-1 p-2 transition-colors rounded-lg ${activePanel === 'upload' ? 'bg-[var(--color-primary-hex)]/20 text-[var(--color-primary-hex)]' : 'text-[var(--color-text-muted-hex)] hover:text-[var(--color-primary-hex)] hover:bg-[rgb(var(--color-surface-overlay))]'}`}>
-              <UploadCloud className="w-5 h-5" />
-              <span className="text-[10px] font-bold uppercase tracking-wider">Upload .fit</span>
+              onClick={() => togglePanel('inventory')}
+              className={`flex flex-col items-center gap-1 p-2 transition-colors rounded-lg ${activePanel === 'inventory' ? 'bg-[var(--color-primary-hex)]/20 text-[var(--color-primary-hex)]' : 'text-[var(--color-text-muted-hex)] hover:text-[var(--color-primary-hex)] hover:bg-[rgb(var(--color-surface-overlay))]'}`}>
+              <Package className="w-5 h-5" />
+              <span className="text-[10px] font-bold uppercase tracking-wider">Inventory</span>
             </button>
             <button
               onClick={() => togglePanel('route')}

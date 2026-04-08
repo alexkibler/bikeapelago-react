@@ -31,12 +31,17 @@ public class PostGisOsmDiscoveryService : IOsmDiscoveryService
         await using var conn = new NpgsqlConnection(_connectionString);
         await conn.OpenAsync();
         await using var cmd = conn.CreateCommand();
-        
+
+        // Find nodes that are part of ways within the search radius.
+        // Filter ways first (fewer objects) for better spatial index performance.
+        // This ensures nodes are on actual roads/paths, not random points in fields.
         cmd.CommandText = """
-            SELECT ST_X(geom)::float8, ST_Y(geom)::float8
-            FROM planet_osm_nodes
+            SELECT DISTINCT ST_X(n.geom)::float8, ST_Y(n.geom)::float8
+            FROM planet_osm_ways w
+            INNER JOIN planet_osm_way_nodes wn ON w.id = wn.way_id
+            INNER JOIN planet_osm_nodes n ON wn.node_id = n.id
             WHERE ST_DWithin(
-                geom::geography,
+                w.geom::geography,
                 ST_SetSRID(ST_MakePoint(@lon, @lat), 4326)::geography,
                 @radius
             )

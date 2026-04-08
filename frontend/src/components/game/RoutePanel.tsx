@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useGameStore } from '../../store/gameStore';
 import { getGraphhopperUrl } from '../../lib/graphhopper';
-import { calculateDistance } from '../../lib/geoUtils';
-import { Map, Download, Trash2, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
+import { calculateDistance, downloadGPXFromPolyline } from '../../lib/geoUtils';
+import { Map, Download, Trash2, Loader2, ChevronDown, ChevronUp, UploadCloud } from 'lucide-react';
 
 const NodeListItem = ({ node, onClick }: { node: any, onClick: () => void }) => {
   return (
@@ -36,7 +36,7 @@ const CategoryHeader = ({ title, count, color, isOpen, onClick }: { title: strin
 );
 
 const RoutePanel = () => {
-  const { waypoints, clearWaypoints, setRouteData, routeData, nodes, addWaypoint, addWaypoints, userLocation } = useGameStore();
+  const { waypoints, clearWaypoints, setRouteData, routeData, nodes, addWaypoint, addWaypoints, userLocation, togglePanel } = useGameStore();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
@@ -106,35 +106,7 @@ const RoutePanel = () => {
 
   const downloadGPX = () => {
     if (!routeData.polyline) return;
-    
-    const coordinates = JSON.parse(routeData.polyline) as [number, number, number?][];
-    let gpx = `<?xml version="1.0" encoding="UTF-8"?>
-<gpx version="1.1" creator="Bikeapelago" xmlns="http://www.topografix.com/GPX/1/1">
-  <trk>
-    <name>Bikeapelago Route</name>
-    <trkseg>`;
-    
-    coordinates.forEach((coord) => {
-      gpx += `
-      <trkpt lat="${coord[1]}" lon="${coord[0]}">
-        <ele>${coord[2] || 0}</ele>
-      </trkpt>`;
-    });
-    
-    gpx += `
-    </trkseg>
-  </trk>
-</gpx>`;
-
-    const blob = new Blob([gpx], { type: 'application/gpx+xml' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'bikeapelago_route.gpx';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    downloadGPXFromPolyline(routeData.polyline);
   };
 
   const handleRouteToAvailable = () => {
@@ -188,6 +160,13 @@ const RoutePanel = () => {
             className="w-full bg-[rgb(var(--color-surface-overlay))] hover:bg-[rgb(var(--color-surface-overlay))]/[0.08] text-[var(--color-text-muted-hex)] font-bold py-3 rounded-xl transition-all border border-[var(--color-border-hex)]"
           >
             Clear Route
+          </button>
+          <button
+            onClick={() => togglePanel('upload')}
+            className="w-full bg-[var(--color-primary-hex)]/10 hover:bg-[var(--color-primary-hex)]/20 text-[var(--color-primary-hex)] font-bold py-3 rounded-xl transition-all border border-[var(--color-primary-hex)]/20 flex items-center justify-center gap-2"
+          >
+            <UploadCloud className="w-5 h-5" />
+            Analyze Ride (.fit)
           </button>
         </div>
 

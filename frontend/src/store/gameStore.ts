@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-export type GamePanel = 'chat' | 'upload' | 'route' | null;
+export type GamePanel = 'chat' | 'upload' | 'route' | 'inventory' | null;
 
 interface GameState {
   activePanel: GamePanel;
@@ -27,6 +27,9 @@ interface GameState {
   
   userLocation: [number, number] | null;
   setUserLocation: (point: [number, number] | null) => void;
+
+  syncVersion: number;
+  triggerSync: () => void;
 }
 
 export const useGameStore = create<GameState>((set) => ({
@@ -59,5 +62,8 @@ export const useGameStore = create<GameState>((set) => ({
   setAnalysisResult: (result) => set({ analysisResult: result }),
   
   userLocation: null,
-  setUserLocation: (location) => set({ userLocation: location })
+  setUserLocation: (location) => set({ userLocation: location }),
+
+  syncVersion: 0,
+  triggerSync: () => set((state) => ({ syncVersion: state.syncVersion + 1 }))
 }));
