@@ -16,7 +16,8 @@ public class NodeGenerationRequest
     public double CenterLon { get; set; }
     public double Radius { get; set; }
     public int NodeCount { get; set; } = 50;
-    public string Mode { get; set; } = "archipelago"; // or "singleplayer"
+    public string Mode { get; set; } = "bike"; // "bike" or "walk"
+    public string GameMode { get; set; } = "archipelago"; // "archipelago" or "singleplayer"
 }
 
 public class NodeGenerationService(
@@ -46,7 +47,8 @@ public class NodeGenerationService(
             request.CenterLat,
             request.CenterLon,
             request.Radius,
-            request.NodeCount);
+            request.NodeCount,
+            request.Mode);
         _logger.LogInformation("[generate] OsmDiscovery ({Count} points): {Ms}ms", points.Count, sw.ElapsedMilliseconds);
 
         if (points.Count < request.NodeCount)
@@ -68,7 +70,7 @@ public class NodeGenerationService(
             OsmNodeId = $"osm-{request.SessionId}-{i + 1}",
             Name = $"Node {i + 1}",
             Location = new NetTopologySuite.Geometries.Point(point.Lon, point.Lat) { SRID = 4326 },
-            State = request.Mode == "singleplayer" && i < 3 ? "Available" : "Hidden"
+            State = i < 3 ? "Available" : "Hidden"
         }).ToList();
         await _nodeRepository.CreateRangeAsync(mapNodes);
         _logger.LogInformation("[generate] BulkInsert ({Count} nodes): {Ms}ms", mapNodes.Count, sw.ElapsedMilliseconds);
@@ -77,6 +79,7 @@ public class NodeGenerationService(
         sw.Restart();
         session.Location = new NetTopologySuite.Geometries.Point(request.CenterLon, request.CenterLat) { SRID = 4326 };
         session.Radius = (int)request.Radius;
+        session.Mode = request.Mode;
         session.Status = SessionStatus.Active;
         await _sessionRepository.UpdateAsync(session);
         _logger.LogInformation("[generate] UpdateSession: {Ms}ms", sw.ElapsedMilliseconds);

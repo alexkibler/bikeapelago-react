@@ -3,7 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { MapContainer, TileLayer, Marker, Circle, useMapEvents, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { Search, Navigation, Play, Loader2, AlertCircle } from 'lucide-react';
+import { Search, Navigation, Play, Loader2, AlertCircle, HelpCircle, Bike, Footprints } from 'lucide-react';
 import { getToken, useAuthStore } from '../store/authStore';
 
 
@@ -51,6 +51,7 @@ const SessionSetup = () => {
   
   const serverUrl = searchParams.get('serverUrl') || '';
   const slotName = searchParams.get('slotName') || '';
+  const sessionName = searchParams.get('name') || '';
   const mode = searchParams.get('mode') || 'archipelago';
 
   const { user } = useAuthStore();
@@ -60,6 +61,7 @@ const SessionSetup = () => {
   const [radius, setRadius] = useState(5000);
   const [address, setAddress] = useState('');
   const [nodeCount, setNodeCount] = useState(mode === 'archipelago' ? 50 : 25);
+  const [travelMode, setTravelMode] = useState<'bike' | 'walk'>('bike');
 
   // UI State
   const [isGenerating, setIsGenerating] = useState(false);
@@ -104,14 +106,22 @@ const SessionSetup = () => {
       // 1. Create DB Session
       const payload: {
         user: string;
+        name: string;
         status: string;
         radius: number;
+        center_lat: number;
+        center_lon: number;
         ap_server_url?: string;
         ap_slot_name?: string;
+        mode: string;
       } = {
         user: user?.id ?? '',
+        name: sessionName,
         status: 'SetupInProgress',
-        radius: radius // the selected radius allows the DB save to succeed cleanly now!
+        radius: radius, // the selected radius allows the DB save to succeed cleanly now!
+        center_lat: center[0],
+        center_lon: center[1],
+        mode: travelMode
       };
       
       if (mode === 'archipelago') {
@@ -151,7 +161,8 @@ const SessionSetup = () => {
           centerLon: center[1],
           radius,
           nodeCount: mode === 'singleplayer' ? nodeCount : undefined,
-          mode
+          gameMode: mode,
+          mode: travelMode
         })
       });
 
@@ -251,6 +262,59 @@ const SessionSetup = () => {
                   <span className="text-xs text-[var(--color-text-muted-hex)]">Fixed from Archipelago seed</span>
                 </div>
               )}
+            </div>
+            
+            {/* Travel Mode */}
+            <div className="space-y-4 pt-4 border-t border-[var(--color-border-hex)]">
+              <div className="flex justify-between items-center">
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-black uppercase tracking-widest text-[var(--color-text-subtle-hex)]">Travel Mode</label>
+                  <div className="group relative">
+                    <HelpCircle className="w-3.5 h-3.5 text-[var(--color-text-subtle-hex)] cursor-help hover:text-[var(--color-primary-hex)] transition-colors" />
+                    <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-3 w-64 p-4 bg-neutral-900/95 backdrop-blur-md border border-neutral-800 rounded-2xl shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50 pointer-events-none">
+                      <h4 className="font-bold text-xs text-orange-500 mb-2 uppercase tracking-tight">How modes differ</h4>
+                      <div className="space-y-3">
+                        <div>
+                          <p className="text-[10px] font-black text-neutral-300 mb-1">BIKE MODE</p>
+                          <p className="text-[11px] text-neutral-400 leading-relaxed">Prioritizes cycleways, residential streets, and paved tracks. Avoids major highways and unsuitable surfaces.</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-black text-neutral-300 mb-1">WALK MODE</p>
+                          <p className="text-[11px] text-neutral-400 leading-relaxed">Includes footpaths, pedestrian zones, steps, and trails that might be inaccessible to bicycles.</p>
+                        </div>
+                      </div>
+                      <div className="absolute bottom-[-6px] left-1/2 -translate-x-1/2 w-3 h-3 bg-neutral-900 border-b border-r border-neutral-800 rotate-45"></div>
+                    </div>
+                  </div>
+                </div>
+                <span className="text-[var(--color-text-hex)] font-bold text-sm uppercase">{travelMode}</span>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setTravelMode('bike')}
+                  className={`flex items-center justify-center gap-2 p-3 rounded-xl border-2 transition-all ${
+                    travelMode === 'bike'
+                      ? 'border-orange-500 bg-orange-500/5 text-orange-500'
+                      : 'border-[var(--color-border-hex)] bg-[var(--color-surface-alt-hex)] text-[var(--color-text-muted-hex)] hover:border-[var(--color-border-strong-hex)]'
+                  }`}
+                >
+                  <Bike className="w-4 h-4" />
+                  <span className="font-bold text-xs">Bike</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTravelMode('walk')}
+                  className={`flex items-center justify-center gap-2 p-3 rounded-xl border-2 transition-all ${
+                    travelMode === 'walk'
+                      ? 'border-orange-500 bg-orange-500/5 text-orange-500'
+                      : 'border-[var(--color-border-hex)] bg-[var(--color-surface-alt-hex)] text-[var(--color-text-muted-hex)] hover:border-[var(--color-border-strong-hex)]'
+                  }`}
+                >
+                  <Footprints className="w-4 h-4" />
+                  <span className="font-bold text-xs">Walk</span>
+                </button>
+              </div>
             </div>
 
             {/* Progress */}

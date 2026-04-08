@@ -13,12 +13,14 @@ interface ArchipelagoState {
   status: ArchipelagoStatus;
   error: string | null;
   checkedLocationIds: number[];
+  receivedItems: { id: number; name: string }[];
   messages: ChatMessage[];
   
   setStatus: (status: ArchipelagoStatus) => void;
   setError: (error: string | null) => void;
   addCheckedLocation: (locationId: number) => void;
   setCheckedLocations: (locationIds: number[]) => void;
+  setReceivedItems: (items: { id: number; name: string }[]) => void;
   addMessage: (message: Omit<ChatMessage, 'id' | 'timestamp'>) => void;
   clearMessages: () => void;
 }
@@ -27,6 +29,7 @@ export const useArchipelagoStore = create<ArchipelagoState>((set) => ({
   status: 'disconnected',
   error: null,
   checkedLocationIds: [],
+  receivedItems: [],
   messages: [],
   
   setStatus: (status) => set({ status }),
@@ -37,6 +40,7 @@ export const useArchipelagoStore = create<ArchipelagoState>((set) => ({
       : [...state.checkedLocationIds, locationId] 
   })),
   setCheckedLocations: (locationIds) => set({ checkedLocationIds: locationIds }),
+  setReceivedItems: (items) => set({ receivedItems: items }),
   addMessage: (msg) => set((state) => ({ 
     messages: [...state.messages.slice(-99), { 
       ...msg, 

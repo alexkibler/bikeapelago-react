@@ -100,6 +100,14 @@ body {
   transition: background-color 0.2s ease, color 0.2s ease;
 }
 
+.text-glow {
+  text-shadow: 0 0 40px rgba(249, 115, 22, 0.15);
+}
+
+[data-theme="dark"] .text-glow {
+  text-shadow: 0 0 50px rgba(249, 115, 22, 0.3);
+}
+
 .btn-orange {
   background-color: var(--color-primary-hex);
   color: white;

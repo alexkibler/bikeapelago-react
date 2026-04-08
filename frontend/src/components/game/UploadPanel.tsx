@@ -4,7 +4,7 @@ import { Upload, FileCheck, Loader2, Play, CheckCircle2, XCircle } from 'lucide-
 import { useFitAnalyzer } from '../../hooks/useFitAnalyzer';
 
 const UploadPanel = ({ sessionId }: { sessionId: string }) => {
-  const { analysisResult, setAnalysisResult } = useGameStore();
+  const { analysisResult, setAnalysisResult, nodes, setNodes } = useGameStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
@@ -28,7 +28,14 @@ const UploadPanel = ({ sessionId }: { sessionId: string }) => {
   };
 
   const handleAnalyze = () => analyzeFile(selectedFile);
-  const handleConfirm = () => confirmValidation(analysisResult);
+  
+  const handleConfirm = async () => {
+    const success = await confirmValidation(analysisResult);
+    if (success) {
+      // We don't update local node states here anymore.
+      // The update will come through SignalR once Archipelago confirms the check.
+    }
+  };
 
   return (
     <div className="flex flex-col h-full bg-[var(--color-surface-hex)] text-[var(--color-text-hex)] p-4 overflow-y-auto">
@@ -117,7 +124,7 @@ const UploadPanel = ({ sessionId }: { sessionId: string }) => {
                   <div key={node.id} className="flex items-center gap-3 bg-[var(--color-success-hex)]/10 p-4 rounded-xl border border-[var(--color-success-hex)]/20 text-[var(--color-success-hex)]">
                      <CheckCircle2 className="w-5 h-5 shrink-0" />
                      <div className="flex flex-col">
-                        <span className="font-bold text-sm">Location {node.ap_location_id}</span>
+                        <span className="font-bold text-sm">Location {node.apLocationId}</span>
                         <span className="text-[10px] opacity-70">[{node.lat.toFixed(5)}, {node.lon.toFixed(5)}]</span>
                      </div>
                   </div>

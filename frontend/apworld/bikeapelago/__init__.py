@@ -104,6 +104,22 @@ class BikeapelagoWorld(World):
         else:  # percentage — require 70 % of checks
             required = max(1, int(check_count * 0.7))
 
+        # Each "Intersection N" requires having at least N Node Unlock items.
+        # Starting nodes are pre-collected, so intersections 1..starting_nodes
+        # are always accessible from the start.  Every new Node Unlock received
+        # opens exactly one additional intersection, guaranteeing the player
+        # always has at least one available node and is never item-locked.
+        for i in range(1, check_count + 1):
+            loc_name = f"Intersection {i}"
+            loc = self.multiworld.get_location(loc_name, self.player)
+            required_unlocks = i  # need i node unlocks to visit intersection i
+            set_rule(
+                loc,
+                lambda state, n=required_unlocks: state.has_group(
+                    "Node Unlock", self.player, n
+                ),
+            )
+
         goal_loc = self.multiworld.get_location("Goal", self.player)
         set_rule(
             goal_loc,

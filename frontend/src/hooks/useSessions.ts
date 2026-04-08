@@ -3,9 +3,11 @@ import { getToken, handleUnauthorized } from '../store/authStore';
 
 export interface GameSession {
   id: string;
+  name: string | null;
   ap_seed_name: string | null;
   ap_server_url: string | null;
   ap_slot_name: string | null;
+  mode: string;
   status: string;
 }
 
@@ -38,5 +40,43 @@ export function useSessions() {
     fetchSessions();
   }, []);
 
-  return { sessions, loading, error };
+  const deleteSession = async (id: string) => {
+    try {
+      const token = getToken();
+      const res = await fetch(`/api/sessions/${id}`, {
+        method: 'DELETE',
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+      });
+      if (!res.ok) {
+        if (res.status === 401) { handleUnauthorized(); return; }
+        const errText = await res.text();
+        throw new Error(`HTTP ${res.status} - ${errText}`);
+      }
+      setSessions(prev => prev.filter(s => s.id !== id));
+    } catch (err: unknown) {
+      console.error('Failed to delete session:', err);
+      throw err;
+    }
+  };
+
+  const deleteAllSessions = async () => {
+    try {
+      const token = getToken();
+      const res = await fetch('/api/sessions/all', {
+        method: 'DELETE',
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+      });
+      if (!res.ok) {
+        if (res.status === 401) { handleUnauthorized(); return; }
+        const errText = await res.text();
+        throw new Error(`HTTP ${res.status} - ${errText}`);
+      }
+      setSessions([]);
+    } catch (err: unknown) {
+      console.error('Failed to delete all sessions:', err);
+      throw err;
+    }
+  };
+
+  return { sessions, loading, error, deleteSession, deleteAllSessions };
 }

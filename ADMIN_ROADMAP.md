@@ -64,7 +64,7 @@
 
 ---
 
-## Prompt 4: PocketBase-Style Data Explorer
+## Prompt 4: Dynamic .NET Data Explorer
 **Objective:** Build a dynamic React component that generates CRUD tables and forms based on the Schema API.
 
 **Technical Details:**

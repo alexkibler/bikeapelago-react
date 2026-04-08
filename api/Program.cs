@@ -1,9 +1,11 @@
 using Bikeapelago.Api.Repositories;
 using Bikeapelago.Api.Services;
 using Bikeapelago.Api.Data;
-using Microsoft.EntityFrameworkCore;
+using Bikeapelago.Api.Models;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.AspNetCore.Identity;
 using System.Text;
 using Bikeapelago.Api.Middleware;
 
@@ -42,28 +44,62 @@ builder.Services.AddScoped<PbfOsmDiscoveryService>(sp =>
     var path = builder.Configuration["OsmDiscovery:PbfPath"] ?? "./data/map.osm.pbf";
     return new PbfOsmDiscoveryService(logger, path);
 });
+builder.Services.AddScoped<GridCacheService>();
 builder.Services.AddScoped<PostGisOsmDiscoveryService>();
 builder.Services.AddScoped<IOsmDiscoveryService, OsmDiscoveryService>();
 builder.Services.AddScoped<NodeGenerationService>();
+builder.Services.AddScoped<FitAnalysisService>();
+builder.Services.AddScoped<SchemaDiscoveryService>();
 
-// 4. Add Authentication (Stubbed JWT)
-builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(options =>
+// Grid Cache Background Job Processor
+builder.Services.AddHostedService<GridCacheJobProcessor>();
+
+builder.Services.AddSignalR();
+builder.Services.AddSingleton<ArchipelagoService>();
+
+
+// 4. Add Identity & Authentication
+builder.Services.AddIdentity<User, IdentityRole<Guid>>(options =>
+{
+    options.Password.RequireDigit = false;
+    options.Password.RequiredLength = 4;
+    options.Password.RequireNonAlphanumeric = false;
+    options.Password.RequireUppercase = false;
+    options.Password.RequireLowercase = false;
+})
+.AddEntityFrameworkStores<BikeapelagoDbContext>()
+.AddDefaultTokenProviders();
+
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    options.TokenValidationParameters = new TokenValidationParameters
     {
-        options.TokenValidationParameters = new TokenValidationParameters
-        {
-            ValidateIssuer = true,
-            ValidateAudience = true,
-            ValidateLifetime = true,
-            ValidateIssuerSigningKey = true,
-            ValidIssuer = "bikeapelago-api",
-            ValidAudience = "bikeapelago-frontend",
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes("your-secret-key-at-least-32-chars-long"))
-        };
-    });
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        ValidIssuer = "bikeapelago-api",
+        ValidAudience = "bikeapelago-frontend",
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"] ?? "your-secret-key-at-least-32-chars-long"))
+    };
+});
+
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("AdminOnly", policy => policy.RequireRole("Admin"));
+});
 
 // 5. Add Controllers & Swagger
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(new NetTopologySuite.IO.Converters.GeoJsonConverterFactory());
+    });
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
@@ -75,7 +111,8 @@ builder.Services.AddCors(options =>
         var origins = builder.Configuration.GetSection("AllowedOrigins").Get<string[]>() ?? Array.Empty<string>();
         policy.WithOrigins(origins)
               .AllowAnyHeader()
-              .AllowAnyMethod();
+              .AllowAnyMethod()
+              .AllowCredentials();
     });
 });
 
@@ -84,6 +121,36 @@ builder.Services.AddReverseProxy()
     .LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"));
 
 var app = builder.Build();
+
+// Role Seeding
+using (var scope = app.Services.CreateScope())
+{
+    var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole<Guid>>>();
+    var userManager = scope.ServiceProvider.GetRequiredService<UserManager<User>>();
+    
+    string[] roles = { "Admin", "User" };
+    foreach (var role in roles)
+    {
+        if (!roleManager.RoleExistsAsync(role).Result)
+        {
+            roleManager.CreateAsync(new IdentityRole<Guid>(role)).Wait();
+        }
+    }
+
+    // Seed Initial Admin
+    var adminEmail = builder.Configuration["Admin:Email"] ?? "admin@bikeapelago.com";
+    var adminPassword = builder.Configuration["Admin:Password"] ?? "Admin123!";
+    var adminUser = userManager.FindByEmailAsync(adminEmail).Result;
+    if (adminUser == null)
+    {
+        adminUser = new User { UserName = adminEmail, Email = adminEmail, EmailConfirmed = true };
+        var result = userManager.CreateAsync(adminUser, adminPassword).Result;
+        if (result.Succeeded)
+        {
+            userManager.AddToRoleAsync(adminUser, "Admin").Wait();
+        }
+    }
+}
 
 app.UseMiddleware<ErrorLoggingMiddleware>();
 
@@ -100,5 +167,7 @@ app.UseAuthorization();
 
 app.MapControllers();
 app.MapReverseProxy();
+app.MapHub<ArchipelagoHub>("/hubs/archipelago");
+
 
 app.Run();
