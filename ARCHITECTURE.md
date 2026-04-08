@@ -20,7 +20,6 @@ React Frontend (Vite)
         │     └── planet_osm_way_nodes (way↔node relationships)
         │
         ├── YARP Reverse Proxy
-        │     ├── /api/pb/** → PocketBase (legacy, phasing out)
         │     └── /api/gh/** → GraphHopper
         │
         └── GraphHopper (routing validation)

@@ -204,7 +204,7 @@ public class SessionsController(
             if (user == null)
                 return Unauthorized(new { message = "Invalid token" });
 
-            if (session.UserId != user.Id && user.Username != "testuser")
+            if (session.UserId != user.Id && user.UserName != "testuser")
             {
                 return Forbid();
             }

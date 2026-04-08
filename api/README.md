@@ -6,7 +6,7 @@ ASP.NET Core 10 backend providing session management, OSM node generation, authe
 
 - **ASP.NET Core 10**: Web framework
 - **Entity Framework Core**: ORM with PostgreSQL/PostGIS via Npgsql + NetTopologySuite
-- **YARP**: Reverse proxy for PocketBase and GraphHopper
+- **YARP**: Reverse proxy for GraphHopper
 - **JWT**: Stateless authentication
 
 ## Project Structure
@@ -82,5 +82,4 @@ Flow: fetch nodes from PostGIS → delete old nodes → bulk insert → update s
 
 ## Reverse Proxy (YARP)
 
-- `/api/pb/**` → PocketBase (legacy, phasing out)
 - `/api/gh/**` → GraphHopper routing

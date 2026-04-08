@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using Bikeapelago.Api.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NetTopologySuite.Geometries;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
@@ -13,9 +14,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Bikeapelago.Api.Migrations
 {
     [DbContext(typeof(BikeapelagoDbContext))]
-    partial class BikeapelagoDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260408033726_AddIdentitySupport")]
+    partial class AddIdentitySupport
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -24,6 +27,51 @@ namespace Bikeapelago.Api.Migrations
 
             NpgsqlModelBuilderExtensions.HasPostgresExtension(modelBuilder, "postgis");
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
+
+            modelBuilder.Entity("Bikeapelago.Api.Models.Activity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasJsonPropertyName("id");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("text")
+                        .HasJsonPropertyName("description");
+
+                    b.Property<string>("Name")
+                        .HasColumnType("text")
+                        .HasJsonPropertyName("name");
+
+                    b.Property<LineString>("Path")
+                        .HasColumnType("geometry (linestring)");
+
+                    b.Property<string>("Sport")
+                        .HasColumnType("text")
+                        .HasJsonPropertyName("sport");
+
+                    b.Property<string>("StartTime")
+                        .HasColumnType("text")
+                        .HasJsonPropertyName("start_time");
+
+                    b.Property<double?>("TotDistance")
+                        .HasColumnType("double precision")
+                        .HasJsonPropertyName("tot_distance");
+
+                    b.Property<double?>("TotElevation")
+                        .HasColumnType("double precision")
+                        .HasJsonPropertyName("tot_elevation");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasJsonPropertyName("user");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("Activities");
+                });
 
             modelBuilder.Entity("Bikeapelago.Api.Models.ApiLog", b =>
                 {
@@ -175,6 +223,47 @@ namespace Bikeapelago.Api.Migrations
                     b.HasIndex("SessionId");
 
                     b.ToTable("MapNodes");
+                });
+
+            modelBuilder.Entity("Bikeapelago.Api.Models.Route", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasJsonPropertyName("id");
+
+                    b.Property<double?>("Distance")
+                        .HasColumnType("double precision")
+                        .HasJsonPropertyName("distance");
+
+                    b.Property<double?>("Elevation")
+                        .HasColumnType("double precision")
+                        .HasJsonPropertyName("elevation");
+
+                    b.Property<LineString>("Path")
+                        .HasColumnType("geometry (linestring)");
+
+                    b.Property<string>("Sport")
+                        .HasColumnType("text")
+                        .HasJsonPropertyName("sport");
+
+                    b.Property<double?>("Time")
+                        .HasColumnType("double precision")
+                        .HasJsonPropertyName("time");
+
+                    b.Property<string>("Title")
+                        .HasColumnType("text")
+                        .HasJsonPropertyName("title");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasJsonPropertyName("user");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("Routes");
                 });
 
             modelBuilder.Entity("Bikeapelago.Api.Models.User", b =>
@@ -389,6 +478,15 @@ namespace Bikeapelago.Api.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
+            modelBuilder.Entity("Bikeapelago.Api.Models.Activity", b =>
+                {
+                    b.HasOne("Bikeapelago.Api.Models.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Bikeapelago.Api.Models.GameSession", b =>
                 {
                     b.HasOne("Bikeapelago.Api.Models.User", null)
@@ -403,6 +501,15 @@ namespace Bikeapelago.Api.Migrations
                     b.HasOne("Bikeapelago.Api.Models.GameSession", null)
                         .WithMany()
                         .HasForeignKey("SessionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Bikeapelago.Api.Models.Route", b =>
+                {
+                    b.HasOne("Bikeapelago.Api.Models.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
