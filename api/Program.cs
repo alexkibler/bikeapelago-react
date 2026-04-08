@@ -17,7 +17,7 @@ var builder = WebApplication.CreateBuilder(args);
 // 2.5 Common Services
 builder.Services.AddHttpContextAccessor();
 
-var connString = builder.Configuration.GetConnectionString("PostGis") ?? "Host=localhost;Port=5432;Database=bikeapelago;Username=osm;Password=osm_secret";
+var connString = builder.Configuration.GetConnectionString("PostGis") ?? "Host=postgis;Port=5432;Database=bikeapelago;Username=osm;Password=osm_secret";
 builder.Services.AddDbContext<BikeapelagoDbContext>(options => 
     options.UseNpgsql(connString, o => o.UseNetTopologySuite())
 );

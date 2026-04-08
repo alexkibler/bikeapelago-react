@@ -38,6 +38,7 @@ yarn.lock
 # Build artifacts
 .next/
 out/
+.vite/
 
 # Testing
 .nyc_output/
