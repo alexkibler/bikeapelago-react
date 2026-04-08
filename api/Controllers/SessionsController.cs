@@ -123,4 +123,34 @@ public class SessionsController(
             return BadRequest(new { message = ex.Message });
         }
     }
+
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> DeleteSession(Guid id)
+    {
+        try
+        {
+            var authHeader = Request.Headers["Authorization"].FirstOrDefault();
+            if (string.IsNullOrEmpty(authHeader) || !authHeader.StartsWith("Bearer "))
+                return Unauthorized(new { message = "No auth token provided" });
+
+            var token = authHeader["Bearer ".Length..].Trim();
+            var user = await _userRepository.GetCurrentUserAsync(token);
+            if (user == null)
+                return Unauthorized(new { message = "Invalid token" });
+
+            var session = await _sessionRepository.GetByIdAsync(id);
+            if (session == null) return NotFound(new { message = "Session not found." });
+
+            if (session.UserId != user.Id)
+                return Forbid();
+
+            var success = await _sessionRepository.DeleteAsync(id);
+            if (!success) return NotFound(new { message = "Session not found." });
+            return NoContent();
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
 }
