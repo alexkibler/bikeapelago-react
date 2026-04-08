@@ -122,6 +122,20 @@ builder.Services.AddReverseProxy()
 
 var app = builder.Build();
 
+// Apply pending migrations
+try
+{
+    using (var scope = app.Services.CreateScope())
+    {
+        var db = scope.ServiceProvider.GetRequiredService<BikeapelagoDbContext>();
+        await db.Database.MigrateAsync();
+    }
+}
+catch (Exception ex)
+{
+    app.Logger.LogWarning(ex, "Failed to apply migrations on startup. This is normal if the database is not yet available.");
+}
+
 // Role Seeding (gracefully handles database unavailability)
 try
 {

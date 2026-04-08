@@ -73,7 +73,7 @@ namespace Bikeapelago.Api.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("ApiLogs");
+                    b.ToTable("ApiLogs", (string)null);
                 });
 
             modelBuilder.Entity("Bikeapelago.Api.Models.GameSession", b =>
@@ -141,7 +141,7 @@ namespace Bikeapelago.Api.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("GameSessions");
+                    b.ToTable("GameSessions", (string)null);
                 });
 
             modelBuilder.Entity("Bikeapelago.Api.Models.MapNode", b =>
@@ -181,7 +181,7 @@ namespace Bikeapelago.Api.Migrations
 
                     b.HasIndex("SessionId");
 
-                    b.ToTable("MapNodes");
+                    b.ToTable("MapNodes", (string)null);
                 });
 
             modelBuilder.Entity("Bikeapelago.Api.Models.User", b =>
