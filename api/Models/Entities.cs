@@ -60,6 +60,9 @@ public class GameSession
     [JsonPropertyName("radius")]
     public int? Radius { get; set; }
 
+    [JsonPropertyName("received_item_ids")]
+    public List<long> ReceivedItemIds { get; set; } = new();
+
     [JsonPropertyName("status")]
     [JsonConverter(typeof(JsonStringEnumConverter))]
     public SessionStatus Status { get; set; } = SessionStatus.SetupInProgress;
@@ -101,7 +104,7 @@ public class MapNode
     public string Name { get; set; } = string.Empty;
 
     [JsonPropertyName("ap_location_id")]
-    public int ApLocationId { get; set; }
+    public long ApLocationId { get; set; }
 
     [JsonPropertyName("osm_node_id")]
     public string OsmNodeId { get; set; } = string.Empty;

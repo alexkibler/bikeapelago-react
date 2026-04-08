@@ -13,3 +13,34 @@ export function calculateDistance(lat1: number, lon1: number, lat2: number, lon2
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;
 }
+
+export function downloadGPXFromPolyline(polylineString: string) {
+  const coordinates = JSON.parse(polylineString) as [number, number, number?][];
+  let gpx = `<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="Bikeapelago" xmlns="http://www.topografix.com/GPX/1/1">
+  <trk>
+    <name>Bikeapelago Route</name>
+    <trkseg>`;
+  
+  coordinates.forEach((coord) => {
+    gpx += `
+      <trkpt lat="${coord[1]}" lon="${coord[0]}">
+        <ele>${coord[2] || 0}</ele>
+      </trkpt>`;
+  });
+  
+  gpx += `
+    </trkseg>
+  </trk>
+</gpx>`;
+
+  const blob = new Blob([gpx], { type: 'application/gpx+xml' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'bikeapelago_route.gpx';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}

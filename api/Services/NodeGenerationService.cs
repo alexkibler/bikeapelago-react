@@ -68,7 +68,7 @@ public class NodeGenerationService(
             OsmNodeId = $"osm-{request.SessionId}-{i + 1}",
             Name = $"Node {i + 1}",
             Location = new NetTopologySuite.Geometries.Point(point.Lon, point.Lat) { SRID = 4326 },
-            State = request.Mode == "singleplayer" && i < 3 ? "Available" : "Hidden"
+            State = i < 3 ? "Available" : "Hidden"
         }).ToList();
         await _nodeRepository.CreateRangeAsync(mapNodes);
         _logger.LogInformation("[generate] BulkInsert ({Count} nodes): {Ms}ms", mapNodes.Count, sw.ElapsedMilliseconds);

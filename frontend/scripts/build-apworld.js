@@ -16,8 +16,13 @@ if (!fs.existsSync(publicDir)) {
 }
 
 const zip = new AdmZip();
-// We add it to 'bikeapelago' so the zip root has the module folder
+// Add the module folder as 'bikeapelago/' inside the zip
 zip.addLocalFolder(sourceDir, 'bikeapelago');
+// Add archipelago.json at zip root (required by Archipelago to register the world)
+const metaFile = path.join(__dirname, '../apworld/archipelago.json');
+if (fs.existsSync(metaFile)) {
+  zip.addLocalFile(metaFile);
+}
 zip.writeZip(outputFile);
 
 console.log(`Generated APWorld file at ${outputFile}`);

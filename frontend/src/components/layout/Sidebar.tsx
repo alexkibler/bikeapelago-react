@@ -3,6 +3,7 @@ import { useLocation, Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import { useGameStore, type GamePanel } from '../../store/gameStore';
 import ThemeToggle from './ThemeToggle';
+import { Package } from 'lucide-react';
 
 const Sidebar = () => {
   const location = useLocation();
@@ -54,10 +55,10 @@ const Sidebar = () => {
             </button>
 
             <button
-              onClick={() => togglePanel('upload')}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${activePanel === 'upload' ? 'bg-[var(--color-primary-hex)]/10 text-[var(--color-primary-hex)] shadow-inner shadow-primary/5' : 'text-[var(--color-text-muted-hex)] hover:text-[var(--color-text-hex)] hover:bg-[rgb(var(--color-surface-overlay))]'}`}>
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
-              <span className="font-medium text-sm">Upload .fit</span>
+              onClick={() => togglePanel('inventory')}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${activePanel === 'inventory' ? 'bg-[var(--color-primary-hex)]/10 text-[var(--color-primary-hex)] shadow-inner shadow-primary/5' : 'text-[var(--color-text-muted-hex)] hover:text-[var(--color-text-hex)] hover:bg-[rgb(var(--color-surface-overlay))]'}`}>
+              <Package className="w-5 h-5" />
+              <span className="font-medium text-sm">Inventory</span>
             </button>
 
             <button

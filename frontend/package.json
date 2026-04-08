@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@airbreather/archipelago.js": "^2.0.5-airbreather.6",
+    "@microsoft/signalr": "^10.0.0",
     "@types/leaflet": "^1.9.21",
     "autoprefixer": "^10.4.27",
     "axios": "^1.14.0",

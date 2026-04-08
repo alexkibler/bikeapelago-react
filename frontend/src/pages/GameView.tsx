@@ -8,11 +8,13 @@ import { useGameStore } from '../store/gameStore';
 import RoutePanel from '../components/game/RoutePanel';
 import UploadPanel from '../components/game/UploadPanel';
 import ChatPanel from '../components/game/ChatPanel';
+import InventoryPanel from '../components/game/InventoryPanel';
 import { useArchipelagoStore } from '../store/archipelagoStore';
 import { archipelago } from '../lib/archipelago';
 import { getToken } from '../store/authStore';
 import { useGeolocation } from '../hooks/useGeolocation';
 import { Navigation } from 'lucide-react';
+import { downloadGPXFromPolyline } from '../lib/geoUtils';
 
 // Map resizer to handle container boundary updates when Layout triggers changes
 const MapResizer = () => {
@@ -271,7 +273,7 @@ const ArchipelagoReconnectDialog = ({
 const GameView = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { activePanel, setActivePanel, routeData, waypoints, analysisResult, nodes, setNodes, userLocation } = useGameStore();
+  const { activePanel, setActivePanel, routeData, waypoints, analysisResult, nodes, setNodes, userLocation, syncVersion } = useGameStore();
   
   const [session, setSession] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -279,7 +281,7 @@ const GameView = () => {
   const [showReconnect, setShowReconnect] = useState(false);
   const [pendingConnection, setPendingConnection] = useState<{ url: string; slot: string } | null>(null);
 
-  const { checkedLocationIds, status: apStatus, error: apError } = useArchipelagoStore();
+  const { checkedLocationIds, receivedItems, status: apStatus, error: apError, setCheckedLocations, setReceivedItems } = useArchipelagoStore();
 
   // Show reconnect dialog on connection failure; hide it if we successfully connect
   useEffect(() => {
@@ -333,7 +335,7 @@ const GameView = () => {
     }
   };
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (signal: AbortSignal) => {
     try {
       const token = getToken();
       const headers = {
@@ -341,9 +343,8 @@ const GameView = () => {
         ...(token ? { 'Authorization': `Bearer ${token}` } : {})
       };
 
-      const sessionRes = await fetch(`/api/sessions/${id}`, { headers });
+      const sessionRes = await fetch(`/api/sessions/${id}`, { headers, signal });
       if (!sessionRes.ok) {
-        // Fallback for E2E tests if ID is mock_session_123
         if (id === 'mock_session_123') {
            setSession({ id: 'mock_session_123', ap_seed_name: 'Mock Seed', ap_slot_name: 'Mock Slot', center_lat: 40.7128, center_lon: -74.006 });
            setNodes([
@@ -357,41 +358,53 @@ const GameView = () => {
       const sessionData = await sessionRes.json();
       setSession(sessionData);
 
-      const nodesRes = await fetch(`/api/sessions/${id}/nodes`, { headers });
+      const nodesRes = await fetch(`/api/sessions/${id}/nodes`, { headers, signal });
       if (!nodesRes.ok) throw new Error('Failed to load nodes');
       const nodesData = await nodesRes.json();
-      console.log(`Loaded ${nodesData.length} nodes for session ${id}`);
       setNodes(nodesData);
 
-      // Trigger Archipelago connection if applicable
-      if (sessionData.ap_server_url && sessionData.ap_slot_name) {
+      if (sessionData.received_item_ids) {
+        setReceivedItems(sessionData.received_item_ids.map((id: number) => ({ id, name: `Item ${id}` })));
+      }
+
+      // Only connect if the request hasn't been aborted by unmount
+      if (!signal.aborted && sessionData.ap_server_url && sessionData.ap_slot_name) {
         console.log(`Connecting to Archipelago: ${sessionData.ap_server_url} as ${sessionData.ap_slot_name}`);
-        archipelago.connect(sessionData.ap_server_url, sessionData.ap_slot_name);
+        archipelago.connect(id!, sessionData.ap_server_url, sessionData.ap_slot_name);
       }
     } catch (err: any) {
+      if (err.name === 'AbortError') return; // Ignore aborts
       console.error('fetchData error:', err);
       setErrorMsg(err.message);
     } finally {
-      setLoading(false);
+      if (!signal.aborted) {
+        setLoading(false);
+      }
     }
   }, [id, setNodes]);
 
   useEffect(() => {
+    const controller = new AbortController();
+    
     if (id) {
-      fetchData();
+      fetchData(controller.signal);
     }
     return () => {
+      controller.abort();
       archipelago.disconnect();
     };
-  }, [id, fetchData]);
+  }, [id, fetchData, syncVersion]);
 
   // Sync Archipelago checked locations with local node states
   useEffect(() => {
-    const checkedIds = Array.isArray(checkedLocationIds) ? checkedLocationIds : Array.from((checkedLocationIds as any) || []);
+    const rawCheckedIds = Array.isArray(checkedLocationIds) ? checkedLocationIds : Array.from((checkedLocationIds as any) || []);
+    const checkedIdsSet = new Set(rawCheckedIds);
     
-    if (nodes.length > 0 && checkedIds.length > 0) {
+    if (nodes.length > 0 && checkedIdsSet.size > 0) {
       const updatedNodes = nodes.map(node => {
-        if (node.ap_location_id && checkedIds.includes(node.ap_location_id)) {
+        // Checking both ap_location_id (from DB) and apLocationId (from analyzer) for robustness
+        const locId = node.ap_location_id || node.apLocationId;
+        if (locId && checkedIdsSet.has(locId)) {
           if (node.state !== 'Checked') {
             return { ...node, state: 'Checked' };
           }
@@ -402,7 +415,8 @@ const GameView = () => {
       // Avoid infinite loop by only updating if something actually changed
       const hasChanges = updatedNodes.some((node, i) => node.state !== nodes[i].state);
       if (hasChanges) {
-        console.log(`Syncing ${updatedNodes.filter(n => n.state === 'Checked').length} checked locations to node states`);
+        const newlyChecked = updatedNodes.filter((n, i) => n.state === 'Checked' && nodes[i].state !== 'Checked').length;
+        console.log(`[ArchipelagoSync] ${newlyChecked} new locations confirmed. Total checked: ${updatedNodes.filter(n => n.state === 'Checked').length}`);
         setNodes(updatedNodes);
       }
     }
@@ -442,7 +456,7 @@ const GameView = () => {
           initialSlot={session.ap_slot_name ?? ''}
           onRetry={(url, slot, pw) => {
             setPendingConnection({ url, slot });
-            archipelago.connect(url, slot, pw);
+            archipelago.connect(id!, url, slot, pw);
           }}
           onCancel={() => setShowReconnect(false)}
         />
@@ -575,7 +589,7 @@ const GameView = () => {
                   </div>
                 </div>
                 {routeData.polyline && (
-                  <button className="px-3 py-2 bg-orange-600 hover:bg-orange-500 rounded-lg text-xs font-bold text-white transition-colors flex items-center gap-2">
+                  <button onClick={() => downloadGPXFromPolyline(routeData.polyline as string)} className="px-3 py-2 bg-orange-600 hover:bg-orange-500 rounded-lg text-xs font-bold text-white transition-colors flex items-center gap-2">
                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
                     GPX
                   </button>
@@ -597,6 +611,7 @@ const GameView = () => {
              {activePanel === 'route' && <RoutePanel />}
              {activePanel === 'upload' && <UploadPanel sessionId={id!} />}
              {activePanel === 'chat' && <ChatPanel />}
+             {activePanel === 'inventory' && <InventoryPanel />}
           </div>
         )}
       </div>

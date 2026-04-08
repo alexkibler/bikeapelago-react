@@ -16,6 +16,7 @@ export interface GameSessionData {
   ap_slot_name?: string;
   center_lat?: number;
   center_lon?: number;
+  received_item_ids?: number[];
 }
 
 export function useSessionData(id: string | undefined) {
