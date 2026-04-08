@@ -19,7 +19,7 @@ public class User : IdentityUser<Guid>
     public string? Name { get; set; }
 
     [JsonPropertyName("weight")]
-    public double Weight { get; set; } = 75.0;
+    public double? Weight { get; set; } = 75.0;
 
     [JsonPropertyName("avatar")]
     public string? Avatar { get; set; }
