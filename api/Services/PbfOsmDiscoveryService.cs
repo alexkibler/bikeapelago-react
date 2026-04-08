@@ -15,9 +15,9 @@ public class PbfOsmDiscoveryService(ILogger<PbfOsmDiscoveryService> logger, stri
     private readonly ILogger<PbfOsmDiscoveryService> _logger = logger;
     private readonly string _pbfPath = pbfPath;
 
-    public async Task<List<DiscoveryPoint>> GetRandomNodesAsync(double lat, double lon, double radiusMeters, int count)
+    public async Task<List<DiscoveryPoint>> GetRandomNodesAsync(double lat, double lon, double radiusMeters, int count, string mode = "bike")
     {
-        _logger.LogInformation("Streaming random nodes from PBF file at {Path} near {Lat},{Lon} radius {Radius}m", _pbfPath, lat, lon, radiusMeters);
+        _logger.LogInformation("Streaming random nodes from PBF file at {Path} near {Lat},{Lon} radius {Radius}m, mode: {Mode}", _pbfPath, lat, lon, radiusMeters, mode);
 
         if (!File.Exists(_pbfPath))
         {

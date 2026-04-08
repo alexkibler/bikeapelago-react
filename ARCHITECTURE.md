@@ -15,10 +15,11 @@ React Frontend (Vite)
         │     └── GameSessions, MapNodes, Users, Routes, Activities
         │
         ├── PostGisOsmDiscoveryService → PostgreSQL/PostGIS (osm_discovery DB)
-        │     └── planet_osm_nodes (flex-imported, 4326, GiST indexed)
+        │     ├── planet_osm_nodes (flex-imported, 4326)
+        │     ├── planet_osm_ways (cycling/walking-safe ways, 4326, GiST indexed)
+        │     └── planet_osm_way_nodes (way↔node relationships)
         │
         ├── YARP Reverse Proxy
-        │     ├── /api/pb/** → PocketBase (legacy, phasing out)
         │     └── /api/gh/** → GraphHopper
         │
         └── GraphHopper (routing validation)
@@ -67,10 +68,22 @@ Always set `ConnectionStrings:OsmDiscovery` in `appsettings.Development.json` to
 
 ### Database: `osm_discovery` (PostgreSQL + PostGIS)
 
-The game queries `planet_osm_nodes` — imported via osm2pgsql flex output:
-- **Table**: `planet_osm_nodes` — columns: `id`, `geom geometry(Point,4326)`
-- **Index**: GiST spatial index on `geom` (created by osm2pgsql after import)
-- **Projection**: 4326 (WGS84) — no coordinate transforms needed at query time
+Three tables work together to ensure generated nodes are on actual roads:
+
+- **`planet_osm_nodes`**: All OSM nodes in the dataset
+  - Columns: `id` (int8), `geom` (Point, 4326)
+  - Index: GiST on `geom` (for spatial queries)
+
+- **`planet_osm_ways`**: Roads/paths filtered to cycling/walking-safe only
+  - Columns: `id` (int8), `geom` (LineString, 4326), `cycling_safe` (bool), `walking_safe` (bool)
+  - Index: GiST on `geom` (primary filter)
+  - Excludes: motorways, ways tagged `bicycle=no`, `foot=no`
+
+- **`planet_osm_way_nodes`**: Mapping of which nodes belong to which ways
+  - Columns: `way_id` (int8), `node_id` (int8)
+  - Indexes: On both columns for fast joins
+
+**Projection**: All use 4326 (WGS84) — no coordinate transforms needed at query time
 
 ### Why flex output over pgsql output
 
@@ -82,10 +95,12 @@ The old pgsql output (`planet_osm_point`) stores geometry in 3857 (Web Mercator)
 ### Query Pattern
 
 ```sql
-SELECT ST_X(geom)::float8, ST_Y(geom)::float8
-FROM planet_osm_nodes
+SELECT DISTINCT ST_X(n.geom)::float8, ST_Y(n.geom)::float8
+FROM planet_osm_ways w
+INNER JOIN planet_osm_way_nodes wn ON w.id = wn.way_id
+INNER JOIN planet_osm_nodes n ON wn.node_id = n.id
 WHERE ST_DWithin(
-    geom::geography,
+    w.geom::geography,
     ST_SetSRID(ST_MakePoint(@lon, @lat), 4326)::geography,
     @radius
 )
@@ -93,7 +108,11 @@ ORDER BY RANDOM()
 LIMIT @count
 ```
 
-Filtering on native `geom` (4326) lets PostGIS use the GiST index. The `::geography` cast makes the radius accurate in meters.
+**Key performance aspects:**
+1. **Filter ways first** (fewer objects than nodes) using GiST index on `planet_osm_ways.geom`
+2. **Join to nodes** only for ways in the radius (avoids filtering 6M nodes directly)
+3. **DISTINCT** prevents duplicates if nodes belong to multiple ways
+4. **`::geography` cast** makes the radius accurate in meters
 
 ### OSM Data File
 
@@ -108,19 +127,24 @@ See `import-states.sh` in the repo root for the import procedure.
 
 ### Updating OSM Data (Zero Downtime)
 
-`import-states.sh` uses a blue/green table swap:
-1. Import into `planet_osm_nodes_new` (staging) via `osm2pgsql-flex-staging.lua`
-2. Atomically rename: `planet_osm_nodes` → `planet_osm_nodes_old`, `planet_osm_nodes_new` → `planet_osm_nodes`
-3. Drop `planet_osm_nodes_old`
+`import-states.sh` uses a blue/green table swap for all three tables:
+1. Import into `planet_osm_nodes_new`, `planet_osm_ways_new`, `planet_osm_way_nodes_new` via `osm2pgsql-flex-staging.lua`
+2. Atomically rename all three tables in a single transaction:
+   - `planet_osm_nodes` → `planet_osm_nodes_old`; `_new` → active
+   - `planet_osm_ways` → `planet_osm_ways_old`; `_new` → active
+   - `planet_osm_way_nodes` → `planet_osm_way_nodes_old`; `_new` → active
+3. Drop all `_old` tables
+4. Create indexes on the new tables
 
-Active game sessions are unaffected — their nodes are stored in `MapNodes`. Only new `/generate` calls hit `planet_osm_nodes`, and they stay live throughout the swap.
+Active game sessions are unaffected — their nodes are stored in `MapNodes`. Only new `/generate` calls hit the OSM tables, and they stay live throughout the atomic swap.
 
 ### Import Gotchas
 
-- **Must use `--create` (not `--append`) without `--slim`**: The flex lua script only defines the output table, not slim node cache tables. `--append` requires `--slim`.
+- **Must use `--create` (not `--append`) without `--slim`**: The flex lua script only defines the output tables, not slim node cache tables. `--append` requires `--slim`.
+- **Lua script processes ways to identify safe cycling/walking routes**: During way processing, the script evaluates OSM tags (`highway`, `bicycle=no`, `foot=no`) and only stores ways that are safe. Node-way relationships are stored in `planet_osm_way_nodes` for efficient join queries.
 - **Use the arm64 image**: `osm2pgsql-arm64:latest` (built locally). `iboates/osm2pgsql` is amd64-only and runs under Rosetta emulation — slower and causes platform warnings.
 - **Don't use `iboates/osm2pgsql` with `--slim --append`**: Causes "extra data after last expected column" errors due to version mismatch with the lua script.
-- **Kill zombie DB connections before importing**: A stuck importer can leave backend connections holding locks on `planet_osm_ways`, blocking `DROP TABLE`. Use `pg_terminate_backend()` to clear them.
+- **Kill zombie DB connections before importing**: A stuck importer can leave backend connections holding locks, blocking `DROP TABLE`. Use `pg_terminate_backend()` to clear them.
 - **pgsql output is incompatible with flex append**: Don't mix output modes across imports into the same database.
 
 ## GraphHopper

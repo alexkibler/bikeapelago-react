@@ -21,6 +21,7 @@ public class EfCoreSessionRepository(BikeapelagoDbContext context) : IGameSessio
     {
         return await _context.GameSessions
             .Where(s => s.UserId == userId)
+            .OrderByDescending(s => s.CreatedAt)
             .ToListAsync();
     }
 
@@ -49,6 +50,18 @@ public class EfCoreSessionRepository(BikeapelagoDbContext context) : IGameSessio
         if (session != null)
         {
             _context.GameSessions.Remove(session);
+            await _context.SaveChangesAsync();
+            return true;
+        }
+        return false;
+    }
+
+    public async Task<bool> DeleteAllByUserIdAsync(Guid userId)
+    {
+        var sessions = await _context.GameSessions.Where(s => s.UserId == userId).ToListAsync();
+        if (sessions.Any())
+        {
+            _context.GameSessions.RemoveRange(sessions);
             await _context.SaveChangesAsync();
             return true;
         }

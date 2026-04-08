@@ -45,4 +45,10 @@ public class MockSessionRepository : IGameSessionRepository
         _sessions.RemoveAll(s => s.Id == id);
         return Task.FromResult(true);
     }
+
+    public Task<bool> DeleteAllByUserIdAsync(Guid userId)
+    {
+        _sessions.RemoveAll(s => s.UserId == userId);
+        return Task.FromResult(true);
+    }
 }

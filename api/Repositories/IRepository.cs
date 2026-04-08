@@ -19,6 +19,7 @@ public interface IGameSessionRepository
     Task<GameSession> CreateAsync(GameSession session);
     Task<GameSession> UpdateAsync(GameSession session);
     Task<bool> DeleteAsync(Guid id);
+    Task<bool> DeleteAllByUserIdAsync(Guid userId);
 }
 
 public interface IMapNodeRepository

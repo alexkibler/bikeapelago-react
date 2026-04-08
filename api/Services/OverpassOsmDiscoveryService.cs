@@ -14,9 +14,9 @@ public class OverpassOsmDiscoveryService(HttpClient httpClient, ILogger<Overpass
     private readonly ILogger<OverpassOsmDiscoveryService> _logger = logger;
     private const string OverpassUrl = "https://overpass-api.de/api/interpreter";
 
-    public async Task<List<DiscoveryPoint>> GetRandomNodesAsync(double lat, double lon, double radiusMeters, int count)
+    public async Task<List<DiscoveryPoint>> GetRandomNodesAsync(double lat, double lon, double radiusMeters, int count, string mode = "bike")
     {
-        _logger.LogInformation("Fetching random nodes from Overpass API at {Lat},{Lon} radius {Radius}m", lat, lon, radiusMeters);
+        _logger.LogInformation("Fetching random nodes from Overpass API at {Lat},{Lon} radius {Radius}m, mode: {Mode}", lat, lon, radiusMeters, mode);
 
         // Overpass QL to find nodes near the center point. 
         // We'll filter for some bike-friendly tags.

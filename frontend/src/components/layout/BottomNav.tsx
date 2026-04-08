@@ -1,6 +1,6 @@
 import React from 'react';
 import { useLocation, Link } from 'react-router-dom';
-import { Home, MessageSquare, UploadCloud, Map } from 'lucide-react';
+import { Home, MessageSquare, Package, Map } from 'lucide-react';
 import { useGameStore } from '../../store/gameStore';
 
 const BottomNav = () => {
@@ -25,10 +25,10 @@ const BottomNav = () => {
               <span className="text-[10px] font-bold uppercase tracking-wider">Chat</span>
             </button>
             <button
-              onClick={() => togglePanel('upload')}
-              className={`flex flex-col items-center gap-1 p-2 transition-colors rounded-lg ${activePanel === 'upload' ? 'bg-[var(--color-primary-hex)]/20 text-[var(--color-primary-hex)]' : 'text-[var(--color-text-muted-hex)] hover:text-[var(--color-primary-hex)] hover:bg-[rgb(var(--color-surface-overlay))]'}`}>
-              <UploadCloud className="w-5 h-5" />
-              <span className="text-[10px] font-bold uppercase tracking-wider">Upload .fit</span>
+              onClick={() => togglePanel('inventory')}
+              className={`flex flex-col items-center gap-1 p-2 transition-colors rounded-lg ${activePanel === 'inventory' ? 'bg-[var(--color-primary-hex)]/20 text-[var(--color-primary-hex)]' : 'text-[var(--color-text-muted-hex)] hover:text-[var(--color-primary-hex)] hover:bg-[rgb(var(--color-surface-overlay))]'}`}>
+              <Package className="w-5 h-5" />
+              <span className="text-[10px] font-bold uppercase tracking-wider">Inventory</span>
             </button>
             <button
               onClick={() => togglePanel('route')}
@@ -50,6 +50,10 @@ const BottomNav = () => {
             <Link to="/yaml-creator" className={`flex flex-col items-center gap-1 p-2 transition-colors ${pathname === '/yaml-creator' ? 'text-[var(--color-primary-hex)]' : 'text-[var(--color-text-muted-hex)] hover:text-[var(--color-primary-hex)]'}`}>
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
               <span className="text-[10px] font-bold uppercase tracking-wider">Create</span>
+            </Link>
+            <Link to="/settings" className={`flex flex-col items-center gap-1 p-2 transition-colors ${pathname === '/settings' ? 'text-[var(--color-primary-hex)]' : 'text-[var(--color-text-muted-hex)] hover:text-[var(--color-primary-hex)]'}`}>
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+              <span className="text-[10px] font-bold uppercase tracking-wider">Settings</span>
             </Link>
           </>
         )}
