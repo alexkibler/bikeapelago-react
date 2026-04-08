@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { MapContainer, TileLayer, Marker, ZoomControl, useMap, useMapEvents, Polyline, Circle } from 'react-leaflet';
 import L from 'leaflet';
@@ -390,9 +390,12 @@ const GameView = () => {
     const checkedIds = Array.isArray(checkedLocationIds) ? checkedLocationIds : Array.from((checkedLocationIds as any) || []);
     
     if (nodes.length > 0 && checkedIds.length > 0) {
+      let hasChanges = false;
+      const checkedIdsSet = new Set(checkedIds);
       const updatedNodes = nodes.map(node => {
-        if (node.ap_location_id && checkedIds.includes(node.ap_location_id)) {
+        if (node.ap_location_id && checkedIdsSet.has(node.ap_location_id)) {
           if (node.state !== 'Checked') {
+            hasChanges = true;
             return { ...node, state: 'Checked' };
           }
         }
@@ -400,13 +403,15 @@ const GameView = () => {
       });
 
       // Avoid infinite loop by only updating if something actually changed
-      const hasChanges = updatedNodes.some((node, i) => node.state !== nodes[i].state);
       if (hasChanges) {
         console.log(`Syncing ${updatedNodes.filter(n => n.state === 'Checked').length} checked locations to node states`);
         setNodes(updatedNodes);
       }
     }
   }, [checkedLocationIds, nodes, setNodes]);
+
+  const parsedPolyline = useMemo(() => routeData.polyline ? JSON.parse(routeData.polyline).map((p: [number, number]) => [p[1], p[0]] as [number, number]) : [], [routeData.polyline]);
+  const analysisPath = useMemo(() => analysisResult?.path ? analysisResult.path.map((p: { lat: number, lon: number }) => [p.lat, p.lon] as [number, number]) : [], [analysisResult?.path]);
 
   if (loading) {
     return (
@@ -429,9 +434,6 @@ const GameView = () => {
     session.center_lat ?? 40.7128, 
     session.center_lon ?? -74.006
   ];
-
-  const parsedPolyline = routeData.polyline ? JSON.parse(routeData.polyline).map((p: [number, number]) => [p[1], p[0]] as [number, number]) : [];
-  const analysisPath = analysisResult?.path ? analysisResult.path.map((p: { lat: number, lon: number }) => [p.lat, p.lon] as [number, number]) : [];
 
   return (
     <div className="relative w-full h-full flex flex-col bg-[var(--color-surface-alt-hex)]">

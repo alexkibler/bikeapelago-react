@@ -1,0 +1,3 @@
+## 2025-04-08 - O(N*M) Array Mapping Bottleneck in React
+**Learning:** Found an `O(N*M)` nested lookup inside `useEffect` in React component (due to `checkedIds.includes(node.ap_location_id)` inside `nodes.map()`) which would slow down large re-renders. Also saw complex calculations like `JSON.parse` occurring unconditionally on every render in functional components because they were missing `useMemo`.
+**Action:** Next time, proactively search for unmemoized complex JSON parsing or nested iterations during re-renders, and use `Set`s and `useMemo` to keep functional components fast without sacrificing readability.
