@@ -122,34 +122,41 @@ builder.Services.AddReverseProxy()
 
 var app = builder.Build();
 
-// Role Seeding
-using (var scope = app.Services.CreateScope())
+// Role Seeding (gracefully handles database unavailability)
+try
 {
-    var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole<Guid>>>();
-    var userManager = scope.ServiceProvider.GetRequiredService<UserManager<User>>();
-    
-    string[] roles = { "Admin", "User" };
-    foreach (var role in roles)
+    using (var scope = app.Services.CreateScope())
     {
-        if (!roleManager.RoleExistsAsync(role).Result)
-        {
-            roleManager.CreateAsync(new IdentityRole<Guid>(role)).Wait();
-        }
-    }
+        var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole<Guid>>>();
+        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<User>>();
 
-    // Seed Initial Admin
-    var adminEmail = builder.Configuration["Admin:Email"] ?? "admin@bikeapelago.com";
-    var adminPassword = builder.Configuration["Admin:Password"] ?? "Admin123!";
-    var adminUser = userManager.FindByEmailAsync(adminEmail).Result;
-    if (adminUser == null)
-    {
-        adminUser = new User { UserName = adminEmail, Email = adminEmail, EmailConfirmed = true };
-        var result = userManager.CreateAsync(adminUser, adminPassword).Result;
-        if (result.Succeeded)
+        string[] roles = { "Admin", "User" };
+        foreach (var role in roles)
         {
-            userManager.AddToRoleAsync(adminUser, "Admin").Wait();
+            if (!roleManager.RoleExistsAsync(role).Result)
+            {
+                roleManager.CreateAsync(new IdentityRole<Guid>(role)).Wait();
+            }
+        }
+
+        // Seed Initial Admin
+        var adminEmail = builder.Configuration["Admin:Email"] ?? "admin@bikeapelago.com";
+        var adminPassword = builder.Configuration["Admin:Password"] ?? "Admin123!";
+        var adminUser = userManager.FindByEmailAsync(adminEmail).Result;
+        if (adminUser == null)
+        {
+            adminUser = new User { UserName = adminEmail, Email = adminEmail, EmailConfirmed = true };
+            var result = userManager.CreateAsync(adminUser, adminPassword).Result;
+            if (result.Succeeded)
+            {
+                userManager.AddToRoleAsync(adminUser, "Admin").Wait();
+            }
         }
     }
+}
+catch (Exception ex)
+{
+    app.Logger.LogWarning(ex, "Failed to seed database on startup. This is normal if the database is not yet available.");
 }
 
 app.UseMiddleware<ErrorLoggingMiddleware>();
