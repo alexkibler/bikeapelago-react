@@ -19,6 +19,8 @@ export const UserManagement: React.FC = () => {
   const [resettingId, setResettingId] = useState<string | null>(null);
   const [newPassword, setNewPassword] = useState('');
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [createData, setCreateData] = useState({ username: '', password: '', name: '' });
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -37,6 +39,19 @@ export const UserManagement: React.FC = () => {
   useEffect(() => {
     fetchUsers();
   }, [token]);
+
+  const handleCreateUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await axios.post('/api/auth/register', createData);
+      setMessage({ type: 'success', text: 'User created successfully' });
+      setShowCreateModal(false);
+      setCreateData({ username: '', password: '', name: '' });
+      fetchUsers();
+    } catch (err: any) {
+      setMessage({ type: 'error', text: err.response?.data?.message || 'Failed to create user' });
+    }
+  };
 
   const handleResetPassword = async (userId: string) => {
     if (!newPassword) {
@@ -77,15 +92,23 @@ export const UserManagement: React.FC = () => {
           </div>
         </div>
 
-        <div className="relative group w-96">
-          <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-zinc-600 group-focus-within:text-indigo-400 transition-colors" size={20} />
-          <input
-            type="text"
-            placeholder="Search users..."
-            className="w-full bg-[#09090b] border border-[#18181b] rounded-2xl pl-16 pr-6 py-4 text-zinc-300 focus:outline-none focus:ring-1 focus:ring-indigo-500/50 transition-all font-medium text-sm placeholder:text-zinc-800"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+        <div className="flex items-center gap-6">
+          <div className="relative group w-80">
+            <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-zinc-600 group-focus-within:text-indigo-400 transition-colors" size={20} />
+            <input
+              type="text"
+              placeholder="Search users..."
+              className="w-full bg-[#09090b] border border-[#18181b] rounded-2xl pl-16 pr-6 py-4 text-zinc-300 focus:outline-none focus:ring-1 focus:ring-indigo-500/50 transition-all font-medium text-sm placeholder:text-zinc-800"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+          <button 
+            onClick={() => setShowCreateModal(true)}
+            className="h-14 bg-indigo-600 hover:bg-indigo-500 text-white px-8 rounded-2xl text-xs font-black flex items-center transition-all shadow-xl shadow-indigo-600/10 active:scale-95 uppercase tracking-widest"
+          >
+            Create User
+          </button>
         </div>
       </div>
 
@@ -95,6 +118,54 @@ export const UserManagement: React.FC = () => {
         }`}>
           {message.type === 'success' ? <CheckCircle2 size={20} /> : <AlertCircle size={20} />}
           <span className="font-bold text-sm">{message.text}</span>
+        </div>
+      )}
+
+      {/* Create User Modal */}
+      {showCreateModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-8 animate-in fade-in duration-300">
+          <div className="absolute inset-0 bg-zinc-950/80 backdrop-blur-xl" onClick={() => setShowCreateModal(false)} />
+          <div className="bg-zinc-900 border border-zinc-800 w-full max-w-lg rounded-[48px] overflow-hidden shadow-[0_0_100px_rgba(0,0,0,1)] relative z-10 animate-in zoom-in-95 duration-500">
+             <div className="p-10 border-b border-zinc-800 bg-zinc-950/40">
+                <h3 className="font-black text-3xl text-white tracking-tighter font-outfit uppercase">Create Identity</h3>
+                <p className="text-zinc-500 font-bold tracking-[0.2em] text-[10px] uppercase">Initialize a new system user</p>
+             </div>
+             <form onSubmit={handleCreateUser} className="p-10 space-y-6">
+                <div className="space-y-2">
+                   <label className="text-[10px] font-black text-zinc-600 uppercase tracking-widest ml-1">Username / Email</label>
+                   <input
+                      type="text"
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl px-6 py-4 text-white focus:ring-1 focus:ring-indigo-500 outline-none transition-all"
+                      value={createData.username}
+                      onChange={e => setCreateData({...createData, username: e.target.value})}
+                      required
+                   />
+                </div>
+                <div className="space-y-2">
+                   <label className="text-[10px] font-black text-zinc-600 uppercase tracking-widest ml-1">Display Name</label>
+                   <input
+                      type="text"
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl px-6 py-4 text-white focus:ring-1 focus:ring-indigo-500 outline-none transition-all"
+                      value={createData.name}
+                      onChange={e => setCreateData({...createData, name: e.target.value})}
+                   />
+                </div>
+                <div className="space-y-2">
+                   <label className="text-[10px] font-black text-zinc-600 uppercase tracking-widest ml-1">Password</label>
+                   <input
+                      type="password"
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl px-6 py-4 text-white focus:ring-1 focus:ring-indigo-500 outline-none transition-all"
+                      value={createData.password}
+                      onChange={e => setCreateData({...createData, password: e.target.value})}
+                      required
+                   />
+                </div>
+                <div className="flex gap-4 mt-8">
+                   <button type="submit" className="flex-1 h-14 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-black uppercase tracking-widest transition-all">Create Account</button>
+                   <button type="button" onClick={() => setShowCreateModal(false)} className="px-8 h-14 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 rounded-2xl font-black uppercase tracking-widest transition-all">Cancel</button>
+                </div>
+             </form>
+          </div>
         </div>
       )}
 

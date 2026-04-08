@@ -17,7 +17,7 @@ public class OsmDiscoveryService : IOsmDiscoveryService
     {
         _logger = logger;
 
-        if (Environment.GetEnvironmentVariable("USE_MOCK_OVERPASS") == "true")
+        if (Environment.GetEnvironmentVariable("USE_MOCK_OVERPASS") == "true" || configuration["USE_MOCK_OVERPASS"] == "true")
         {
             _logger.LogInformation("Using Mock OSM Discovery Service");
             _impl = new MockOsmDiscoveryService();

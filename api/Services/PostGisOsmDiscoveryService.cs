@@ -38,8 +38,8 @@ public class PostGisOsmDiscoveryService : IOsmDiscoveryService
         cmd.CommandText = """
             SELECT DISTINCT ST_X(n.geom)::float8, ST_Y(n.geom)::float8
             FROM planet_osm_ways w
-            INNER JOIN planet_osm_way_nodes wn ON w.id = wn.way_id
-            INNER JOIN planet_osm_nodes n ON wn.node_id = n.id
+            CROSS JOIN LATERAL UNNEST(w.nodes) AS node_id(id)
+            INNER JOIN planet_osm_nodes n ON n.node_id = node_id.id
             WHERE ST_DWithin(
                 w.geom::geography,
                 ST_SetSRID(ST_MakePoint(@lon, @lat), 4326)::geography,
