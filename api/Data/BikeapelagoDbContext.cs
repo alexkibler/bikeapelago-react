@@ -25,6 +25,10 @@ public class BikeapelagoDbContext : IdentityDbContext<User, IdentityRole<Guid>, 
             .Property(g => g.Status)
             .HasConversion<string>();
 
+        modelBuilder.Entity<GameSession>()
+            .Property(g => g.Mode)
+            .HasDefaultValue("bike");
+
         // Map Spatial Data Types
         modelBuilder.Entity<GameSession>()
             .Property(g => g.Location)

@@ -64,6 +64,9 @@ public class GameSession
     [JsonPropertyName("received_item_ids")]
     public List<long> ReceivedItemIds { get; set; } = new();
 
+    [JsonPropertyName("mode")]
+    public string Mode { get; set; } = "bike";
+
     [JsonPropertyName("status")]
     [JsonConverter(typeof(JsonStringEnumConverter))]
     public SessionStatus Status { get; set; } = SessionStatus.SetupInProgress;
