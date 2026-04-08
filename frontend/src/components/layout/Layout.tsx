@@ -4,6 +4,7 @@ import { useAuthStore } from '../../store/authStore';
 import Sidebar from './Sidebar';
 import Header from './Header';
 import BottomNav from './BottomNav';
+import ToastContainer from './ToastContainer';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -40,6 +41,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
       {/* Mobile Bottom Nav */}
       <BottomNav />
+
+      {/* Global Notifications */}
+      <ToastContainer />
     </div>
   );
 };
