@@ -16,8 +16,7 @@ const Login = () => {
     if (isValid) navigate('/');
   }, [isValid, navigate]);
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const performLogin = async (identity: string, pass: string) => {
     setLoading(true);
     setError('');
 
@@ -25,7 +24,7 @@ const Login = () => {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ identity: username, password }),
+        body: JSON.stringify({ identity, password: pass }),
       });
       if (!res.ok) {
         const errData = await res.json().catch(() => ({})) as { message?: string };
@@ -41,6 +40,17 @@ const Login = () => {
     }
   };
 
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await performLogin(username, password);
+  };
+
+  const handleAutofill = () => {
+    setUsername('testuser');
+    setPassword('Password');
+    void performLogin('testuser', 'Password');
+  };
+
   return (
     <div className="min-h-[80vh] flex items-center justify-center p-6">
       <div className="w-full max-w-md">
@@ -49,7 +59,6 @@ const Login = () => {
             <Bike className="w-8 h-8 text-orange-500 group-hover:rotate-12 transition-transform" />
           </div>
           <h1 className="text-4xl font-black text-white italic uppercase tracking-tighter mb-2">Bikeapelago</h1>
-          <p className="text-neutral-500 font-medium italic">Ready to ride the Archipelago?</p>
         </div>
 
         <form onSubmit={handleLogin} className="space-y-4">
@@ -103,7 +112,13 @@ const Login = () => {
         </form>
 
         <div className="mt-8 text-center text-sm text-neutral-600">
-          <p>Temporary E2E Mode: Use <span className="text-orange-500/80 font-mono">testuser:Password</span></p>
+          <p>Temporary E2E Mode: Use <button 
+            type="button"
+            onClick={handleAutofill}
+            className="text-orange-500/80 font-mono hover:text-orange-400 hover:underline transition-all cursor-pointer bg-transparent border-none p-0"
+          >
+            testuser:Password
+          </button></p>
         </div>
       </div>
     </div>
