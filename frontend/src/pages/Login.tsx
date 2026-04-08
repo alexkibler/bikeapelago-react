@@ -58,7 +58,7 @@ const Login = () => {
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-3xl bg-orange-600/10 border border-orange-500/20 mb-6 group hover:scale-110 transition-transform duration-500">
             <Bike className="w-8 h-8 text-orange-500 group-hover:rotate-12 transition-transform" />
           </div>
-          <h1 className="text-4xl font-black text-white italic uppercase tracking-tighter mb-2">Bikeapelago</h1>
+          <h1 className="text-4xl font-black text-[var(--color-text-hex)] italic uppercase tracking-tighter mb-2">Bikeapelago</h1>
         </div>
 
         <form onSubmit={handleLogin} className="space-y-4">
@@ -76,7 +76,7 @@ const Login = () => {
               id="login-username"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              className="w-full bg-neutral-900 border border-neutral-800 rounded-2xl py-4 pl-12 pr-4 text-white focus:outline-none focus:border-orange-500/50 transition-all placeholder:text-neutral-700 font-medium"
+              className="w-full bg-[var(--color-surface-alt-hex)] border border-[var(--color-border-hex)] rounded-2xl py-4 pl-12 pr-4 text-[var(--color-text-hex)] focus:outline-none focus:border-orange-500/50 transition-all placeholder:text-[var(--color-text-subtle-hex)] font-medium"
               required
             />
           </div>
@@ -89,7 +89,7 @@ const Login = () => {
               id="login-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full bg-neutral-900 border border-neutral-800 rounded-2xl py-4 pl-12 pr-4 text-white focus:outline-none focus:border-orange-500/50 transition-all placeholder:text-neutral-700 font-medium"
+              className="w-full bg-[var(--color-surface-alt-hex)] border border-[var(--color-border-hex)] rounded-2xl py-4 pl-12 pr-4 text-[var(--color-text-hex)] focus:outline-none focus:border-orange-500/50 transition-all placeholder:text-[var(--color-text-subtle-hex)] font-medium"
               required
             />
           </div>
@@ -98,7 +98,7 @@ const Login = () => {
             type="submit"
             disabled={loading}
             id="login-submit"
-            className="w-full btn btn-orange btn-lg h-16 rounded-2xl font-black text-lg uppercase tracking-widest gap-3 shadow-xl shadow-orange-600/20 items-center justify-center flex"
+            className="w-full h-16 rounded-2xl bg-[var(--color-primary-hex)] text-white font-black text-lg uppercase tracking-widest gap-3 shadow-xl shadow-orange-600/20 items-center justify-center flex hover:bg-[var(--color-primary-hover-hex)] transition-all active:scale-[0.98] disabled:opacity-50"
           >
             {loading ? (
               <Loader2 className="w-6 h-6 animate-spin" />
@@ -111,14 +111,29 @@ const Login = () => {
           </button>
         </form>
 
-        <div className="mt-8 text-center text-sm text-neutral-600">
-          <p>Temporary E2E Mode: Use <button 
-            type="button"
-            onClick={handleAutofill}
-            className="text-orange-500/80 font-mono hover:text-orange-400 hover:underline transition-all cursor-pointer bg-transparent border-none p-0"
-          >
-            testuser:Password
-          </button></p>
+        <div className="mt-12 flex flex-col items-center gap-6">
+          <div className="h-px w-24 bg-gradient-to-r from-transparent via-[var(--color-border-hex)] to-transparent" />
+          
+          <div className="flex flex-col items-center gap-2">
+            <span className="text-[10px] font-black text-[var(--color-text-subtle-hex)] uppercase tracking-[0.3em]">
+              Fast Track
+            </span>
+            <button
+              type="button"
+              onClick={handleAutofill}
+              className="group relative px-6 py-3 rounded-2xl bg-[var(--color-surface-alt-hex)] border border-[var(--color-border-hex)] hover:border-orange-500/40 transition-all duration-500 overflow-hidden shadow-sm hover:shadow-orange-500/10"
+            >
+              <div className="absolute inset-0 bg-orange-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+              <div className="absolute -bottom-px left-1/2 -translate-x-1/2 w-12 h-px bg-gradient-to-r from-transparent via-orange-500/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+              
+              <div className="flex items-center gap-3">
+                <code className="text-sm font-mono text-orange-500 font-bold group-hover:text-orange-600 transition-colors duration-300">
+                  testuser:Password
+                </code>
+                <div className="w-1.5 h-1.5 rounded-full bg-orange-500/30 group-hover:bg-orange-500 transition-all" />
+              </div>
+            </button>
+          </div>
         </div>
       </div>
     </div>

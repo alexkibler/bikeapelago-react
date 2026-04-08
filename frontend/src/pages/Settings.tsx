@@ -114,38 +114,38 @@ const Settings = () => {
                 <div>
                     <button 
                         onClick={() => navigate(-1)}
-                        className="flex items-center gap-2 text-neutral-500 hover:text-white transition-colors mb-4 group"
+                        className="flex items-center gap-2 text-[var(--color-text-muted-hex)] hover:text-[var(--color-text-hex)] transition-colors mb-4 group"
                     >
                         <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
                         Back
                     </button>
-                    <h1 className="text-4xl font-black text-white italic uppercase tracking-tighter">Settings</h1>
-                    <p className="text-neutral-500 mt-2">Manage your account and data.</p>
+                    <h1 className="text-4xl font-black text-[var(--color-text-hex)] italic uppercase tracking-tighter">Settings</h1>
+                    <p className="text-[var(--color-text-muted-hex)] mt-2">Manage your account and data.</p>
                 </div>
             </header>
 
             <div className="space-y-6">
                 {/* Username Section */}
-                <section className="bg-neutral-900/50 border border-neutral-800 rounded-3xl p-8 backdrop-blur-sm">
+                <section className="bg-[var(--color-surface-hex)] border border-[var(--color-border-hex)] rounded-3xl p-8 backdrop-blur-sm">
                     <div className="flex items-center gap-4 mb-8">
                         <div className="p-3 bg-orange-500/10 rounded-2xl text-orange-500">
                             <User className="w-6 h-6" />
                         </div>
                         <div>
-                            <h2 className="text-xl font-bold text-white">Account Identifier</h2>
-                            <p className="text-sm text-neutral-500">How you are identified across the pelago.</p>
+                            <h2 className="text-xl font-bold text-[var(--color-text-hex)]">Account Identifier</h2>
+                            <p className="text-sm text-[var(--color-text-muted-hex)]">How you are identified across the pelago.</p>
                         </div>
                     </div>
 
                     <form onSubmit={handleUpdateUsername} className="space-y-4 max-w-md">
                         <div>
-                            <label className="block text-[10px] font-black uppercase tracking-widest text-neutral-500 mb-2">Username</label>
+                            <label className="block text-[10px] font-black uppercase tracking-widest text-[var(--color-text-muted-hex)] mb-2">Username</label>
                             <div className="relative">
                                 <input 
                                     type="text"
                                     value={newUsername}
                                     onChange={(e) => setNewUsername(e.target.value)}
-                                    className="w-full bg-neutral-800 border border-neutral-700 rounded-xl px-4 py-3 text-white font-medium focus:outline-none focus:border-orange-500 transition-colors"
+                                    className="w-full bg-[var(--color-surface-alt-hex)] border border-[var(--color-border-hex)] rounded-xl px-4 py-3 text-[var(--color-text-hex)] font-medium focus:outline-none focus:border-orange-500 transition-colors placeholder:text-[var(--color-text-subtle-hex)]"
                                     placeholder="Enter new username"
                                 />
                                 {usernameSuccess && (
@@ -168,36 +168,36 @@ const Settings = () => {
                 </section>
 
                 {/* Password Section */}
-                <section className="bg-neutral-900/50 border border-neutral-800 rounded-3xl p-8 backdrop-blur-sm">
+                <section className="bg-[var(--color-surface-hex)] border border-[var(--color-border-hex)] rounded-3xl p-8 backdrop-blur-sm">
                     <div className="flex items-center gap-4 mb-8">
                         <div className="p-3 bg-blue-500/10 rounded-2xl text-blue-500">
                             <Lock className="w-6 h-6" />
                         </div>
                         <div>
-                            <h2 className="text-xl font-bold text-white">Security</h2>
-                            <p className="text-sm text-neutral-500">Keep your account secure with a strong password.</p>
+                            <h2 className="text-xl font-bold text-[var(--color-text-hex)]">Security</h2>
+                            <p className="text-sm text-[var(--color-text-muted-hex)]">Keep your account secure with a strong password.</p>
                         </div>
                     </div>
 
                     <form onSubmit={handleUpdatePassword} className="space-y-4 max-w-md">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-[10px] font-black uppercase tracking-widest text-neutral-500 mb-2">New Password</label>
+                                <label className="block text-[10px] font-black uppercase tracking-widest text-[var(--color-text-muted-hex)] mb-2">New Password</label>
                                 <input 
                                     type="password"
                                     value={newPassword}
                                     onChange={(e) => setNewPassword(e.target.value)}
-                                    className="w-full bg-neutral-800 border border-neutral-700 rounded-xl px-4 py-3 text-white font-medium focus:outline-none focus:border-blue-500 transition-colors"
+                                    className="w-full bg-[var(--color-surface-alt-hex)] border border-[var(--color-border-hex)] rounded-xl px-4 py-3 text-[var(--color-text-hex)] font-medium focus:outline-none focus:border-blue-500 transition-colors placeholder:text-[var(--color-text-subtle-hex)]"
                                     placeholder="••••••••"
                                 />
                             </div>
                             <div>
-                                <label className="block text-[10px] font-black uppercase tracking-widest text-neutral-500 mb-2">Confirm Password</label>
+                                <label className="block text-[10px] font-black uppercase tracking-widest text-[var(--color-text-muted-hex)] mb-2">Confirm Password</label>
                                 <input 
                                     type="password"
                                     value={confirmPassword}
                                     onChange={(e) => setConfirmPassword(e.target.value)}
-                                    className="w-full bg-neutral-800 border border-neutral-700 rounded-xl px-4 py-3 text-white font-medium focus:outline-none focus:border-blue-500 transition-colors"
+                                    className="w-full bg-[var(--color-surface-alt-hex)] border border-[var(--color-border-hex)] rounded-xl px-4 py-3 text-[var(--color-text-hex)] font-medium focus:outline-none focus:border-blue-500 transition-colors placeholder:text-[var(--color-text-subtle-hex)]"
                                     placeholder="••••••••"
                                 />
                             </div>
@@ -209,7 +209,7 @@ const Settings = () => {
                             <button 
                                 type="submit"
                                 disabled={isUpdatingPassword || !newPassword}
-                                className="btn btn-neutral btn-md w-full sm:w-auto rounded-xl gap-2 border-neutral-700 disabled:opacity-50"
+                                className="w-full sm:w-auto px-6 py-3 rounded-xl bg-[var(--color-surface-alt-hex)] border border-[var(--color-border-hex)] text-[var(--color-text-hex)] font-bold hover:border-blue-500/50 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
                             >
                                 {isUpdatingPassword ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
                                 Change Password
@@ -231,15 +231,15 @@ const Settings = () => {
                             <ShieldAlert className="w-6 h-6" />
                         </div>
                         <div>
-                            <h2 className="text-xl font-bold text-white underline decoration-red-500/30">Danger Zone</h2>
-                            <p className="text-sm text-neutral-500">Irreversible actions that affect your data.</p>
+                            <h2 className="text-xl font-bold text-[var(--color-text-hex)] underline decoration-red-500/30">Danger Zone</h2>
+                            <p className="text-sm text-[var(--color-text-muted-hex)]">Irreversible actions that affect your data.</p>
                         </div>
                     </div>
 
-                    <div className="bg-neutral-950/50 border border-neutral-800 rounded-2xl p-6 flex flex-col md:flex-row items-center justify-between gap-6">
+                    <div className="bg-[var(--color-surface-hex)] border border-[var(--color-border-hex)] rounded-2xl p-6 flex flex-col md:flex-row items-center justify-between gap-6">
                         <div className="flex-1">
-                            <h3 className="text-white font-bold mb-1">Delete All Game Sessions</h3>
-                            <p className="text-neutral-500 text-sm">This will permanently remove every game session, including all nodes, routes, and progress. This action is non-recoverable.</p>
+                            <h3 className="text-[var(--color-text-hex)] font-bold mb-1">Delete All Game Sessions</h3>
+                            <p className="text-[var(--color-text-muted-hex)] text-sm">This will permanently remove every game session, including all nodes, routes, and progress. This action is non-recoverable.</p>
                         </div>
 
                         <div className="shrink-0">
@@ -259,7 +259,7 @@ const Settings = () => {
                                     <div className="flex gap-2">
                                         <button 
                                             onClick={() => setDeleteStep(0)}
-                                            className="px-4 py-2 border border-neutral-700 text-neutral-400 hover:text-white rounded-lg text-xs font-bold transition-colors"
+                                            className="px-4 py-2 border border-[var(--color-border-hex)] text-[var(--color-text-muted-hex)] hover:text-[var(--color-text-hex)] rounded-lg text-xs font-bold transition-colors"
                                         >
                                             Cancel
                                         </button>
@@ -282,7 +282,7 @@ const Settings = () => {
                                     <div className="flex gap-2">
                                         <button 
                                             onClick={() => setDeleteStep(0)}
-                                            className="px-4 py-2 border border-neutral-700 text-neutral-400 hover:text-white rounded-lg text-xs font-bold transition-colors"
+                                            className="px-4 py-2 border border-[var(--color-border-hex)] text-[var(--color-text-muted-hex)] hover:text-[var(--color-text-hex)] rounded-lg text-xs font-bold transition-colors"
                                         >
                                             Actually, Stop
                                         </button>
