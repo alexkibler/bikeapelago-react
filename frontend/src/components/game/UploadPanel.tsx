@@ -52,6 +52,7 @@ const UploadPanel = ({ sessionId }: { sessionId: string }) => {
               <button
                 onClick={() => fileInputRef.current?.click()}
                 className="w-16 h-16 rounded-full bg-[var(--color-primary-hex)]/10 text-[var(--color-primary-hex)] flex items-center justify-center mb-4 group-hover:scale-110 transition-transform"
+                aria-label="Choose a .FIT file"
               >
                 <Play className="w-6 h-6 rotate-[-90deg] translate-y-[-2px]" />
               </button>
