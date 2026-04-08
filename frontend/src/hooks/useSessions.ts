@@ -58,5 +58,24 @@ export function useSessions() {
     }
   };
 
-  return { sessions, loading, error, deleteSession };
+  const deleteAllSessions = async () => {
+    try {
+      const token = getToken();
+      const res = await fetch('/api/sessions/all', {
+        method: 'DELETE',
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+      });
+      if (!res.ok) {
+        if (res.status === 401) { handleUnauthorized(); return; }
+        const errText = await res.text();
+        throw new Error(`HTTP ${res.status} - ${errText}`);
+      }
+      setSessions([]);
+    } catch (err: unknown) {
+      console.error('Failed to delete all sessions:', err);
+      throw err;
+    }
+  };
+
+  return { sessions, loading, error, deleteSession, deleteAllSessions };
 }

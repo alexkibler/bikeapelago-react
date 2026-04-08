@@ -55,4 +55,16 @@ public class EfCoreSessionRepository(BikeapelagoDbContext context) : IGameSessio
         }
         return false;
     }
+
+    public async Task<bool> DeleteAllByUserIdAsync(Guid userId)
+    {
+        var sessions = await _context.GameSessions.Where(s => s.UserId == userId).ToListAsync();
+        if (sessions.Any())
+        {
+            _context.GameSessions.RemoveRange(sessions);
+            await _context.SaveChangesAsync();
+            return true;
+        }
+        return false;
+    }
 }
