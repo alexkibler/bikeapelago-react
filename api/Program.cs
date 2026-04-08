@@ -44,11 +44,15 @@ builder.Services.AddScoped<PbfOsmDiscoveryService>(sp =>
     var path = builder.Configuration["OsmDiscovery:PbfPath"] ?? "./data/map.osm.pbf";
     return new PbfOsmDiscoveryService(logger, path);
 });
+builder.Services.AddScoped<GridCacheService>();
 builder.Services.AddScoped<PostGisOsmDiscoveryService>();
 builder.Services.AddScoped<IOsmDiscoveryService, OsmDiscoveryService>();
 builder.Services.AddScoped<NodeGenerationService>();
 builder.Services.AddScoped<FitAnalysisService>();
 builder.Services.AddScoped<SchemaDiscoveryService>();
+
+// Grid Cache Background Job Processor
+builder.Services.AddHostedService<GridCacheJobProcessor>();
 
 builder.Services.AddSignalR();
 builder.Services.AddSingleton<ArchipelagoService>();

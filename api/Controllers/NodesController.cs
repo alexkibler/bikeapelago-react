@@ -56,6 +56,32 @@ public class NodesController(IMapNodeRepository nodeRepository, ILogger<NodesCon
         var results = await discoveryService.ValidateNodesAsync(request);
         return Ok(results);
     }
+
+    [HttpGet("/api/discovery/test-random-nodes")]
+    public async Task<IActionResult> TestRandomNodes(
+        [FromServices] IOsmDiscoveryService discoveryService,
+        [FromQuery] double lat,
+        [FromQuery] double lon,
+        [FromQuery] double radiusMeters = 10000,
+        [FromQuery] int count = 100,
+        [FromQuery] string mode = "bike")
+    {
+        if (mode != "bike" && mode != "walk")
+            return BadRequest(new { error = "mode must be 'bike' or 'walk'" });
+
+        var startTime = DateTime.UtcNow;
+        var nodes = await discoveryService.GetRandomNodesAsync(lat, lon, radiusMeters, count, mode);
+        var elapsed = DateTime.UtcNow - startTime;
+
+        return Ok(new
+        {
+            mode = mode,
+            requestedCount = count,
+            returnedCount = nodes.Count,
+            elapsedMs = elapsed.TotalMilliseconds,
+            nodes = nodes.Take(10) // Return first 10 for inspection
+        });
+    }
 }
 
 [ApiController]
