@@ -85,7 +85,7 @@ builder.Services.AddAuthentication(options =>
         ValidateIssuerSigningKey = true,
         ValidIssuer = "bikeapelago-api",
         ValidAudience = "bikeapelago-frontend",
-        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"] ?? "your-secret-key-at-least-32-chars-long"))
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"] ?? (builder.Environment.IsDevelopment() ? "your-secret-key-at-least-32-chars-long" : throw new InvalidOperationException("Jwt:Key is missing from configuration. This is a critical security risk in production."))))
     };
 });
 
@@ -155,15 +155,24 @@ try
 
         // Seed Initial Admin
         var adminEmail = builder.Configuration["Admin:Email"] ?? "admin@bikeapelago.com";
-        var adminPassword = builder.Configuration["Admin:Password"] ?? "Admin123!";
-        var adminUser = userManager.FindByEmailAsync(adminEmail).Result;
-        if (adminUser == null)
+        var adminPassword = builder.Configuration["Admin:Password"];
+
+        if (string.IsNullOrEmpty(adminPassword) && !app.Environment.IsDevelopment())
         {
-            adminUser = new User { UserName = adminEmail, Email = adminEmail, EmailConfirmed = true };
-            var result = userManager.CreateAsync(adminUser, adminPassword).Result;
-            if (result.Succeeded)
+            app.Logger.LogWarning("Admin:Password not provided. Skipping admin user creation in production.");
+        }
+        else
+        {
+            adminPassword ??= "Admin123!";
+            var adminUser = userManager.FindByEmailAsync(adminEmail).Result;
+            if (adminUser == null)
             {
-                userManager.AddToRoleAsync(adminUser, "Admin").Wait();
+                adminUser = new User { UserName = adminEmail, Email = adminEmail, EmailConfirmed = true };
+                var result = userManager.CreateAsync(adminUser, adminPassword).Result;
+                if (result.Succeeded)
+                {
+                    userManager.AddToRoleAsync(adminUser, "Admin").Wait();
+                }
             }
         }
     }
