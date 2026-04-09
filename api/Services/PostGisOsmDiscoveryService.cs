@@ -8,6 +8,7 @@ using Bikeapelago.Api.Models;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Npgsql;
+using NpgsqlTypes;
 
 namespace Bikeapelago.Api.Services;
 
@@ -27,7 +28,7 @@ public class PostGisOsmDiscoveryService : IOsmDiscoveryService
         _gridCache = gridCache;
     }
 
-    public async Task<List<DiscoveryPoint>> GetRandomNodesAsync(double lat, double lon, double radiusMeters, int count, string mode = "bike")
+    public async Task<List<DiscoveryPoint>> GetRandomNodesAsync(double lat, double lon, double radiusMeters, int count, string mode = "bike", double densityBias = 0.5)
     {
         _logger.LogInformation("Fetching random nodes from PostGIS at {Lat},{Lon} radius {Radius}m, mode: {Mode}", lat, lon, radiusMeters, mode);
         var totalSw = System.Diagnostics.Stopwatch.StartNew();
@@ -50,58 +51,68 @@ public class PostGisOsmDiscoveryService : IOsmDiscoveryService
             _logger.LogInformation("Queued {JobCount} cache jobs: {JobIds}", jobIds.Count, string.Join(", ", jobIds));
         }
 
-        // Step 4: Fetch nodes using direct query (works immediately, doesn't need cache)
-        // Once cache is populated, we can optimize to use it instead
-        await using var conn = new NpgsqlConnection(_connectionString);
-        var connSw = System.Diagnostics.Stopwatch.StartNew();
-        await conn.OpenAsync();
-        connSw.Stop();
-        _logger.LogInformation("Connection opened in {Ms}ms", connSw.ElapsedMilliseconds);
+        // Step 4: Generate random sub-targets spread across the full radius.
+        // Sub-radius scales with parent radius so probes don't overlap on small areas
+        // or under-sample on large ones. 2.5x probe count gives buffer for empty probes
+        // (rivers, parks, etc.) without dictating connection count.
+        double subRadiusMeters = Math.Clamp(radiusMeters * 0.1, 200, 1500);
+        int subTargetCount = (int)Math.Ceiling(count * 2.5);
 
-        int fetchCount = Math.Max(count * 3, 100);
+        var subTargets = GenerateRandomPointsInCircle(lat, lon, radiusMeters, subTargetCount, densityBias);
+        _logger.LogInformation(
+            "Running single unnest query with {ProbeCount} sub-targets (r={SubRadius}m each)",
+            subTargetCount, subRadiusMeters);
+
         var fetchSw = System.Diagnostics.Stopwatch.StartNew();
-        var nodes = await FetchNodesInRadiusAsync(conn, lat, lon, radiusMeters, fetchCount);
+        var allNodes = await FetchNodesForSubTargetsAsync(subTargets, subRadiusMeters);
         fetchSw.Stop();
-        _logger.LogInformation("PostGIS fetch returned {Count} nodes in {Ms}ms", nodes.Count, fetchSw.ElapsedMilliseconds);
 
-        if (nodes.Count == 0)
-            return [];
+        var shuffled = allNodes.OrderBy(_ => Random.Shared.Next()).ToList();
 
-        // Step 5: Randomize and return
-        var randSw = System.Diagnostics.Stopwatch.StartNew();
-        var random = nodes.OrderBy(_ => Random.Shared.Next()).Take(count).ToList();
-        randSw.Stop();
-        _logger.LogInformation("Randomized and selected {Count} nodes in {Ms}ms", random.Count, randSw.ElapsedMilliseconds);
+        _logger.LogInformation("Unnest query returned {Total} unique candidates in {Ms}ms", shuffled.Count, fetchSw.ElapsedMilliseconds);
 
         totalSw.Stop();
-        _logger.LogInformation("GetRandomNodesAsync total time: {Ms}ms (grid cache jobs queued for next request)", totalSw.ElapsedMilliseconds);
-        return random;
+        _logger.LogInformation("GetRandomNodesAsync total time: {Ms}ms", totalSw.ElapsedMilliseconds);
+        return shuffled;
     }
 
-    private async Task<List<DiscoveryPoint>> FetchNodesInRadiusAsync(NpgsqlConnection conn, double lat, double lon, double radiusMeters, int count)
+    private async Task<List<DiscoveryPoint>> FetchNodesForSubTargetsAsync(List<DiscoveryPoint> subTargets, double subRadiusMeters)
     {
-        await using var cmd = conn.CreateCommand();
-        cmd.CommandTimeout = 10;
+        double[] lons = subTargets.Select(p => p.Lon).ToArray();
+        double[] lats = subTargets.Select(p => p.Lat).ToArray();
 
-        // Use native geometry type to leverage GIST index
-        // Convert meters to degrees: 1 degree ≈ 111km
-        double radiusDegrees = radiusMeters / 111000.0;
+        // Convert sub-radius to degrees using the average latitude of the probes.
+        // ST_DWithin on geometry uses degree units, so we only need lat-based conversion;
+        // the probes are already distributed with correct lon spacing from GenerateRandomPointsInCircle.
+        double avgLat = lats.Average();
+        double subRadiusDegrees = subRadiusMeters / 111000.0;
+
+        await using var conn = new NpgsqlConnection(_connectionString);
+        await conn.OpenAsync();
+
+        await using var cmd = conn.CreateCommand();
+        cmd.CommandTimeout = 15;
+        // Safety cap: prevents Npgsql from streaming an unbounded payload in dense urban areas.
+        // ORDER BY RANDOM() is cheap at this stage (applied after DISTINCT, on a small result set).
+        int safetyCap = subTargets.Count * 20;
 
         cmd.CommandText = """
-            SELECT ST_X(geom)::float8, ST_Y(geom)::float8
-            FROM planet_osm_nodes
-            WHERE ST_DWithin(
-                geom,
-                ST_SetSRID(ST_MakePoint(@lon, @lat), 4326),
-                @radius_degrees
-            )
-            LIMIT @count
+            SELECT x, y FROM (
+                SELECT DISTINCT ST_X(n.geom)::float8 AS x, ST_Y(n.geom)::float8 AS y
+                FROM planet_osm_nodes n
+                JOIN (
+                    SELECT ST_SetSRID(ST_MakePoint(lon, lat), 4326) AS target_geom
+                    FROM unnest(@lons, @lats) AS t(lon, lat)
+                ) sub ON ST_DWithin(n.geom, sub.target_geom, @sub_radius_degrees)
+            ) deduped
+            ORDER BY RANDOM()
+            LIMIT @safety_cap
             """;
 
-        cmd.Parameters.AddWithValue("lon", lon);
-        cmd.Parameters.AddWithValue("lat", lat);
-        cmd.Parameters.AddWithValue("radius_degrees", radiusDegrees);
-        cmd.Parameters.AddWithValue("count", count);
+        cmd.Parameters.Add(new NpgsqlParameter("lons", NpgsqlDbType.Array | NpgsqlDbType.Double) { Value = lons });
+        cmd.Parameters.Add(new NpgsqlParameter("lats", NpgsqlDbType.Array | NpgsqlDbType.Double) { Value = lats });
+        cmd.Parameters.AddWithValue("sub_radius_degrees", subRadiusDegrees);
+        cmd.Parameters.AddWithValue("safety_cap", safetyCap);
 
         var results = new List<DiscoveryPoint>();
         await using var reader = await cmd.ExecuteReaderAsync();
@@ -110,6 +121,29 @@ public class PostGisOsmDiscoveryService : IOsmDiscoveryService
             results.Add(new DiscoveryPoint(reader.GetDouble(0), reader.GetDouble(1)));
         }
         return results;
+    }
+
+    internal static List<DiscoveryPoint> GenerateRandomPointsInCircle(double centerLat, double centerLon, double radiusMeters, int count, double densityBias = 0.5)
+    {
+        var points = new List<DiscoveryPoint>(count);
+        double cosLat = Math.Cos(centerLat * Math.PI / 180.0);
+
+        for (int i = 0; i < count; i++)
+        {
+            // Math.Pow(random, densityBias) controls how probes cluster within the radius:
+            //   0.5  = Uniform area distribution (geographically fair, sparse center) — default
+            //   0.75 = "Goldilocks" zone (denser center for routing, still spreads to edges)
+            //   1.0  = Linear distance distribution (heavy center clustering)
+            double distance = Math.Pow(Random.Shared.NextDouble(), densityBias) * radiusMeters;
+            double angle = Random.Shared.NextDouble() * 2.0 * Math.PI;
+
+            double latOffset = distance * Math.Cos(angle) / 111000.0;
+            double lonOffset = distance * Math.Sin(angle) / (111000.0 * cosLat);
+
+            points.Add(new DiscoveryPoint(centerLon + lonOffset, centerLat + latOffset));
+        }
+
+        return points;
     }
 
     public async Task<List<ValidateResult>> ValidateNodesAsync(ValidateRequest request)
