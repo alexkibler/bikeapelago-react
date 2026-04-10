@@ -34,6 +34,7 @@ const ToastContainer = () => {
           <button 
             onClick={() => removeToast(toast.id)}
             className="ml-2 p-1 rounded-full hover:bg-white/10 transition-colors text-neutral-500 hover:text-white"
+            aria-label="Close toast"
           >
             <X className="w-4 h-4" />
           </button>
