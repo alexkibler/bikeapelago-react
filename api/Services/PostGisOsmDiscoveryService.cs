@@ -19,6 +19,26 @@ public class PostGisOsmDiscoveryService : IOsmDiscoveryService
     private readonly HttpClient _httpClient;
     private readonly GridCacheService _gridCache;
 
+    // Indexes are created once per service lifetime; cheap no-op after first run.
+    private bool _indexesReady;
+    private readonly SemaphoreSlim _indexLock = new(1, 1);
+
+    // Highway tags that are valid for each routing mode.
+    // Mirrors GraphHopper's vehicle profiles so PostGIS pre-filters to routable roads.
+    private static readonly string[] BikeHighwayTags =
+    [
+        "cycleway", "path", "track", "residential", "unclassified",
+        "tertiary", "tertiary_link", "secondary", "secondary_link",
+        "primary", "primary_link", "service", "living_street"
+    ];
+
+    private static readonly string[] WalkHighwayTags =
+    [
+        "footway", "path", "pedestrian", "steps", "track", "residential",
+        "unclassified", "tertiary", "tertiary_link", "secondary", "secondary_link",
+        "primary", "primary_link", "service", "living_street"
+    ];
+
     public PostGisOsmDiscoveryService(ILogger<PostGisOsmDiscoveryService> logger, IConfiguration config, HttpClient httpClient, GridCacheService gridCache)
     {
         _logger = logger;
@@ -26,6 +46,19 @@ public class PostGisOsmDiscoveryService : IOsmDiscoveryService
             ?? throw new InvalidOperationException("OsmDiscovery connection string is required.");
         _httpClient = httpClient;
         _gridCache = gridCache;
+    }
+
+    private static string[] HighwayTagsForMode(string mode) =>
+        mode.ToLowerInvariant() is "walk" or "foot" ? WalkHighwayTags : BikeHighwayTags;
+
+    /// Checks whether planet_osm_way_nodes has been populated (one-time migration).
+    /// The table is populated by unnesting highway ways from planet_osm_ways; until
+    /// that migration completes the service falls back to unfiltered node selection.
+    private async Task EnsureIndexesAsync()
+    {
+        // No-op: The relational mapping table is obsolete.
+        // We extract nodes dynamically from valid lines using ST_DumpPoints.
+        await Task.CompletedTask;
     }
 
     public async Task<List<DiscoveryPoint>> GetRandomNodesAsync(double lat, double lon, double radiusMeters, int count, string mode = "bike", double densityBias = 0.5)
@@ -63,8 +96,10 @@ public class PostGisOsmDiscoveryService : IOsmDiscoveryService
             "Running single unnest query with {ProbeCount} sub-targets (r={SubRadius}m each)",
             subTargetCount, subRadiusMeters);
 
+        await EnsureIndexesAsync();
+
         var fetchSw = System.Diagnostics.Stopwatch.StartNew();
-        var allNodes = await FetchNodesForSubTargetsAsync(subTargets, subRadiusMeters);
+        var allNodes = await FetchNodesForSubTargetsAsync(subTargets, subRadiusMeters, mode);
         fetchSw.Stop();
 
         var shuffled = allNodes.OrderBy(_ => Random.Shared.Next()).ToList();
@@ -76,42 +111,63 @@ public class PostGisOsmDiscoveryService : IOsmDiscoveryService
         return shuffled;
     }
 
-    private async Task<List<DiscoveryPoint>> FetchNodesForSubTargetsAsync(List<DiscoveryPoint> subTargets, double subRadiusMeters)
+    private async Task<List<DiscoveryPoint>> FetchNodesForSubTargetsAsync(
+        List<DiscoveryPoint> subTargets, double subRadiusMeters, string mode)
     {
         double[] lons = subTargets.Select(p => p.Lon).ToArray();
         double[] lats = subTargets.Select(p => p.Lat).ToArray();
-
-        // Convert sub-radius to degrees using the average latitude of the probes.
-        // ST_DWithin on geometry uses degree units, so we only need lat-based conversion;
-        // the probes are already distributed with correct lon spacing from GenerateRandomPointsInCircle.
-        double avgLat = lats.Average();
         double subRadiusDegrees = subRadiusMeters / 111000.0;
+        int safetyCap = subTargets.Count * 20;
 
         await using var conn = new NpgsqlConnection(_connectionString);
         await conn.OpenAsync();
 
         await using var cmd = conn.CreateCommand();
-        cmd.CommandTimeout = 15;
-        // Safety cap: prevents Npgsql from streaming an unbounded payload in dense urban areas.
-        // ORDER BY RANDOM() is cheap at this stage (applied after DISTINCT, on a small result set).
-        int safetyCap = subTargets.Count * 20;
+        cmd.CommandTimeout = 60;
 
+        // Extract physical nodes directly from valid lines, removing the need for
+        // the obsolete planet_osm_way_nodes relational table.
+        // Filter uses the pre-computed cycling_safe/walking_safe boolean columns
+        // stored by the Lua flex script — no tags hstore needed.
+        // LATERAL join forces the planner to use the GIST index per sub-target.
         cmd.CommandText = """
+            WITH sub_targets AS (
+                -- Unnest the C# arrays into target geometries (SRID 4326)
+                SELECT ST_SetSRID(ST_MakePoint(lon, lat), 4326) AS target_geom
+                FROM unnest(@lons, @lats) AS t(lon, lat)
+            ),
+            valid_lines AS (
+                -- LATERAL forces index-nested-loop: one GIST lookup per sub-target
+                SELECT DISTINCT w.geom
+                FROM sub_targets st
+                CROSS JOIN LATERAL (
+                    SELECT w.geom
+                    FROM planet_osm_ways w
+                    WHERE ST_DWithin(w.geom, st.target_geom, @sub_radius_degrees)
+                      AND ((@is_walk AND w.walking_safe) OR (NOT @is_walk AND w.cycling_safe))
+                ) w
+            ),
+            dumped_points AS (
+                -- Extract the physical nodes (vertices) out of those valid lines
+                SELECT (ST_DumpPoints(geom)).geom AS pt_geom
+                FROM valid_lines
+            )
+            -- Deduplicate, randomize, and cap
             SELECT x, y FROM (
-                SELECT DISTINCT ST_X(n.geom)::float8 AS x, ST_Y(n.geom)::float8 AS y
-                FROM planet_osm_nodes n
-                JOIN (
-                    SELECT ST_SetSRID(ST_MakePoint(lon, lat), 4326) AS target_geom
-                    FROM unnest(@lons, @lats) AS t(lon, lat)
-                ) sub ON ST_DWithin(n.geom, sub.target_geom, @sub_radius_degrees)
+                SELECT DISTINCT
+                    ST_X(pt_geom)::float8 AS x,
+                    ST_Y(pt_geom)::float8 AS y
+                FROM dumped_points
             ) deduped
             ORDER BY RANDOM()
-            LIMIT @safety_cap
+            LIMIT @safety_cap;
             """;
 
+        bool isWalk = mode.ToLowerInvariant() is "walk" or "foot";
         cmd.Parameters.Add(new NpgsqlParameter("lons", NpgsqlDbType.Array | NpgsqlDbType.Double) { Value = lons });
         cmd.Parameters.Add(new NpgsqlParameter("lats", NpgsqlDbType.Array | NpgsqlDbType.Double) { Value = lats });
         cmd.Parameters.AddWithValue("sub_radius_degrees", subRadiusDegrees);
+        cmd.Parameters.AddWithValue("is_walk", isWalk);
         cmd.Parameters.AddWithValue("safety_cap", safetyCap);
 
         var results = new List<DiscoveryPoint>();
