@@ -20,12 +20,26 @@
 #
 # Copy .env.example to .env and fill in required values before starting.
 
+x-bikeapelago-frontend-app-definition: &frontend-app-definition
+  profiles: [frontend]
+  build:
+    context: ./frontend
+    dockerfile: Dockerfile.dev
+  volumes:
+    - ./frontend:/usr/src/app
+    - bikeapelago_node_modules:/usr/src/app/node_modules
+  working_dir: /usr/src/app
+  restart: unless-stopped
+  networks:
+    - bikeapelago
+
 networks:
   bikeapelago:
     name: bikeapelago_dev
 
 volumes:
   postgis_data:
+  bikeapelago_node_modules:
 
 services:
 
@@ -71,6 +85,8 @@ services:
     image: bikeapelago-api:latest
     container_name: bikeapelago-api-dev
     restart: unless-stopped
+    env_file:
+      - .env.local
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ReverseProxy__Clusters__graphhopperCluster__Destinations__ghDest__Address=${GRAPHHOPPER_URL:-https://routing.alexkibler.com}
@@ -93,38 +109,35 @@ services:
   # ──────────────────────────────────────────────────────────────────────────
   # Bikeapelago React frontend — profile: frontend
   # ──────────────────────────────────────────────────────────────────────────
+  frontend_builder:
+    <<: *frontend-app-definition
+    restart: no
+    command: pnpm install
   bikeapelago-react:
-    profiles: [frontend]
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    image: bikeapelago-react:latest
-    container_name: bikeapelago-react-dev
-    restart: unless-stopped
-    ports:
-      - "8182:80"
+    <<: *frontend-app-definition
+    command: pnpm --filter "@bikeapelago/bikeapelago-app" run dev --host
     depends_on:
-      - bikeapelago-api
-    networks:
-      - bikeapelago
+      bikeapelago-api:
+        condition: service_healthy
+      frontend_builder:
+        condition: service_completed_successfully
+    ports:
+      - "8182:5173"
 
   # ──────────────────────────────────────────────────────────────────────────
   # Bikeapelago Admin UI — profile: frontend
   # ──────────────────────────────────────────────────────────────────────────
   bikeapelago-admin:
-    profiles: [frontend]
-    build:
-      context: ./admin-ui
-      dockerfile: Dockerfile
-    image: bikeapelago-admin:latest
+    <<: *frontend-app-definition
     container_name: bikeapelago-admin-dev
-    restart: unless-stopped
+    command: pnpm --filter "@bikeapelago/admin-ui" run dev --host
     ports:
-      - "8183:80"
+      - "8183:5173"
     depends_on:
-      - bikeapelago-api
-    networks:
-      - bikeapelago
+      bikeapelago-api:
+        condition: service_healthy
+      frontend_builder:
+        condition: service_completed_successfully
 
   # ──────────────────────────────────────────────────────────────────────────
   # GraphHopper — profile: gh  (OPTIONAL — see warning at top of file)

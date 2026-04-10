@@ -35,8 +35,8 @@ Navigate to the `frontend` directory, install dependencies, and start the develo
 
 ```bash
 cd frontend
-npm install
-npm run dev
+pnpm install
+pnpm run dev
 ```
 
 The frontend will be available at `http://localhost:5173`.
