@@ -18,6 +18,12 @@ public class NodeGenerationRequest
     public int NodeCount { get; set; } = 50;
     public string Mode { get; set; } = "bike"; // "bike" or "walk"
     public string GameMode { get; set; } = "archipelago"; // "archipelago" or "singleplayer"
+
+    // Controls how sub-target probes are distributed within the parent radius:
+    //   0.5  = Uniform area distribution (geographically fair, sparse center) — default
+    //   0.75 = "Goldilocks" zone (denser center for routing, still spreads to edges)
+    //   1.0  = Linear distance distribution (heavy center clustering)
+    public double DensityBias { get; set; } = 0.5;
 }
 
 public class NodeGenerationService(
@@ -48,7 +54,8 @@ public class NodeGenerationService(
             request.CenterLon,
             request.Radius,
             request.NodeCount,
-            request.Mode);
+            request.Mode,
+            request.DensityBias);
         _logger.LogInformation("[generate] OsmDiscovery ({Count} points): {Ms}ms", points.Count, sw.ElapsedMilliseconds);
 
         if (points.Count < request.NodeCount)
