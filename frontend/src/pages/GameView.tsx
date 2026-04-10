@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { MapContainer, TileLayer, Marker, ZoomControl, useMap, useMapEvents, Polyline, Circle } from 'react-leaflet';
 import L from 'leaflet';
@@ -422,6 +422,18 @@ const GameView = () => {
     }
   }, [checkedLocationIds, nodes, setNodes]);
 
+  const parsedPolyline = useMemo(() => {
+    return routeData.polyline
+      ? JSON.parse(routeData.polyline).map((p: [number, number]) => [p[1], p[0]] as [number, number])
+      : [];
+  }, [routeData.polyline]);
+
+  const analysisPath = useMemo(() => {
+    return analysisResult?.path
+      ? analysisResult.path.map((p: { lat: number, lon: number }) => [p.lat, p.lon] as [number, number])
+      : [];
+  }, [analysisResult?.path]);
+
   if (loading) {
     return (
       <div className="h-full flex items-center justify-center bg-[var(--color-surface-alt-hex)]">
@@ -443,9 +455,6 @@ const GameView = () => {
     session.center_lat ?? 40.7128, 
     session.center_lon ?? -74.006
   ];
-
-  const parsedPolyline = routeData.polyline ? JSON.parse(routeData.polyline).map((p: [number, number]) => [p[1], p[0]] as [number, number]) : [];
-  const analysisPath = analysisResult?.path ? analysisResult.path.map((p: { lat: number, lon: number }) => [p.lat, p.lon] as [number, number]) : [];
 
   return (
     <div className="relative w-full h-full flex flex-col bg-[var(--color-surface-alt-hex)]">
