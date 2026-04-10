@@ -185,6 +185,81 @@ The integration test suite at `api.Tests/Integration/GraphHopperNodeValidationTe
 
 ---
 
+## GraphHopper Internals
+
+GraphHopper is the routing engine that validates and snaps candidate coordinates to the road network. Understanding how it works internally explains why rebuilding from the same PBF matters and why the `/nearest` endpoint is so fast.
+
+### How GraphHopper Represents Roads
+
+GH converts the OSM PBF into a **directed edge-based graph** stored on disk:
+
+- **Nodes** — intersections and road endpoints, stored as integer IDs with lat/lon
+- **Edges** — road segments between two nodes, storing distance, speed, flags (one-way, access restrictions per vehicle profile), and encoded geometry for curved roads
+
+The graph is stored in memory-mapped files (`graph-cache/`), allowing GH to work with graphs larger than RAM by relying on OS page caching.
+
+### Pass 1 — Way Scanning
+
+GH reads the PBF once to scan all `way` elements. For each way tagged as a road (any `highway=*` value accepted by the configured vehicle profiles), it records every referenced node ID into a compact bitset. This produces a set of ~450M node IDs that are needed to build the graph.
+
+The bitset is held in RAM during this phase, which is why GH needs several GB of heap (`-Xmx10g`).
+
+### Pass 2 — Node Coordinate Collection
+
+GH reads the PBF a second time, this time scanning all `node` elements. For each node whose ID is in the pass-1 bitset, it stores the lat/lon. This is sequential I/O across the full 4.5GB file — fast, but unavoidable since PBF doesn't index nodes by ID.
+
+After pass 2, GH has a complete mapping of node ID → coordinate and can build the graph edges.
+
+### Contraction Hierarchies (CH)
+
+Plain Dijkstra on a North America road graph (hundreds of millions of edges) is too slow for real-time routing. GraphHopper uses **Contraction Hierarchies** to preprocess the graph into a structure that can answer shortest-path queries in milliseconds.
+
+**How CH works:**
+
+1. **Node ordering** — Every node is assigned an "importance" score based on its edge degree, how many shortcuts would be needed if it were contracted, and its position in the graph hierarchy. Less-important nodes (dead ends, residential cul-de-sacs) are contracted first.
+
+2. **Contraction** — Nodes are removed one by one in importance order. When a node `v` is removed, GH checks every pair of its neighbors `(u, w)`. If the shortest path from `u` to `w` goes through `v`, a **shortcut edge** `u→w` is added with the combined weight. Otherwise, the existing edges are sufficient.
+
+3. **Result** — The contracted graph has two layers:
+   - The original edges (still needed for route reconstruction)
+   - Shortcut edges that skip over contracted nodes
+
+**Query time:** A bidirectional Dijkstra runs forward from the source and backward from the destination, but only ever relaxes edges that go *upward* in the importance hierarchy. The two searches meet in the middle at the highest-importance node on the path. For a continental graph this typically visits only a few thousand nodes regardless of distance — hence millisecond query times.
+
+CH preprocessing is the most CPU-intensive phase of the rebuild (~15–30 minutes for NA scale) because it must compute shortest paths between all neighbor pairs of every contracted node.
+
+### Location Index (used by `/nearest`)
+
+The location index is a spatial data structure that answers: *"what is the closest road edge to this lat/lon?"*
+
+GH builds a **quad-tree style grid** over the bounding box of the entire road network. Each cell stores references to the edges that pass through it. At query time:
+
+1. Find the cell containing the query point
+2. Check all edges in that cell and neighboring cells
+3. Compute the perpendicular snap distance from the query point to each edge
+4. Return the closest snap point and its distance
+
+This is what `GET /nearest?point=lat,lon&vehicle=bike` calls. The snap distance returned is the straight-line distance from the input coordinate to the nearest point on the closest routable road edge for that vehicle profile. In the API's validation logic, a snap > 20m is flagged as invalid.
+
+### Vehicle Profiles
+
+GH is configured with five profiles: `car`, `foot`, `bike`, `racingbike`, `mtb`. Each profile has different access rules — `bike` excludes motorways, `foot` excludes roads with `foot=no`, etc. The `/nearest` endpoint is profile-aware: a point on a motorway is valid for `car` but invalid for `bike`.
+
+This is why PostGIS pre-filters with `cycling_safe`/`walking_safe` booleans that mirror GH's bike/foot access rules — it ensures that candidates passed to GH for snapping will actually snap cleanly.
+
+### Why Both PostGIS and GraphHopper?
+
+They serve different roles:
+
+| System | Answers | How |
+|---|---|---|
+| **PostGIS** | "Give me coordinates that lie on roads of this type within this area" | ST_DumpPoints on indexed linestrings |
+| **GraphHopper** | "Is this coordinate actually routable for this vehicle? How far is the nearest road?" | Location index + vehicle profile access rules |
+
+PostGIS is fast at spatial set queries (find all road vertices near N probe points). GraphHopper is fast at per-point validation and routing. Using them together — PostGIS to generate, GH to validate — gives both geographic coverage and routing correctness.
+
+---
+
 ## Configuration
 
 ### `appsettings.Development.json`
