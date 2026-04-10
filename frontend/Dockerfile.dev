@@ -1,0 +1,5 @@
+FROM node:25.9.0-slim
+
+RUN npm i -g pnpm
+
+WORKDIR /app
