@@ -1,0 +1,175 @@
+# Bikeapelago local development compose
+#
+# Usage:
+#   docker compose up                                        # PostGIS only (run API with dotnet run)
+#   docker compose --profile api up                         # + containerized .NET API
+#   docker compose --profile frontend up                    # + React frontend + admin UI
+#   docker compose --profile gh up                          # + local GraphHopper (see warning below)
+#   docker compose --profile archipelago up                 # + local Archipelago server
+#   docker compose --profile api --profile frontend up      # full app stack
+#
+# GraphHopper (profile: gh):
+#   WARNING — running GH locally requires a 4.5GB PBF file and 30-40 min to build the graph.
+#   Steps:
+#     1. Get na-roads-only.osm.pbf into graphhopper/data/ (ask a maintainer or filter from the NA planet)
+#     2. Build the osm2pgsql image: docker build -t osm2pgsql-arm64:latest ./api/osm/osm2pgsql-arm64/
+#     3. Run the PostGIS import: bash api/osm/import.sh
+#     4. docker compose --profile gh up graphhopper
+#   The API will auto-use your local GH once GRAPHHOPPER_URL=http://graphhopper:8989 is set in .env.
+#   By default it points at the hosted instance (routing.alexkibler.com) so you don't need this.
+#
+# Copy .env.example to .env and fill in required values before starting.
+
+networks:
+  bikeapelago:
+    name: bikeapelago_dev
+
+volumes:
+  postgis_data:
+
+services:
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # PostGIS — always on, required by everything
+  # ──────────────────────────────────────────────────────────────────────────
+  postgis:
+    image: postgis/postgis:16-3.4-alpine
+    container_name: postgis-dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: osm_discovery
+      POSTGRES_USER: osm
+      POSTGRES_PASSWORD: osm_secret
+    volumes:
+      - postgis_data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"   # 5433 to avoid conflict with any prod PostGIS on 5432
+    networks:
+      - bikeapelago
+    command:
+      - postgres
+      - -c
+      - shared_buffers=512MB
+      - -c
+      - work_mem=256MB
+      - -c
+      - maintenance_work_mem=512MB
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U osm -d osm_discovery"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # Bikeapelago API — profile: api
+  # ──────────────────────────────────────────────────────────────────────────
+  bikeapelago-api:
+    profiles: [api]
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    image: bikeapelago-api:latest
+    container_name: bikeapelago-api-dev
+    restart: unless-stopped
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ReverseProxy__Clusters__graphhopperCluster__Destinations__ghDest__Address=${GRAPHHOPPER_URL:-https://routing.alexkibler.com}
+      - ConnectionStrings__PostGis=Host=postgis;Port=5432;Database=bikeapelago;Username=osm;Password=osm_secret
+      - ConnectionStrings__OsmDiscovery=Host=postgis;Port=5432;Database=osm_discovery;Username=osm;Password=osm_secret
+      - AllowedOrigins__0=http://localhost:5173
+      - AllowedOrigins__1=http://localhost:4173
+      - AllowedOrigins__2=http://localhost:8182
+      - Jwt__Key=${JWT_KEY:?JWT_KEY required — see .env.example}
+      - Admin__Email=${ADMIN_EMAIL:-admin@localhost}
+      - Admin__Password=${ADMIN_PASSWORD:?ADMIN_PASSWORD required — see .env.example}
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgis:
+        condition: service_healthy
+    networks:
+      - bikeapelago
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # Bikeapelago React frontend — profile: frontend
+  # ──────────────────────────────────────────────────────────────────────────
+  bikeapelago-react:
+    profiles: [frontend]
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    image: bikeapelago-react:latest
+    container_name: bikeapelago-react-dev
+    restart: unless-stopped
+    ports:
+      - "8182:80"
+    depends_on:
+      - bikeapelago-api
+    networks:
+      - bikeapelago
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # Bikeapelago Admin UI — profile: frontend
+  # ──────────────────────────────────────────────────────────────────────────
+  bikeapelago-admin:
+    profiles: [frontend]
+    build:
+      context: ./admin-ui
+      dockerfile: Dockerfile
+    image: bikeapelago-admin:latest
+    container_name: bikeapelago-admin-dev
+    restart: unless-stopped
+    ports:
+      - "8183:80"
+    depends_on:
+      - bikeapelago-api
+    networks:
+      - bikeapelago
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # GraphHopper — profile: gh  (OPTIONAL — see warning at top of file)
+  # Requires na-roads-only.osm.pbf in ../../graphhopper/data/ relative to this
+  # repo, and GRAPHHOPPER_URL=http://graphhopper:8989 set in .env.
+  # First boot takes 30-40 min to index North America.
+  # ──────────────────────────────────────────────────────────────────────────
+  # graphhopper:
+  #   profiles: [gh]
+  #   build:
+  #     context: ../../graphhopper
+  #     dockerfile: Dockerfile
+  #   image: graphhopper-local:latest
+  #   container_name: graphhopper-dev
+  #   restart: unless-stopped
+  #   ports:
+  #     - "8990:8989"
+  #   volumes:
+  #     - ../../graphhopper/data:/data
+  #   environment:
+  #     - PBF_FILE=na-roads-only.osm.pbf
+  #     - JAVA_OPTS=-Xmx10g -Xms4g
+  #   networks:
+  #     - bikeapelago
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # Archipelago — profile: archipelago  (OPTIONAL)
+  # Drop player YAMLs in ../../archipelago/config/
+  # Generated seeds appear in ../../archipelago/output/
+  # Requires the archipelago/ directory to exist alongside this repo.
+  # ──────────────────────────────────────────────────────────────────────────
+  # archipelago:
+  #   profiles: [archipelago]
+  #   build:
+  #     context: ../..
+  #     dockerfile: ./archipelago/Dockerfile
+  #   image: archipelago-bikeapelago:latest
+  #   container_name: archipelago-dev
+  #   restart: unless-stopped
+  #   ports:
+  #     - "38281:38281"
+  #   volumes:
+  #     - ../../archipelago/config:/config
+  #     - ../../archipelago/output:/output
+  #   environment:
+  #     - AP_PORT=38281
+  #   networks:
+  #     - bikeapelago

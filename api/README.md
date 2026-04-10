@@ -36,7 +36,7 @@ Both must be built from the same source PBF. If they diverge (e.g. GH is built f
 
 ### PostGIS Schema
 
-Two tables are populated by `import-states.sh` via `osm2pgsql` with the flex Lua style at `osm-random-node-api/db/import/osm2pgsql-flex-staging.lua`:
+Two tables are populated by `osm/import.sh` via `osm2pgsql` with the flex Lua style at `osm/osm2pgsql-flex-staging.lua`:
 
 **`planet_osm_nodes`** — physical OSM nodes (all, unfiltered)
 ```
@@ -151,9 +151,14 @@ osmium tags-filter north-america-latest.osm.pbf w/highway \
 ```
 This strips ~75% of the raw data (nodes with no highway tag), taking 18GB → ~4.5GB.
 
-Run the full import from the repo root:
+Run the full import (from any directory):
 ```bash
-bash import-states.sh
+bash bikeapelago-react/api/osm/import.sh
+```
+
+Build the arm64 osm2pgsql image first if needed:
+```bash
+docker build -t osm2pgsql-arm64:latest bikeapelago-react/api/osm/osm2pgsql-arm64/
 ```
 
 ### GraphHopper Rebuild
