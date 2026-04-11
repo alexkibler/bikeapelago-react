@@ -608,7 +608,7 @@ const GameView = () => {
                 </button>
              </div>
              
-             {activePanel === 'route' && <RoutePanel />}
+             {activePanel === 'route' && <RoutePanel sessionId={id!} />}
              {activePanel === 'upload' && <UploadPanel sessionId={id!} />}
              {activePanel === 'chat' && <ChatPanel />}
              {activePanel === 'inventory' && <InventoryPanel />}
