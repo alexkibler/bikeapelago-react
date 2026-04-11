@@ -15,7 +15,7 @@ The Bikeapelago frontend is a high-performance React application designed for re
 
 - `src/components/`: Reusable UI components (Game views, Layouts).
 - `src/hooks/`: Custom React hooks for business logic and data fetching.
-- `src/lib/`: Core utilities for Archipelago, Geocoding, and GraphHopper.
+- `src/lib/`: Core utilities for Archipelago and Geocoding.
 - `src/pages/`: Main application routes (Home, Login, GameView).
 - `src/store/`: Zustand state stores for centralized application state.
 - `tests/e2e/`: Full suite of Playwright tests verifying critical user flows.

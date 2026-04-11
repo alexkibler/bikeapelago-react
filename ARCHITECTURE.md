@@ -19,10 +19,7 @@ React Frontend (Vite)
         │     ├── planet_osm_ways (cycling/walking-safe ways, 4326, GiST indexed)
         │     └── planet_osm_way_nodes (way↔node relationships)
         │
-        ├── YARP Reverse Proxy
-        │     └── /api/gh/** → GraphHopper
-        │
-        └── GraphHopper (routing validation)
+        └── MapboxRoutingService (routing via Mapbox APIs)
 ```
 
 ## Frontend: React + Zustand
@@ -118,10 +115,10 @@ LIMIT @count
 
 Coverage: **Contiguous US + Ontario**
 
-Single merged PBF: `graphhopper/data/us-states-merged.osm.pbf`
+Merged PBF: `us-states-merged.osm.pbf`
 - Downloaded from Geofabrik: `us-latest.osm.pbf` + `ontario-latest.osm.pbf`
 - Merged with osmium: `osmium merge us-latest.osm.pbf ontario-latest.osm.pbf -o us-states-merged.osm.pbf`
-- Used by both osm2pgsql (node discovery) and GraphHopper (routing)
+- Used by osm2pgsql for node discovery. Routing is now handled by Mapbox APIs.
 
 See `import-states.sh` in the repo root for the import procedure.
 
@@ -147,14 +144,14 @@ Active game sessions are unaffected — their nodes are stored in `MapNodes`. On
 - **Kill zombie DB connections before importing**: A stuck importer can leave backend connections holding locks, blocking `DROP TABLE`. Use `pg_terminate_backend()` to clear them.
 - **pgsql output is incompatible with flex append**: Don't mix output modes across imports into the same database.
 
-## GraphHopper
+## Routing: Mapbox APIs
 
-Routing engine for node validation and navigation.
+Routing is now handled via Mapbox APIs instead of self-hosted GraphHopper/Valhalla.
 
-- Runs as Docker container, reads from the merged PBF file
-- Configured via `graphhopper/config.yml`
-- Takes a single PBF file via `PBF_FILE` env var — does not support multiple files natively
-- Proxied through the .NET API at `/api/gh/**`
+- **Validation**: `MapboxRoutingService.ValidateNodesAsync()` uses Mapbox Match Service to snap coordinates to the road network
+- **Optimization**: `MapboxRoutingService.OptimizeRouteAsync()` uses Mapbox Optimization API to find efficient visit order through up to 12 locations
+- **Multi-Node Routing**: `MapboxRoutingService.RouteToMultipleNodesAsync()` orchestrates chunking and chaining for larger node lists
+- **Configuration**: Requires `MAPBOX_API_KEY` environment variable (set in `.env`)
 
 ## Deployment
 
@@ -165,7 +162,6 @@ All services run via `docker-compose.yml` in the repo root:
 | `bikeapelago-api` | 8080 | .NET API |
 | `bikeapelago-react` | 8182 | Nginx + React SPA |
 | `postgis` | 5432 | Shared PostGIS instance (two DBs: `bikeapelago`, `osm_discovery`) |
-| `graphhopper` | 8989 | Routing engine |
 | `osm-importer` | — | Runs once and exits |
 
 In development, the Vite dev server proxies `/api` to `localhost:5054`.

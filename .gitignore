@@ -44,3 +44,18 @@ out/
 # Testing
 .nyc_output/
 *.lcov
+
+# Large data files & routing engines
+*.pbf
+*.osm
+*.osm.bz2
+valhalla/
+graphhopper/
+*.o5m
+test-valhalla.sh
+.codegraph/.gitignore
+.codegraph/config.json
+.gitignore
+.rtk/filters.toml
+.mcp.json
+.env

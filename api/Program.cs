@@ -38,13 +38,16 @@ else
 
 // 3.5 Register External Services / Generators
 builder.Services.AddHttpClient<OverpassOsmDiscoveryService>();
-builder.Services.AddScoped<PbfOsmDiscoveryService>(sp => 
+builder.Services.AddHttpClient<MapboxRoutingService>();
+builder.Services.AddScoped<PbfOsmDiscoveryService>(sp =>
 {
     var logger = sp.GetRequiredService<ILogger<PbfOsmDiscoveryService>>();
     var path = builder.Configuration["OsmDiscovery:PbfPath"] ?? "./data/map.osm.pbf";
     return new PbfOsmDiscoveryService(logger, path);
 });
 builder.Services.AddScoped<GridCacheService>();
+builder.Services.AddScoped<IMapboxRoutingService, MapboxRoutingService>();
+builder.Services.AddScoped<GeographicSortingService>();
 builder.Services.AddScoped<PostGisOsmDiscoveryService>();
 builder.Services.AddScoped<IOsmDiscoveryService, OsmDiscoveryService>();
 builder.Services.AddScoped<NodeGenerationService>();
