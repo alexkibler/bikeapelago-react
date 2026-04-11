@@ -74,9 +74,6 @@ builder.Services.AddScoped<NodeGenerationService>();
 builder.Services.AddScoped<FitAnalysisService>();
 builder.Services.AddScoped<SchemaDiscoveryService>();
 
-// Grid Cache Background Job Processor
-builder.Services.AddHostedService<GridCacheJobProcessor>();
-
 builder.Services.AddSignalR();
 builder.Services.AddSingleton<ArchipelagoService>();
 
