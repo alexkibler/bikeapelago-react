@@ -47,6 +47,8 @@ services:
     image: bikeapelago-api:latest
     container_name: bikeapelago-api-dev
     restart: unless-stopped
+    env_file:
+      - .env
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - Mapbox__ApiKey=${MAPBOX_API_KEY}
