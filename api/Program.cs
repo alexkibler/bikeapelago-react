@@ -184,9 +184,16 @@ app.UseCors("AllowVite");
 app.UseAuthentication();
 app.UseAuthorization();
 
+// Serve static files (React SPA)
+app.UseDefaultFiles(); // Serves index.html as default
+app.UseStaticFiles();
+
 app.MapControllers();
 app.MapReverseProxy();
 app.MapHub<ArchipelagoHub>("/hubs/archipelago");
+
+// SPA fallback: redirect unmatched routes to index.html for React Router
+app.MapFallbackToFile("index.html");
 
 
 app.Run();

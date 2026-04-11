@@ -60,7 +60,7 @@ services:
       - Admin__Email=${ADMIN_EMAIL:-admin@localhost}
       - Admin__Password=${ADMIN_PASSWORD:?ADMIN_PASSWORD required — see .env.example}
     ports:
-      - "3333:8080"
+      - "8182:8080"
     networks:
       - bikeapelago
 
