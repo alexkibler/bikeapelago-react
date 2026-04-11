@@ -554,6 +554,7 @@ const GameView = () => {
                 onClick={locateUser}
                 className="p-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl shadow-lg shadow-blue-900/30 transition-all active:scale-95"
                 title="Locate Me"
+                aria-label="Locate my current position"
               >
                 <Navigation className="w-5 h-5 fill-white" />
               </button>
@@ -563,12 +564,16 @@ const GameView = () => {
                <button
                   onClick={() => mapRef.current?.zoomIn()}
                   className="p-3 hover:bg-[rgb(var(--color-surface-overlay))] text-[var(--color-text-hex)] transition-colors border-b border-[var(--color-border-hex)]"
+                  title="Zoom In"
+                  aria-label="Zoom in map"
                >
                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
                </button>
                <button
                   onClick={() => mapRef.current?.zoomOut()}
                   className="p-3 hover:bg-[rgb(var(--color-surface-overlay))] text-[var(--color-text-hex)] transition-colors"
+                  title="Zoom Out"
+                  aria-label="Zoom out map"
                >
                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
                </button>
@@ -589,7 +594,12 @@ const GameView = () => {
                   </div>
                 </div>
                 {routeData.polyline && (
-                  <button onClick={() => downloadGPXFromPolyline(routeData.polyline as string)} className="px-3 py-2 bg-orange-600 hover:bg-orange-500 rounded-lg text-xs font-bold text-white transition-colors flex items-center gap-2">
+                  <button
+                    onClick={() => downloadGPXFromPolyline(routeData.polyline as string)}
+                    className="px-3 py-2 bg-orange-600 hover:bg-orange-500 rounded-lg text-xs font-bold text-white transition-colors flex items-center gap-2"
+                    title="Download GPX"
+                    aria-label="Download route as GPX file"
+                  >
                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
                     GPX
                   </button>
@@ -603,7 +613,12 @@ const GameView = () => {
           <div className="w-full md:w-96 border-l border-[var(--color-border-hex)] flex flex-col bg-[var(--color-surface-hex)] z-10 absolute inset-0 md:relative md:bg-[var(--color-surface-alt-hex)]">
              <div className="flex items-center justify-between p-4 border-b border-[var(--color-border-hex)] md:hidden">
                 <span className="font-bold text-[var(--color-text-hex)] uppercase tracking-widest text-xs">{activePanel}</span>
-                <button onClick={() => setActivePanel(null)} className="p-2 hover:bg-[rgb(var(--color-surface-overlay))] rounded-lg text-[var(--color-text-muted-hex)]">
+                <button
+                  onClick={() => setActivePanel(null)}
+                  className="p-2 hover:bg-[rgb(var(--color-surface-overlay))] rounded-lg text-[var(--color-text-muted-hex)]"
+                  title="Close panel"
+                  aria-label="Close side panel"
+                >
                   <X className="w-5 h-5" />
                 </button>
              </div>
