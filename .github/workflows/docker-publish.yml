@@ -22,10 +22,10 @@ jobs:
         include:
           - name: api
             context: .
-            file: ./api/Dockerfile
+            file: api/Dockerfile
           - name: frontend
-            context: ./frontend/packages/apps/bikepelago-app
-            file: Dockerfile
+            context: .
+            file: frontend/packages/apps/bikepelago-app/Dockerfile
 
     steps:
       - name: Checkout code
