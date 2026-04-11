@@ -9,7 +9,7 @@ public class MapboxRoutingService(HttpClient httpClient, ILogger<MapboxRoutingSe
 {
     private readonly HttpClient _httpClient = httpClient;
     private readonly ILogger<MapboxRoutingService> _logger = logger;
-    private readonly string _mapboxApiKey = configuration["MAPBOX_API_KEY"] ?? throw new InvalidOperationException("MAPBOX_API_KEY is required.");
+    private readonly string _mapboxApiKey = configuration["MAPBOX_API_KEY"] ?? string.Empty;
     private const double MaxDistanceMeters = 20;
     private const string MapboxMatchingUrl = "https://api.mapbox.com/matching/v5/mapbox";
     private const string MapboxOptimizationUrl = "https://api.mapbox.com/optimized-trips/v1/mapbox";
@@ -35,7 +35,7 @@ public class MapboxRoutingService(HttpClient httpClient, ILogger<MapboxRoutingSe
 
                 // Build Mapbox coordinates query: lon,lat (not lat,lon!)
                 var coordinatesQuery = $"{point.Lon},{point.Lat}";
-                var url = $"{MapboxMatchingUrl}/{profile}/v5/{coordinatesQuery}?access_token={Uri.EscapeDataString(_mapboxApiKey)}&geometries=geojson";
+                var url = $"{MapboxMatchingUrl}/{profile}/{coordinatesQuery}?access_token={Uri.EscapeDataString(_mapboxApiKey)}&geometries=geojson";
 
                 var response = await _httpClient.GetAsync(url);
 
@@ -119,8 +119,9 @@ public class MapboxRoutingService(HttpClient httpClient, ILogger<MapboxRoutingSe
             var coordinatesString = string.Join(";", coordinates.Select(c => $"{c.Longitude},{c.Latitude}"));
 
             // Build URL: source=first&destination=last ensures start and end points are fixed
-            var url = $"{MapboxOptimizationUrl}/{profile}/v1/{coordinatesString}?" +
+            var url = $"{MapboxOptimizationUrl}/{profile}/{coordinatesString}?" +
                       $"access_token={Uri.EscapeDataString(_mapboxApiKey)}&" +
+                      $"geometries=geojson&" +
                       $"source=first&" +
                       $"destination=last";
 
@@ -131,7 +132,8 @@ public class MapboxRoutingService(HttpClient httpClient, ILogger<MapboxRoutingSe
             if (response.IsSuccessStatusCode)
             {
                 var json = await response.Content.ReadAsStringAsync();
-                var result = JsonSerializer.Deserialize<MapboxOptimizationResponse>(json);
+                var opts = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+                var result = JsonSerializer.Deserialize<MapboxOptimizationResponse>(json, opts);
 
                 if (result?.Code == "Ok")
                 {
@@ -176,7 +178,7 @@ public class MapboxRoutingService(HttpClient httpClient, ILogger<MapboxRoutingSe
         List<MapNode> targetNodes,
         string profile = "cycling")
     {
-        if (userLocation?.Y == null || userLocation.X == null)
+        if (userLocation == null)
             return new OptimizedRouteResult { Success = false, Error = "Invalid user location" };
 
         if (targetNodes == null || targetNodes.Count == 0)
@@ -228,9 +230,10 @@ public class MapboxRoutingService(HttpClient httpClient, ILogger<MapboxRoutingSe
                 var trip = response.Trips[0];
 
                 // Collect geometry from this trip
-                if (trip.Geometry?.Coordinates.Count > 0)
+                var tripCoords = trip.GetCoordinates();
+                if (tripCoords.Count > 0)
                 {
-                    allGeometries.AddRange(trip.Geometry.Coordinates);
+                    allGeometries.AddRange(tripCoords);
                 }
 
                 // Map waypoints back to node IDs (skip the first waypoint which is the starting location)

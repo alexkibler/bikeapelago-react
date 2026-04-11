@@ -69,15 +69,19 @@ public class GridCacheService
         await using var cmd = conn.CreateCommand();
 
         cmd.CommandText = """
-            SELECT DISTINCT grid_x, grid_y
-            FROM node_grid_cache
-            WHERE mode = @mode
-            AND (grid_x, grid_y) = ANY(@cells::record[])
+            SELECT DISTINCT c.grid_x, c.grid_y
+            FROM node_grid_cache c
+            JOIN unnest(@grid_xs, @grid_ys) AS t(x, y)
+              ON c.grid_x = t.x AND c.grid_y = t.y
+            WHERE c.mode = @mode
             """;
 
-        var cellArray = gridCells.Select(c => $"({c.Item1},{c.Item2})").ToArray();
+        var gridXs = gridCells.Select(c => c.Item1).ToArray();
+        var gridYs = gridCells.Select(c => c.Item2).ToArray();
+
         cmd.Parameters.AddWithValue("mode", mode);
-        cmd.Parameters.AddWithValue("cells", cellArray);
+        cmd.Parameters.Add(new NpgsqlParameter("grid_xs", NpgsqlTypes.NpgsqlDbType.Array | NpgsqlTypes.NpgsqlDbType.Bigint) { Value = gridXs });
+        cmd.Parameters.Add(new NpgsqlParameter("grid_ys", NpgsqlTypes.NpgsqlDbType.Array | NpgsqlTypes.NpgsqlDbType.Bigint) { Value = gridYs });
 
         var cached = new HashSet<(long, long)>();
         try

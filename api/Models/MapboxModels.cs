@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace Bikeapelago.Api.Models;
@@ -49,7 +50,7 @@ public class MapboxOptimizationResponse
 public class MapboxTrip
 {
     [JsonPropertyName("geometry")]
-    public MapboxGeometry? Geometry { get; set; }
+    public JsonElement? GeometryRaw { get; set; }
 
     [JsonPropertyName("legs")]
     public List<MapboxLeg> Legs { get; set; } = new();
@@ -59,18 +60,26 @@ public class MapboxTrip
 
     [JsonPropertyName("duration")]
     public double Duration { get; set; }
-}
-
-/// <summary>
-/// GeoJSON geometry object representing the trip path.
-/// </summary>
-public class MapboxGeometry
-{
-    [JsonPropertyName("type")]
-    public string Type { get; set; } = "LineString";
-
-    [JsonPropertyName("coordinates")]
-    public List<List<double>> Coordinates { get; set; } = new();
+    public List<List<double>> GetCoordinates()
+    {
+        var list = new List<List<double>>();
+        if (GeometryRaw.HasValue && GeometryRaw.Value.TryGetProperty("coordinates", out var coordsElement))
+        {
+            if (coordsElement.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var pointElement in coordsElement.EnumerateArray())
+                {
+                    if (pointElement.ValueKind == JsonValueKind.Array && pointElement.GetArrayLength() >= 2)
+                    {
+                        var lon = pointElement[0].GetDouble();
+                        var lat = pointElement[1].GetDouble();
+                        list.Add(new List<double> { lon, lat });
+                    }
+                }
+            }
+        }
+        return list;
+    }
 }
 
 /// <summary>

@@ -23,7 +23,7 @@ public class GeographicSortingService
         if (nodes == null || nodes.Count == 0)
             return new List<MapNode>();
 
-        if (startingLocation?.Y == null || startingLocation.X == null)
+        if (startingLocation == null)
             throw new ArgumentException("Starting location must have valid coordinates");
 
         var sorted = new List<MapNode>();
