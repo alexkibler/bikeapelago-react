@@ -154,3 +154,12 @@ public class OptimizedRouteResult
     [JsonPropertyName("total_duration_seconds")]
     public double TotalDurationSeconds { get; set; }
 }
+
+public class RouteRequest
+{
+    [JsonPropertyName("waypoints")]
+    public List<MapboxCoordinate> Waypoints { get; set; } = new();
+
+    [JsonPropertyName("profile")]
+    public string Profile { get; set; } = "cycling";
+}

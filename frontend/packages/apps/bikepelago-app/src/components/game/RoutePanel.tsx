@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useGameStore } from '../../store/gameStore';
 import { calculateDistance, downloadGPXFromPolyline } from '../../lib/geoUtils';
-import { Map, Download, Trash2, Loader2, ChevronDown, ChevronUp, UploadCloud } from 'lucide-react';
+import { Map as MapIcon, Download, Trash2, Loader2, ChevronDown, ChevronUp, UploadCloud } from 'lucide-react';
+import { getToken } from '../../store/authStore';
 
 const NodeListItem = ({ node, onClick }: { node: any, onClick: () => void }) => {
   return (
@@ -34,7 +35,7 @@ const CategoryHeader = ({ title, count, color, isOpen, onClick }: { title: strin
   </button>
 );
 
-const RoutePanel = () => {
+const RoutePanel = ({ sessionId }: { sessionId: string }) => {
   const { waypoints, clearWaypoints, setRouteData, routeData, nodes, addWaypoint, addWaypoints, userLocation, togglePanel } = useGameStore();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -69,11 +70,32 @@ const RoutePanel = () => {
           return;
         }
 
-        // TODO: Implement Mapbox routing API integration
-        // GraphHopper has been removed as part of the Mapbox migration.
-        // This endpoint should call the backend's /route-to-available endpoint instead.
-        setError('Routing feature is temporarily disabled during Mapbox migration');
-        setLoading(false);
+        const token = getToken();
+        const headers = {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        };
+
+        const res = await fetch('/api/discovery/route', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            waypoints: waypoints.map(wp => ({ lat: wp[0], lon: wp[1] })),
+            profile: 'cycling'
+          })
+        });
+
+        if (!res.ok) {
+          const errData = await res.json();
+          throw new Error(errData.message || 'Routing failed');
+        }
+
+        const data = await res.json();
+        setRouteData({
+          distance: data.distanceMeters / 1000,
+          elevation: 0,
+          polyline: JSON.stringify(data.geometry)
+        });
       } catch (err: unknown) {
         setError(err instanceof Error ? err.message : 'Routing failed');
       } finally {
@@ -89,25 +111,56 @@ const RoutePanel = () => {
     downloadGPXFromPolyline(routeData.polyline);
   };
 
-  const handleRouteToAvailable = () => {
-    let availableNodes = nodes.filter(n => n.state === 'Available');
-    
-    // Sort by proximity to user location if available
-    if (userLocation) {
-      availableNodes = [...availableNodes].sort((a, b) => {
-        const distA = calculateDistance(userLocation[0], userLocation[1], a.lat, a.lon);
-        const distB = calculateDistance(userLocation[0], userLocation[1], b.lat, b.lon);
-        return distA - distB;
+  const handleRouteToAvailable = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const token = getToken();
+      const headers = {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+      };
+      
+      const res = await fetch(`/api/sessions/${sessionId}/route-to-available?profile=cycling`, {
+        method: 'POST',
+        headers
       });
-    }
-
-    const points: [number, number][] = availableNodes.map(n => [n.lat, n.lon]);
-    
-    // If starting fresh and we have a user location, make it the first point
-    if (waypoints.length === 0 && userLocation) {
-      addWaypoints([userLocation, ...points]);
-    } else {
-      addWaypoints(points);
+      
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.message || 'Routing failed');
+      }
+      
+      const data = await res.json();
+      if (data.success) {
+        // Update route data in store
+        setRouteData({
+          distance: data.totalDistanceMeters / 1000,
+          elevation: 0, // Backend doesn't return elevation yet
+          polyline: JSON.stringify(data.geometry)
+        });
+        
+        // Add nodes as waypoints for visual feedback and ordered visiting
+        // We'll also clear existing waypoints and replace them with the optimized order
+        const allNodesMap = new Map(nodes.map(n => [n.id, n]));
+        const orderedPoints: [number, number][] = data.orderedNodeIds
+          .map((id: string) => allNodesMap.get(id))
+          .filter(Boolean)
+          .map((n: any) => [n.lat, n.lon] as [number, number]);
+        
+        // If we have a user location, prepend it as the start
+        if (userLocation) {
+          clearWaypoints();
+          addWaypoints([userLocation, ...orderedPoints]);
+        } else {
+          clearWaypoints();
+          addWaypoints(orderedPoints);
+        }
+      }
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Routing failed');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -120,7 +173,7 @@ const RoutePanel = () => {
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-[var(--color-border-hex)] shrink-0">
         <div className="flex items-center gap-2">
-          <Map className="w-5 h-5 text-[var(--color-primary-hex)]" />
+          <MapIcon className="w-5 h-5 text-[var(--color-primary-hex)]" />
           <h2 className="text-xl font-black uppercase tracking-tight">Route Builder</h2>
         </div>
       </div>

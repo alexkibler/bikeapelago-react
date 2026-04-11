@@ -79,8 +79,40 @@ public class NodesController(IMapNodeRepository nodeRepository, ILogger<NodesCon
             requestedCount = count,
             returnedCount = nodes.Count,
             elapsedMs = elapsed.TotalMilliseconds,
-            nodes = nodes.Take(10) // Return first 10 for inspection
         });
+    }
+
+    [HttpPost("/api/discovery/route")]
+    public async Task<IActionResult> RouteWaypoints(
+        [FromServices] IMapboxRoutingService mapboxRoutingService,
+        [FromBody] RouteRequest request)
+    {
+        if (request.Waypoints.Count < 2)
+            return BadRequest(new { message = "At least two waypoints are required." });
+
+        _logger.LogInformation("Routing {Count} waypoints for profile {Profile}", request.Waypoints.Count, request.Profile);
+
+        try
+        {
+            var result = await mapboxRoutingService.OptimizeRouteAsync(request.Waypoints, request.Profile);
+            
+            if (result == null || result.Code != "Ok" || result.Trips.Count == 0)
+                return BadRequest(new { message = result?.Message ?? "Route optimization failed." });
+
+            var trip = result.Trips[0];
+            return Ok(new
+            {
+                success = true,
+                geometry = trip.Geometry?.Coordinates,
+                distanceMeters = trip.Distance,
+                durationSeconds = trip.Duration
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error optimizing manual route");
+            return StatusCode(500, new { message = ex.Message });
+        }
     }
 }
 
