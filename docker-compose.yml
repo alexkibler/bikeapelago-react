@@ -29,43 +29,12 @@ x-bikeapelago-frontend-app-definition: &frontend-app-definition
 networks:
   bikeapelago:
     name: bikeapelago_dev
+    external: true
 
 volumes:
-  postgis_data:
   bikeapelago_node_modules:
 
 services:
-
-  # ──────────────────────────────────────────────────────────────────────────
-  # PostGIS — always on, required by everything
-  # ──────────────────────────────────────────────────────────────────────────
-  postgis:
-    image: postgis/postgis:16-3.4-alpine
-    container_name: postgis-dev
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB: osm_discovery
-      POSTGRES_USER: osm
-      POSTGRES_PASSWORD: osm_secret
-    volumes:
-      - postgis_data:/var/lib/postgresql/data
-    ports:
-      - "5433:5432"   # 5433 to avoid conflict with any prod PostGIS on 5432
-    networks:
-      - bikeapelago
-    command:
-      - postgres
-      - -c
-      - shared_buffers=512MB
-      - -c
-      - work_mem=256MB
-      - -c
-      - maintenance_work_mem=512MB
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U osm -d osm_discovery"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
 
   # ──────────────────────────────────────────────────────────────────────────
   # Bikeapelago API — profile: api
@@ -83,7 +52,7 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - MAPBOX_API_KEY=${MAPBOX_API_KEY:?MAPBOX_API_KEY required — see .env.example}
-      - ConnectionStrings__PostGis=Host=postgis;Port=5432;Database=bikeapelago;Username=osm;Password=osm_secret
+      - ConnectionStrings__PostGis=Host=host.docker.internal;Port=5432;Database=bikeapelago;Username=osm;Password=osm_secret
       - AllowedOrigins__0=http://localhost:5173
       - AllowedOrigins__1=http://localhost:4173
       - AllowedOrigins__2=http://localhost:8182
@@ -92,9 +61,6 @@ services:
       - Admin__Password=${ADMIN_PASSWORD:?ADMIN_PASSWORD required — see .env.example}
     ports:
       - "3333:8080"
-    depends_on:
-      postgis:
-        condition: service_healthy
     networks:
       - bikeapelago
 
