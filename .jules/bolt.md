@@ -1,0 +1,3 @@
+## 2024-05-24 - [Avoid synchronous large JSON.parse in React loops]
+**Learning:** In the frontend, large `JSON.parse` operations on complex nested JSON strings (like map polylines/coordinates `routeData.polyline` or `analysisResult.path`) executed directly inside a React component block the main thread synchronously during every single render loop, causing noticeable frame drops when users interact with MapContainer or other state changes.
+**Action:** Always wrap computationally heavy mapping/parsing operations—especially `JSON.parse` for spatial data arrays—in a `useMemo` hook to skip recalculation until the source variable explicitly changes.
