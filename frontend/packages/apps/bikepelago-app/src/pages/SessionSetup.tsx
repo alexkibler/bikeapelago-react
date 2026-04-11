@@ -207,11 +207,43 @@ const SessionSetup = () => {
                     type="text"
                     value={address}
                     onChange={(e) => setAddress(e.target.value)}
+                    onKeyDown={async (e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        const btn = e.currentTarget.parentElement?.nextElementSibling as HTMLButtonElement;
+                        if (btn) btn.click();
+                      }
+                    }}
                     placeholder="Pittsburgh, PA"
                     className="w-full bg-[var(--color-surface-alt-hex)] border border-[var(--color-border-hex)] rounded-xl py-2 pl-10 pr-4 text-sm text-[var(--color-text-hex)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary-hex)]"
                   />
                 </div>
-                <button className="btn btn-neutral btn-sm h-10 rounded-xl">Search</button>
+                <button
+                  type="button"
+                  disabled={isLocating}
+                  onClick={async () => {
+                    if (!address.trim()) return;
+                    setIsLocating(true);
+                    setErrorMsg('');
+                    try {
+                      const res = await fetch(`/api/geocode?q=${encodeURIComponent(address)}`);
+                      const data = await res.json();
+                      if (data?.features && data.features.length > 0) {
+                        const [lon, lat] = data.features[0].center;
+                        setCenter([lat, lon]);
+                      } else {
+                        setErrorMsg('Location not found');
+                      }
+                    } catch (err) {
+                      setErrorMsg('Error searching location');
+                    } finally {
+                      setIsLocating(false);
+                    }
+                  }}
+                  className="btn btn-neutral btn-sm h-10 rounded-xl"
+                >
+                  {isLocating ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Search'}
+                </button>
               </div>
               <button
                 onClick={handleUseMyLocation}
@@ -232,7 +264,7 @@ const SessionSetup = () => {
               <input
                 type="range"
                 min="500"
-                max="20000"
+                max="50000"
                 step="500"
                 value={radius}
                 onChange={(e) => setRadius(Number(e.target.value))}

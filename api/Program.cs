@@ -73,9 +73,13 @@ builder.Services.AddScoped<IOsmDiscoveryService, OsmDiscoveryService>();
 builder.Services.AddScoped<NodeGenerationService>();
 builder.Services.AddScoped<FitAnalysisService>();
 builder.Services.AddScoped<SchemaDiscoveryService>();
+builder.Services.AddScoped<ElevationService>();
+builder.Services.AddScoped<RegionalElevationService>();
 
 // Grid Cache Background Job Processor
-builder.Services.AddHostedService<GridCacheJobProcessor>();
+builder.Services.AddSingleton<GridCacheJobProcessor>();
+builder.Services.AddSingleton<IElevationJobQueue>(sp => sp.GetRequiredService<GridCacheJobProcessor>());
+builder.Services.AddHostedService(sp => sp.GetRequiredService<GridCacheJobProcessor>());
 
 builder.Services.AddSignalR();
 builder.Services.AddSingleton<ArchipelagoService>();
