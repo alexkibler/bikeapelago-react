@@ -37,8 +37,8 @@ public class PostGisOsmDiscoveryService : IOsmDiscoveryService
     public PostGisOsmDiscoveryService(ILogger<PostGisOsmDiscoveryService> logger, IConfiguration config, IMapboxRoutingService routingService)
     {
         _logger = logger;
-        _connectionString = config.GetConnectionString("PostGis")
-            ?? throw new InvalidOperationException("PostGis connection string is required.");
+        _connectionString = config.GetConnectionString("OsmDiscovery")
+            ?? throw new InvalidOperationException("OsmDiscovery connection string is required.");
         _routingService = routingService;
     }
 
