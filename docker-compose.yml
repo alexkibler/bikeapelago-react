@@ -1,7 +1,7 @@
 # Bikeapelago local development compose
 #
 # Usage:
-#   docker compose up                                        # PostGIS only (run API with dotnet run)
+#   docker compose up                                        # Bikeapelago PostGIS database only (run API with dotnet run)
 #   docker compose --profile api up                         # + containerized .NET API
 #   docker compose --profile frontend up                    # + React frontend + admin UI
 #   docker compose --profile archipelago up                 # + local Archipelago server
@@ -12,6 +12,8 @@
 # Then just: docker compose up
 #
 # Copy .env.example to .env and fill in required values before starting.
+# Note: Bikeapelago database container (postgis-bikeapelago) always starts.
+#       OSM Discovery database is shared infrastructure accessed via reverse proxy.
 
 x-bikeapelago-frontend-app-definition: &frontend-app-definition
   profiles: [frontend]
@@ -33,8 +35,32 @@ networks:
 
 volumes:
   bikeapelago_node_modules:
+  bikeapelago_postgis_data:
 
 services:
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # Bikeapelago PostGIS Database
+  # ──────────────────────────────────────────────────────────────────────────
+  postgis-bikeapelago:
+    image: postgis/postgis:16-3.4
+    container_name: postgis-bikeapelago-dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-osm}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: bikeapelago
+    ports:
+      - "${DB_BIKEAPELAGO_PORT:-5432}:5432"
+    volumes:
+      - bikeapelago_postgis_data:/var/lib/postgresql/data
+    networks:
+      - bikeapelago
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-osm}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   # ──────────────────────────────────────────────────────────────────────────
   # Bikeapelago API — profile: api
@@ -42,18 +68,21 @@ services:
   bikeapelago-api:
     profiles: [api]
     build:
-      context: ./api
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./api/Dockerfile
     image: bikeapelago-api:latest
     container_name: bikeapelago-api-dev
     restart: unless-stopped
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - Mapbox__ApiKey=${MAPBOX_API_KEY}
-      - ConnectionStrings__PostGis=Host=${DB_HOST:-host.docker.internal};Port=${DB_PORT:-5432};Database=bikeapelago;Username=${DB_USER:-osm};Password=${DB_PASSWORD}
-      - ConnectionStrings__OsmDiscovery=Host=${DB_HOST:-host.docker.internal};Port=${DB_PORT:-5432};Database=osm_discovery;Username=${DB_USER:-osm};Password=${DB_PASSWORD}
+      - ConnectionStrings__PostGis=Host=postgis-bikeapelago;Port=5432;Database=bikeapelago;Username=${DB_USER:-osm};Password=${DB_PASSWORD}
+      - ConnectionStrings__OsmDiscovery=Host=${OSM_DISCOVERY_HOST};Port=${OSM_DISCOVERY_PORT:-5432};Database=osm_discovery;Username=${OSM_DISCOVERY_USER};Password=${OSM_DISCOVERY_PASSWORD}
     ports:
       - "8182:8080"
+    depends_on:
+      postgis-bikeapelago:
+        condition: service_healthy
     networks:
       - bikeapelago
 

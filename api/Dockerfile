@@ -1,16 +1,36 @@
-# ── Stage 1: Build ──────────────────────────────────────────────────────────
+# ── Stage 1: Build Frontend ──────────────────────────────────────────────────
+FROM node:25.9.0-slim AS frontend-build
+WORKDIR /src/frontend
+
+# Install pnpm
+RUN npm i -g pnpm
+
+# Copy frontend source and workspace configuration
+COPY frontend/package.json frontend/pnpm-lock.yaml frontend/pnpm-workspace.yaml ./
+COPY frontend/packages ./packages
+
+# Install dependencies and build the main app
+RUN pnpm install
+RUN pnpm --filter "@bikeapelago/bikeapelago-app" run build
+
+# ── Stage 2: Build API ───────────────────────────────────────────────────────
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
 # Restore dependencies first (layer cache friendly)
-COPY Bikeapelago.Api.csproj ./
-RUN dotnet restore
+COPY api/Bikeapelago.Api.csproj ./api/
+RUN dotnet restore api/Bikeapelago.Api.csproj
 
-# Copy source and publish
-COPY . ./
-RUN dotnet publish -c Release -o /app/publish
+# Copy API source
+COPY api/ ./api/
 
-# ── Stage 2: Runtime ─────────────────────────────────────────────────────────
+# Copy frontend build output to API's wwwroot
+COPY --from=frontend-build /src/frontend/packages/apps/bikepelago-app/dist/ ./api/wwwroot/
+
+# Publish the API
+RUN dotnet publish api/Bikeapelago.Api.csproj -c Release -o /app/publish
+
+# ── Stage 3: Runtime ─────────────────────────────────────────────────────────
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
 
