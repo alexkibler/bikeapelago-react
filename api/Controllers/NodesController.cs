@@ -103,7 +103,7 @@ public class NodesController(IMapNodeRepository nodeRepository, ILogger<NodesCon
             return Ok(new
             {
                 success = true,
-                geometry = trip.Geometry?.Coordinates,
+                geometry = trip.GetCoordinates(),
                 distanceMeters = trip.Distance,
                 durationSeconds = trip.Duration
             });
