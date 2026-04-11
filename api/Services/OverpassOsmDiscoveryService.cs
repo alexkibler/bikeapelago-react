@@ -51,9 +51,8 @@ public class OverpassOsmDiscoveryService(HttpClient httpClient, ILogger<Overpass
 
     public Task<List<ValidateResult>> ValidateNodesAsync(ValidateRequest request)
     {
-        // Overpass validation is basically just checking if they still exist or have tags, 
+        // Overpass validation is basically just checking if they still exist or have tags,
         // but for now we'll just return them all as valid or use a simple distance-based check.
-        // Real validation would use GraphHopper as before.
         throw new NotImplementedException("Validation not implemented for Overpass fallback yet.");
     }
 }

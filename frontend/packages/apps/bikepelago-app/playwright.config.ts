@@ -64,7 +64,6 @@ export default defineConfig({
 					reuseExistingServer: true,
 					timeout: 120 * 1000,
 					env: {
-						VITE_PUBLIC_GRAPHHOPPER_URL: 'https://routing.alexkibler.com/route',
 						VITE_PUBLIC_DB_URL: 'https://pb.bikeapelago.alexkibler.com',
 						VITE_PUBLIC_API_URL: 'http://localhost:5054',
 						VITE_PLAYWRIGHT_TEST: 'true'

@@ -16,15 +16,11 @@ public class PostGisOsmDiscoveryService : IOsmDiscoveryService
 {
     private readonly ILogger<PostGisOsmDiscoveryService> _logger;
     private readonly string _connectionString;
-    private readonly HttpClient _httpClient;
+    private readonly IMapboxRoutingService _routingService;
     private readonly GridCacheService _gridCache;
 
-    // Indexes are created once per service lifetime; cheap no-op after first run.
-    private bool _indexesReady;
-    private readonly SemaphoreSlim _indexLock = new(1, 1);
-
     // Highway tags that are valid for each routing mode.
-    // Mirrors GraphHopper's vehicle profiles so PostGIS pre-filters to routable roads.
+    // Aligned with common routing profiles (bike, walk, car).
     private static readonly string[] BikeHighwayTags =
     [
         "cycleway", "path", "track", "residential", "unclassified",
@@ -39,27 +35,17 @@ public class PostGisOsmDiscoveryService : IOsmDiscoveryService
         "primary", "primary_link", "service", "living_street"
     ];
 
-    public PostGisOsmDiscoveryService(ILogger<PostGisOsmDiscoveryService> logger, IConfiguration config, HttpClient httpClient, GridCacheService gridCache)
+    public PostGisOsmDiscoveryService(ILogger<PostGisOsmDiscoveryService> logger, IConfiguration config, IMapboxRoutingService routingService, GridCacheService gridCache)
     {
         _logger = logger;
         _connectionString = config.GetConnectionString("OsmDiscovery")
             ?? throw new InvalidOperationException("OsmDiscovery connection string is required.");
-        _httpClient = httpClient;
+        _routingService = routingService;
         _gridCache = gridCache;
     }
 
     private static string[] HighwayTagsForMode(string mode) =>
         mode.ToLowerInvariant() is "walk" or "foot" ? WalkHighwayTags : BikeHighwayTags;
-
-    /// Checks whether planet_osm_way_nodes has been populated (one-time migration).
-    /// The table is populated by unnesting highway ways from planet_osm_ways; until
-    /// that migration completes the service falls back to unfiltered node selection.
-    private async Task EnsureIndexesAsync()
-    {
-        // No-op: The relational mapping table is obsolete.
-        // We extract nodes dynamically from valid lines using ST_DumpPoints.
-        await Task.CompletedTask;
-    }
 
     public async Task<List<DiscoveryPoint>> GetRandomNodesAsync(double lat, double lon, double radiusMeters, int count, string mode = "bike", double densityBias = 0.5)
     {
@@ -95,8 +81,6 @@ public class PostGisOsmDiscoveryService : IOsmDiscoveryService
         _logger.LogInformation(
             "Running single unnest query with {ProbeCount} sub-targets (r={SubRadius}m each)",
             subTargetCount, subRadiusMeters);
-
-        await EnsureIndexesAsync();
 
         var fetchSw = System.Diagnostics.Stopwatch.StartNew();
         var allNodes = await FetchNodesForSubTargetsAsync(subTargets, subRadiusMeters, mode);
@@ -202,59 +186,8 @@ public class PostGisOsmDiscoveryService : IOsmDiscoveryService
         return points;
     }
 
-    public async Task<List<ValidateResult>> ValidateNodesAsync(ValidateRequest request)
+    public Task<List<ValidateResult>> ValidateNodesAsync(ValidateRequest request)
     {
-        _logger.LogInformation("Validating {Count} nodes via GraphHopper for profile {Profile}", request.Points.Length, request.Profile);
-
-        var results = new List<ValidateResult>();
-        const double maxDistanceMeters = 20;
-
-        foreach (var point in request.Points)
-        {
-            try
-            {
-                var vehicle = request.Profile.ToLower() switch
-                {
-                    "foot" or "walk" => "foot",
-                    "car" => "car",
-                    _ => "bike"
-                };
-                
-                // We use the proxied GraphHopper URL or the one from config
-                // For simplicity, let's assume it's available via localhost/graphhopper if internal
-                var url = $"http://graphhopper:8989/nearest?point={point.Lat},{point.Lon}&vehicle={vehicle}&type=json";
-                var response = await _httpClient.GetAsync(url);
-
-                if (response.IsSuccessStatusCode)
-                {
-                    var json = await response.Content.ReadAsStringAsync();
-                    using var doc = JsonDocument.Parse(json);
-                    var root = doc.RootElement;
-                    var coords = root.GetProperty("coordinates");
-                    var snappedLon = coords[0].GetDouble();
-                    var snappedLat = coords[1].GetDouble();
-                    var distanceFromGraphHopper = root.GetProperty("distance").GetDouble();
-
-                    results.Add(new ValidateResult(
-                        Original: point,
-                        Snapped: new DiscoveryPoint(snappedLon, snappedLat),
-                        DistanceMeters: distanceFromGraphHopper,
-                        IsValid: distanceFromGraphHopper <= maxDistanceMeters,
-                        RoadName: $"Valid {request.Profile} route"
-                    ));
-                }
-                else
-                {
-                    results.Add(new ValidateResult(Original: point, IsValid: false, Error: "GraphHopper lookup failed"));
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Failed to validate point {Lat},{Lon}", point.Lat, point.Lon);
-                results.Add(new ValidateResult(Original: point, IsValid: false, Error: ex.Message));
-            }
-        }
-
-        return results;
+        return _routingService.ValidateNodesAsync(request);
     }
 }

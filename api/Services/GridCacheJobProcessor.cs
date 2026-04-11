@@ -58,34 +58,43 @@ public class GridCacheJobProcessor : BackgroundService
 
     private async Task ProcessPendingJobsAsync(CancellationToken stoppingToken)
     {
-        await using var conn = new NpgsqlConnection(_connectionString);
-        await conn.OpenAsync(stoppingToken);
-
-        // Get one pending job
-        await using var cmd = conn.CreateCommand();
-        cmd.CommandText = """
-            SELECT id, grid_x, grid_y, mode FROM grid_cache_jobs
-            WHERE status = 'pending'
-            ORDER BY created_at ASC
-            LIMIT 1
-            """;
-
-        await using var reader = await cmd.ExecuteReaderAsync(stoppingToken);
-        if (!await reader.ReadAsync(stoppingToken))
-            return; // No pending jobs
-
-        int jobId = reader.GetInt32(0);
-        long gridX = reader.GetInt64(1);
-        long gridY = reader.GetInt64(2);
-        string mode = reader.GetString(3);
-
-        _logger.LogInformation("Processing cache job {JobId}: grid ({X}, {Y}), mode: {Mode}", jobId, gridX, gridY, mode);
-
-        // Use the GridCacheService to build the cache
-        using (var scope = _serviceProvider.CreateScope())
+        try
         {
-            var gridCache = scope.ServiceProvider.GetRequiredService<GridCacheService>();
-            await gridCache.BuildCacheForCellAsync(gridX, gridY, mode);
+            await using var conn = new NpgsqlConnection(_connectionString);
+            await conn.OpenAsync(stoppingToken);
+
+            // Get one pending job
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText = """
+                SELECT id, grid_x, grid_y, mode FROM grid_cache_jobs
+                WHERE status = 'pending'
+                ORDER BY created_at ASC
+                LIMIT 1
+                """;
+
+            await using var reader = await cmd.ExecuteReaderAsync(stoppingToken);
+            if (!await reader.ReadAsync(stoppingToken))
+                return; // No pending jobs
+
+            int jobId = reader.GetInt32(0);
+            long gridX = reader.GetInt64(1);
+            long gridY = reader.GetInt64(2);
+            string mode = reader.GetString(3);
+
+            _logger.LogInformation("Processing cache job {JobId}: grid ({X}, {Y}), mode: {Mode}", jobId, gridX, gridY, mode);
+
+            // Use the GridCacheService to build the cache
+            using (var scope = _serviceProvider.CreateScope())
+            {
+                var gridCache = scope.ServiceProvider.GetRequiredService<GridCacheService>();
+                await gridCache.BuildCacheForCellAsync(gridX, gridY, mode);
+            }
+        }
+        catch (PostgresException ex) when (ex.SqlState == "42P01" || ex.SqlState == "3D000") // undefined_table or invalid_catalog_name
+        {
+            _logger.LogWarning("Grid cache tables or database not found. Suspending GridCacheJobProcessor. (This is normal if OSM data is not imported)");
+            // Sleep for a very long time so it doesn't spam errors
+            await Task.Delay(Timeout.InfiniteTimeSpan, stoppingToken);
         }
     }
 }
