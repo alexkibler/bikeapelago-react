@@ -50,8 +50,8 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_DB: osm_discovery
-      POSTGRES_USER: osm
-      POSTGRES_PASSWORD: osm_secret
+      POSTGRES_USER: ${OSM_DISCOVERY_USER:-osm}
+      POSTGRES_PASSWORD: ${OSM_DISCOVERY_PASSWORD}
     ports:
       - "5433:5432"
     volumes:
