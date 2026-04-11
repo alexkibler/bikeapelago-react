@@ -76,7 +76,7 @@ public class GridCacheJobProcessor : BackgroundService, IElevationJobQueue
             cmd.CommandText = """
                 INSERT INTO grid_cache_jobs (grid_x, grid_y, mode, status, created_at, data)
                 VALUES (@x, @y, 'elevation', 'pending', NOW() + (@delayMs || ' milliseconds')::interval, @data)
-                ON CONFLICT (grid_x, grid_y, mode) DO NOTHING
+                ON CONFLICT (grid_x, grid_y, mode) WHERE status IN ('pending', 'processing') DO NOTHING
                 """;
             cmd.Parameters.AddWithValue("@x", (long)lon);
             cmd.Parameters.AddWithValue("@y", (long)lat);

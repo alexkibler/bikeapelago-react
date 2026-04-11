@@ -168,7 +168,7 @@ public class GridCacheService
             cmd.CommandText = """
                 INSERT INTO grid_cache_jobs (grid_x, grid_y, mode, status)
                 VALUES (@grid_x, @grid_y, @mode, 'pending')
-                ON CONFLICT DO NOTHING
+                ON CONFLICT (grid_x, grid_y, mode) WHERE status IN ('pending', 'processing') DO NOTHING
                 RETURNING id
                 """;
 

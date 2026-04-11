@@ -42,6 +42,11 @@ builder.Services.AddDbContext<BikeapelagoDbContext>(options =>
     options.UseNpgsql(connString, o => o.UseNetTopologySuite())
 );
 
+var osmConnString = builder.Configuration.GetConnectionString("OsmDiscovery") ?? "Host=postgis;Port=5432;Database=osm_discovery;Username=osm;Password=osm_secret";
+builder.Services.AddDbContext<OsmDbContext>(options =>
+    options.UseNpgsql(osmConnString)
+);
+
 // 3. Register Repositories (Conditional for E2E/Tests)
 if (builder.Configuration["USE_MOCK_AUTH"] == "true" || Environment.GetEnvironmentVariable("USE_MOCK_AUTH") == "true")
 {
@@ -161,6 +166,20 @@ try
 catch (Exception ex)
 {
     app.Logger.LogWarning(ex, "Failed to apply migrations on startup. This is normal if the database is not yet available.");
+}
+
+// Apply OSM context migrations (cache tables)
+try
+{
+    using (var scope = app.Services.CreateScope())
+    {
+        var osmDb = scope.ServiceProvider.GetRequiredService<OsmDbContext>();
+        await osmDb.Database.MigrateAsync();
+    }
+}
+catch (Exception ex)
+{
+    app.Logger.LogWarning(ex, "Failed to apply OSM cache migrations on startup. This is normal if the OSM database is not yet available.");
 }
 
 // Role Seeding (gracefully handles database unavailability)
