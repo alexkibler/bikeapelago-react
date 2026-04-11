@@ -261,11 +261,11 @@ public class GridCacheJobProcessor : BackgroundService, IElevationJobQueue
             await using var conn = new NpgsqlConnection(_connectionString);
             await conn.OpenAsync(stoppingToken);
 
-            // Get one pending job
+            // Get one pending elevation job
             await using var cmd = conn.CreateCommand();
             cmd.CommandText = """
-                SELECT id, grid_x, grid_y, mode FROM grid_cache_jobs
-                WHERE status = 'pending'
+                SELECT id, grid_x, grid_y FROM grid_cache_jobs
+                WHERE status = 'pending' AND mode = 'elevation'
                 ORDER BY created_at ASC
                 LIMIT 1
                 """;
@@ -277,24 +277,10 @@ public class GridCacheJobProcessor : BackgroundService, IElevationJobQueue
             int jobId = reader.GetInt32(0);
             long gridX = reader.GetInt64(1);
             long gridY = reader.GetInt64(2);
-            string mode = reader.GetString(3);
 
-            _logger.LogInformation("Processing cache job {JobId}: grid ({X}, {Y}), mode: {Mode}", jobId, gridX, gridY, mode);
+            _logger.LogInformation("Processing elevation job {JobId}: grid ({X}, {Y})", jobId, gridX, gridY);
 
-            // Route to appropriate handler based on mode
-            if (mode == "elevation")
-            {
-                await ProcessElevationJobAsync(gridX, gridY, jobId, stoppingToken);
-            }
-            else
-            {
-                // Use the GridCacheService to build the cache
-                using (var scope = _serviceProvider.CreateScope())
-                {
-                    var gridCache = scope.ServiceProvider.GetRequiredService<GridCacheService>();
-                    await gridCache.BuildCacheForCellAsync(gridX, gridY, mode);
-                }
-            }
+            await ProcessElevationJobAsync(gridX, gridY, jobId, stoppingToken);
         }
         catch (PostgresException ex) when (ex.SqlState == "42P01" || ex.SqlState == "3D000") // undefined_table or invalid_catalog_name
         {
