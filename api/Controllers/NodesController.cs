@@ -100,12 +100,16 @@ public class NodesController(IMapNodeRepository nodeRepository, ILogger<NodesCon
                 return BadRequest(new { message = result?.Message ?? "Route optimization failed." });
 
             var trip = result.Trips[0];
+            var geometry = trip.GetCoordinates();
+            var elevationGain = await mapboxRoutingService.CalculateElevationGainAsync(geometry);
+            
             return Ok(new
             {
                 success = true,
-                geometry = trip.GetCoordinates(),
+                geometry = geometry,
                 distanceMeters = trip.Distance,
-                durationSeconds = trip.Duration
+                durationSeconds = trip.Duration,
+                elevation = elevationGain
             });
         }
         catch (Exception ex)

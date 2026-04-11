@@ -303,4 +303,85 @@ public class MapboxRoutingService(HttpClient httpClient, ILogger<MapboxRoutingSe
         var c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
         return EarthRadiusMeters * c;
     }
+
+    /// <summary>
+    /// Approximates the positive elevation gain of a route geometry by calling the free Open-Meteo Elevation API.
+    /// Safely downsamples routes to a maximum of 100 points to adhere to HTTP GET limits.
+    /// </summary>
+    public async Task<double> CalculateElevationGainAsync(List<List<double>> geometry)
+    {
+        if (geometry == null || geometry.Count < 2) return 0;
+
+        // Downsample geo coordinates to max 100 evenly spaced nodes
+        int maxPoints = 100;
+        var sampledPoints = new List<List<double>>();
+        int step = Math.Max(1, geometry.Count / maxPoints);
+
+        for (int i = 0; i < geometry.Count; i += step)
+        {
+            if (sampledPoints.Count < maxPoints)
+            {
+                sampledPoints.Add(geometry[i]);
+            }
+        }
+        
+        // Ensure final point is capped to not lose the route destination
+        if (sampledPoints[sampledPoints.Count - 1] != geometry.Last() && sampledPoints.Count < maxPoints)
+        {
+            sampledPoints.Add(geometry.Last());
+        }
+
+        var lats = string.Join(",", sampledPoints.Select(p => Math.Round(p[1], 4).ToString(System.Globalization.CultureInfo.InvariantCulture)));
+        var lons = string.Join(",", sampledPoints.Select(p => Math.Round(p[0], 4).ToString(System.Globalization.CultureInfo.InvariantCulture)));
+
+        var url = $"https://api.open-meteo.com/v1/elevation?latitude={lats}&longitude={lons}";
+
+        try
+        {
+            var response = await _httpClient.GetAsync(url);
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogWarning("Open-Meteo elevation API failed with status {Status}", response.StatusCode);
+                return 0;
+            }
+
+            var json = await response.Content.ReadAsStringAsync();
+            using var doc = JsonDocument.Parse(json);
+            var root = doc.RootElement;
+
+            if (root.TryGetProperty("elevation", out var elevationArray) && elevationArray.ValueKind == JsonValueKind.Array)
+            {
+                double totalGain = 0;
+                double previousElevation = 0;
+                bool isFirst = true;
+
+                foreach (var el in elevationArray.EnumerateArray())
+                {
+                    double currentElevation = el.GetDouble();
+                    if (!isFirst)
+                    {
+                        double diff = currentElevation - previousElevation;
+                        if (diff > 0)
+                        {
+                            totalGain += diff;
+                        }
+                    }
+                    else
+                    {
+                        isFirst = false;
+                    }
+                    previousElevation = currentElevation;
+                }
+
+                _logger.LogInformation("Calculated {Gain}m elevation gain from {Count} downsampled points", Math.Round(totalGain), sampledPoints.Count);
+                return totalGain;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to calculate elevation via Open-Meteo");
+        }
+
+        return 0;
+    }
 }

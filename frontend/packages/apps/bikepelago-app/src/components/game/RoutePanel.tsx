@@ -93,7 +93,7 @@ const RoutePanel = ({ sessionId }: { sessionId: string }) => {
         const data = await res.json();
         setRouteData({
           distance: data.distanceMeters / 1000,
-          elevation: 0,
+          elevation: data.elevation || 0,
           polyline: JSON.stringify(data.geometry)
         });
       } catch (err: unknown) {
@@ -136,7 +136,7 @@ const RoutePanel = ({ sessionId }: { sessionId: string }) => {
         // Update route data in store
         setRouteData({
           distance: data.totalDistanceMeters / 1000,
-          elevation: 0, // Backend doesn't return elevation yet
+          elevation: data.elevation || 0,
           polyline: JSON.stringify(data.geometry)
         });
         
