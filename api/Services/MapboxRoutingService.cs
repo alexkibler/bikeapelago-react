@@ -9,7 +9,7 @@ public class MapboxRoutingService(HttpClient httpClient, ILogger<MapboxRoutingSe
 {
     private readonly HttpClient _httpClient = httpClient;
     private readonly ILogger<MapboxRoutingService> _logger = logger;
-    private readonly string _mapboxApiKey = configuration["MAPBOX_API_KEY"] ?? string.Empty;
+    private readonly string _mapboxApiKey = configuration["Mapbox:ApiKey"] ?? string.Empty;
     private const double MaxDistanceMeters = 20;
     private const string MapboxMatchingUrl = "https://api.mapbox.com/matching/v5/mapbox";
     private const string MapboxOptimizationUrl = "https://api.mapbox.com/optimized-trips/v1/mapbox";

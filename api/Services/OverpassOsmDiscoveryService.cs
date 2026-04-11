@@ -14,7 +14,7 @@ public class OverpassOsmDiscoveryService(HttpClient httpClient, ILogger<Overpass
     private readonly ILogger<OverpassOsmDiscoveryService> _logger = logger;
     private const string OverpassUrl = "https://overpass-api.de/api/interpreter";
 
-    public async Task<List<DiscoveryPoint>> GetRandomNodesAsync(double lat, double lon, double radiusMeters, int count, string mode = "bike", double densityBias = 0.5)
+    public async Task<List<DiscoveryPoint>> GetRandomNodesAsync(double lat, double lon, double radiusMeters, int count, string mode = "bike", double densityBias = 0.5, string gameMode = "singleplayer")
     {
         _logger.LogInformation("Fetching random nodes from Overpass API at {Lat},{Lon} radius {Radius}m, mode: {Mode}", lat, lon, radiusMeters, mode);
 

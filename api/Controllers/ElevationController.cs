@@ -18,16 +18,13 @@ namespace Bikeapelago.Api.Controllers;
 public class ElevationController : ControllerBase
 {
     private readonly ElevationService _elevationService;
-    private readonly RegionalElevationService _regionalService;
     private readonly ILogger<ElevationController> _logger;
 
     public ElevationController(
         ElevationService elevationService,
-        RegionalElevationService regionalService,
         ILogger<ElevationController> logger)
     {
         _elevationService = elevationService;
-        _regionalService = regionalService;
         _logger = logger;
     }
 
@@ -161,68 +158,7 @@ public class ElevationController : ControllerBase
         }
     }
 
-    /// <summary>
-    /// Queue elevation downloads for a session.
-    /// Intelligently chunks large downloads and uses exponential backoff for rate limiting.
-    /// </summary>
-    /// <param name="sessionId">Session ID</param>
-    /// <example>
-    /// POST /api/elevation/ensure-tiles/550e8400-e29b-41d4-a716-446655440000
-    /// </example>
-    [HttpPost("ensure-tiles/{sessionId}")]
-    public async Task<IActionResult> EnsureSessionTiles(Guid sessionId)
-    {
-        try
-        {
-            var requiredTiles = await _regionalService.GetRequiredTilesAsync(sessionId);
-            await _regionalService.EnsureSessionTilesAsync(sessionId);
-
-            return Ok(new
-            {
-                success = true,
-                message = $"Queued elevation download for {requiredTiles.Count} tiles",
-                tilesNeeded = requiredTiles.Count,
-                tiles = requiredTiles
-            });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError($"Error queuing elevation tiles: {ex.Message}");
-            return StatusCode(500, new { error = "Failed to queue elevation downloads" });
-        }
-    }
-
-    /// <summary>
-    /// Populate elevation for all nodes in a session.
-    /// Triggers bulk SQL update to assign elevation from raster data.
-    /// </summary>
-    /// <param name="sessionId">Session ID</param>
-    /// <example>
-    /// POST /api/elevation/populate/550e8400-e29b-41d4-a716-446655440000
-    /// </example>
-    [HttpPost("populate/{sessionId}")]
-    public async Task<IActionResult> PopulateSessionElevation(Guid sessionId)
-    {
-        try
-        {
-            var (updated, skipped, failed) = await _elevationService.PopulateSessionElevationsAsync(sessionId);
-
-            return Ok(new
-            {
-                success = failed == 0,
-                updated,
-                skipped,
-                failed
-            });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError($"Error populating elevations: {ex.Message}");
-            return StatusCode(500, new { error = "Failed to populate elevation data" });
-        }
-    }
-
-    private static int? CalculateElevationGain(List<(double distanceMeters, int? elevationMeters)> profile)
+private static int? CalculateElevationGain(List<(double distanceMeters, int? elevationMeters)> profile)
     {
         if (profile.Count < 2)
             return null;

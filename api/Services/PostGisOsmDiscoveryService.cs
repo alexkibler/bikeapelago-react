@@ -17,7 +17,6 @@ public class PostGisOsmDiscoveryService : IOsmDiscoveryService
     private readonly ILogger<PostGisOsmDiscoveryService> _logger;
     private readonly string _connectionString;
     private readonly IMapboxRoutingService _routingService;
-    private readonly GridCacheService _gridCache;
 
     // Highway tags that are valid for each routing mode.
     // Aligned with common routing profiles (bike, walk, car).
@@ -35,55 +34,37 @@ public class PostGisOsmDiscoveryService : IOsmDiscoveryService
         "primary", "primary_link", "service", "living_street"
     ];
 
-    public PostGisOsmDiscoveryService(ILogger<PostGisOsmDiscoveryService> logger, IConfiguration config, IMapboxRoutingService routingService, GridCacheService gridCache)
+    public PostGisOsmDiscoveryService(ILogger<PostGisOsmDiscoveryService> logger, IConfiguration config, IMapboxRoutingService routingService)
     {
         _logger = logger;
-        _connectionString = config.GetConnectionString("OsmDiscovery")
-            ?? throw new InvalidOperationException("OsmDiscovery connection string is required.");
+        _connectionString = config.GetConnectionString("PostGis")
+            ?? throw new InvalidOperationException("PostGis connection string is required.");
         _routingService = routingService;
-        _gridCache = gridCache;
     }
 
     private static string[] HighwayTagsForMode(string mode) =>
         mode.ToLowerInvariant() is "walk" or "foot" ? WalkHighwayTags : BikeHighwayTags;
 
-    public async Task<List<DiscoveryPoint>> GetRandomNodesAsync(double lat, double lon, double radiusMeters, int count, string mode = "bike", double densityBias = 0.5)
+    public async Task<List<DiscoveryPoint>> GetRandomNodesAsync(double lat, double lon, double radiusMeters, int count, string mode = "bike", double densityBias = 0.5, string gameMode = "singleplayer")
     {
-        _logger.LogInformation("Fetching random nodes from PostGIS at {Lat},{Lon} radius {Radius}m, mode: {Mode}", lat, lon, radiusMeters, mode);
+        _logger.LogInformation("Fetching random nodes from PostGIS at {Lat},{Lon} radius {Radius}m, mode: {Mode}, gameMode: {GameMode}", lat, lon, radiusMeters, mode, gameMode);
         var totalSw = System.Diagnostics.Stopwatch.StartNew();
 
-        // Step 1: Get grid cells covering this radius
-        var gridCells = _gridCache.GetCoveringGridCells(lat, lon, radiusMeters);
-        _logger.LogInformation("Covering {CellCount} grid cells for radius {Radius}m", gridCells.Count, radiusMeters);
-
-        // Step 2: Check cache status
-        var cacheStatus = await _gridCache.CheckCacheStatusAsync(gridCells, mode);
-        var cachedCells = cacheStatus.Where(x => x.Value).Select(x => x.Key).ToList();
-        var uncachedCells = cacheStatus.Where(x => !x.Value).Select(x => x.Key).ToList();
-
-        _logger.LogInformation("Cache status: {CachedCount} cached, {UncachedCount} uncached", cachedCells.Count, uncachedCells.Count);
-
-        // Step 3: Queue cache jobs for uncached cells (fire-and-forget)
-        if (uncachedCells.Count > 0)
-        {
-            var jobIds = await _gridCache.QueueCacheJobsAsync(uncachedCells, mode);
-            _logger.LogInformation("Queued {JobCount} cache jobs: {JobIds}", jobIds.Count, string.Join(", ", jobIds));
-        }
-
-        // Step 4: Generate random sub-targets spread across the full radius.
-        // Sub-radius scales with parent radius so probes don't overlap on small areas
-        // or under-sample on large ones. 2.5x probe count gives buffer for empty probes
-        // (rivers, parks, etc.) without dictating connection count.
+        // Generate random sub-targets spread across the full radius.
+        // Archipelago mode uses 5× oversampling because AP seeds have a hard location
+        // count requirement — running short on candidates would break the seed.
+        // Singleplayer uses the lighter 2.5× buffer since a retry is harmless.
+        double oversampleMultiplier = gameMode.Equals("archipelago", StringComparison.OrdinalIgnoreCase) ? 5.0 : 2.5;
         double subRadiusMeters = Math.Clamp(radiusMeters * 0.1, 200, 1500);
-        int subTargetCount = (int)Math.Ceiling(count * 2.5);
+        int subTargetCount = (int)Math.Ceiling(count * oversampleMultiplier);
 
         var subTargets = GenerateRandomPointsInCircle(lat, lon, radiusMeters, subTargetCount, densityBias);
         _logger.LogInformation(
-            "Running single unnest query with {ProbeCount} sub-targets (r={SubRadius}m each)",
-            subTargetCount, subRadiusMeters);
+            "Running single unnest query with {ProbeCount} sub-targets (r={SubRadius}m each, {Multiplier}x oversampling)",
+            subTargetCount, subRadiusMeters, oversampleMultiplier);
 
         var fetchSw = System.Diagnostics.Stopwatch.StartNew();
-        var allNodes = await FetchNodesForSubTargetsAsync(subTargets, subRadiusMeters, mode);
+        var allNodes = await FetchNodesForSubTargetsAsync(subTargets, subRadiusMeters, lat, lon, radiusMeters, mode);
         fetchSw.Stop();
 
         var shuffled = allNodes.OrderBy(_ => Random.Shared.Next()).ToList();
@@ -96,11 +77,13 @@ public class PostGisOsmDiscoveryService : IOsmDiscoveryService
     }
 
     private async Task<List<DiscoveryPoint>> FetchNodesForSubTargetsAsync(
-        List<DiscoveryPoint> subTargets, double subRadiusMeters, string mode)
+        List<DiscoveryPoint> subTargets, double subRadiusMeters,
+        double centerLat, double centerLon, double sessionRadiusMeters, string mode)
     {
         double[] lons = subTargets.Select(p => p.Lon).ToArray();
         double[] lats = subTargets.Select(p => p.Lat).ToArray();
         double subRadiusDegrees = subRadiusMeters / 111000.0;
+        double sessionRadiusDegrees = sessionRadiusMeters / 111000.0;
         int safetyCap = subTargets.Count * 20;
 
         await using var conn = new NpgsqlConnection(_connectionString);
@@ -114,8 +97,13 @@ public class PostGisOsmDiscoveryService : IOsmDiscoveryService
         // Filter uses the pre-computed cycling_safe/walking_safe boolean columns
         // stored by the Lua flex script — no tags hstore needed.
         // LATERAL join forces the planner to use the GIST index per sub-target.
+        // Final ST_DWithin on @center clips any nodes whose OSM way extended outside
+        // the session ring boundary.
         cmd.CommandText = """
-            WITH sub_targets AS (
+            WITH center AS (
+                SELECT ST_SetSRID(ST_MakePoint(@center_lon, @center_lat), 4326) AS geom
+            ),
+            sub_targets AS (
                 -- Unnest the C# arrays into target geometries (SRID 4326)
                 SELECT ST_SetSRID(ST_MakePoint(lon, lat), 4326) AS target_geom
                 FROM unnest(@lons, @lats) AS t(lon, lat)
@@ -136,12 +124,13 @@ public class PostGisOsmDiscoveryService : IOsmDiscoveryService
                 SELECT (ST_DumpPoints(geom)).geom AS pt_geom
                 FROM valid_lines
             )
-            -- Deduplicate, randomize, and cap
+            -- Deduplicate, clip to session ring, randomize, and cap
             SELECT x, y FROM (
                 SELECT DISTINCT
                     ST_X(pt_geom)::float8 AS x,
                     ST_Y(pt_geom)::float8 AS y
-                FROM dumped_points
+                FROM dumped_points, center
+                WHERE ST_DWithin(pt_geom, center.geom, @session_radius_degrees)
             ) deduped
             ORDER BY RANDOM()
             LIMIT @safety_cap;
@@ -150,7 +139,10 @@ public class PostGisOsmDiscoveryService : IOsmDiscoveryService
         bool isWalk = mode.ToLowerInvariant() is "walk" or "foot";
         cmd.Parameters.Add(new NpgsqlParameter("lons", NpgsqlDbType.Array | NpgsqlDbType.Double) { Value = lons });
         cmd.Parameters.Add(new NpgsqlParameter("lats", NpgsqlDbType.Array | NpgsqlDbType.Double) { Value = lats });
+        cmd.Parameters.AddWithValue("center_lat", centerLat);
+        cmd.Parameters.AddWithValue("center_lon", centerLon);
         cmd.Parameters.AddWithValue("sub_radius_degrees", subRadiusDegrees);
+        cmd.Parameters.AddWithValue("session_radius_degrees", sessionRadiusDegrees);
         cmd.Parameters.AddWithValue("is_walk", isWalk);
         cmd.Parameters.AddWithValue("safety_cap", safetyCap);
 

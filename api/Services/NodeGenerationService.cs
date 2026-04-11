@@ -30,13 +30,11 @@ public class NodeGenerationService(
     IOsmDiscoveryService osmDiscoveryService,
     IMapNodeRepository nodeRepository,
     IGameSessionRepository sessionRepository,
-    RegionalElevationService elevationService,
     ILogger<NodeGenerationService> logger)
 {
     private readonly IOsmDiscoveryService _osmDiscoveryService = osmDiscoveryService;
     private readonly IMapNodeRepository _nodeRepository = nodeRepository;
     private readonly IGameSessionRepository _sessionRepository = sessionRepository;
-    private readonly RegionalElevationService _elevationService = elevationService;
     private readonly ILogger<NodeGenerationService> _logger = logger;
 
     public async Task<int> GenerateNodesAsync(NodeGenerationRequest request)
@@ -57,11 +55,17 @@ public class NodeGenerationService(
             request.Radius,
             request.NodeCount,
             request.Mode,
-            request.DensityBias);
+            request.DensityBias,
+            request.GameMode);
         _logger.LogInformation("[generate] OsmDiscovery ({Count} points): {Ms}ms", points.Count, sw.ElapsedMilliseconds);
 
         if (points.Count < request.NodeCount)
-            throw new Exception($"OSM Discovery returned only {points.Count} nodes, need {request.NodeCount}. Try increasing the radius.");
+        {
+            string hint = request.GameMode.Equals("archipelago", StringComparison.OrdinalIgnoreCase)
+                ? $"This would produce an incomplete AP seed. Increase the radius or reduce the location count."
+                : $"Try increasing the radius.";
+            throw new Exception($"OSM Discovery returned only {points.Count} nodes but {request.NodeCount} are required. {hint}");
+        }
 
         var selectedPoints = points.Take(request.NodeCount).ToList();
 
@@ -92,11 +96,6 @@ public class NodeGenerationService(
         session.Status = SessionStatus.Active;
         await _sessionRepository.UpdateAsync(session);
         _logger.LogInformation("[generate] UpdateSession: {Ms}ms", sw.ElapsedMilliseconds);
-
-        // 6. Queue elevation tile downloads for the session
-        sw.Restart();
-        await _elevationService.EnsureSessionTilesAsync(request.SessionId);
-        _logger.LogInformation("[generate] QueueElevationTiles: {Ms}ms", sw.ElapsedMilliseconds);
 
         _logger.LogInformation("[generate] TOTAL: {Ms}ms", total.ElapsedMilliseconds);
         return mapNodes.Count;

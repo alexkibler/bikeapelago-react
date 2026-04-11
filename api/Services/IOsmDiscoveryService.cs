@@ -6,6 +6,6 @@ namespace Bikeapelago.Api.Services;
 
 public interface IOsmDiscoveryService
 {
-    Task<List<DiscoveryPoint>> GetRandomNodesAsync(double lat, double lon, double radiusMeters, int count, string mode = "bike", double densityBias = 0.5);
+    Task<List<DiscoveryPoint>> GetRandomNodesAsync(double lat, double lon, double radiusMeters, int count, string mode = "bike", double densityBias = 0.5, string gameMode = "singleplayer");
     Task<List<ValidateResult>> ValidateNodesAsync(ValidateRequest request);
 }

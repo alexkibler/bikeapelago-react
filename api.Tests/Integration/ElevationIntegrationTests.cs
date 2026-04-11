@@ -1,5 +1,5 @@
-using System;
 using System.Collections.Generic;
+using System.Net.Http.Json;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Xunit;
@@ -55,14 +55,14 @@ public class ElevationIntegrationTests : IAsyncLifetime
         var createResponse = await _client.PostAsJsonAsync("/api/sessions", sessionRequest);
         Assert.True(createResponse.IsSuccessStatusCode, "Session creation should succeed");
 
-        var session = await createResponse.Content.ReadAsAsync<dynamic>();
+        var session = await createResponse.Content.ReadFromJsonAsync<dynamic>();
         var sessionId = session.id;
 
         // Act: Queue elevation downloads
         var elevationResponse = await _client.PostAsync($"/api/elevation/ensure-tiles/{sessionId}", null);
         Assert.True(elevationResponse.IsSuccessStatusCode, "Should queue elevation downloads");
 
-        var elevationData = await elevationResponse.Content.ReadAsAsync<dynamic>();
+        var elevationData = await elevationResponse.Content.ReadFromJsonAsync<dynamic>();
         Assert.NotNull(elevationData.tilesNeeded);
 
         // Assert: Elevation queuing should be fast (not blocking on downloads)
@@ -82,7 +82,7 @@ public class ElevationIntegrationTests : IAsyncLifetime
         // Assert: Should still return elevation data (from Mapbox fallback)
         Assert.True(response.IsSuccessStatusCode, "Should return elevation data even if PostGIS not ready");
 
-        var data = await response.Content.ReadAsAsync<dynamic>();
+        var data = await response.Content.ReadFromJsonAsync<dynamic>();
         Assert.NotNull(data.elevation_m);
         // May be from Mapbox, but should have a value
     }
@@ -97,7 +97,7 @@ public class ElevationIntegrationTests : IAsyncLifetime
         var response = await _client.GetAsync("/api/elevation/stats");
         Assert.True(response.IsSuccessStatusCode, "Should get elevation stats");
 
-        var stats = await response.Content.ReadAsAsync<dynamic>();
+        var stats = await response.Content.ReadFromJsonAsync<dynamic>();
 
         // Assert: Stats should show what's available
         Assert.NotNull(stats.totalNodes);
@@ -130,7 +130,7 @@ public class ElevationIntegrationTests : IAsyncLifetime
         // Assert: Should return profile data immediately
         Assert.True(response.IsSuccessStatusCode, "Should return elevation profile");
 
-        var data = await response.Content.ReadAsAsync<dynamic>();
+        var data = await response.Content.ReadFromJsonAsync<dynamic>();
         Assert.NotNull(data.profile);
         Assert.NotNull(data.statistics);
 
@@ -216,8 +216,8 @@ public class MockHttpMessageHandler : HttpMessageHandler
             };
         }
 
-        // Allow local calls
-        return await base.SendAsync(request, cancellationToken);
+        // Allow local calls (simplified since base is abstract)
+        return new HttpResponseMessage(System.Net.HttpStatusCode.NotFound);
     }
 
     public void ExpectNoCallsTo(string baseUrl)

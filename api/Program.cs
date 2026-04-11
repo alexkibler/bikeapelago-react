@@ -9,43 +9,16 @@ using Microsoft.AspNetCore.Identity;
 using System.Text;
 using Bikeapelago.Api.Middleware;
 
-// Option 4: Load the root .env file automatically on startup
-var envPath = Path.Combine(Directory.GetCurrentDirectory(), "..", ".env");
-Console.WriteLine($"[Config] Checking for .env file at: {Path.GetFullPath(envPath)}");
-if (File.Exists(envPath))
-{
-    Console.WriteLine("[Config] Found .env file, loading variables...");
-    foreach (var line in File.ReadAllLines(envPath))
-    {
-        var parts = line.Split('=', 2, StringSplitOptions.RemoveEmptyEntries);
-        if (parts.Length == 2 && !line.TrimStart().StartsWith("#"))
-        {
-            var key = parts[0].Trim();
-            Environment.SetEnvironmentVariable(key, parts[1].Trim().Trim('"'));
-            if (key == "MAPBOX_API_KEY") {
-                Console.WriteLine($"[Config] Successfully loaded {key} (length: {parts[1].Trim().Trim('"').Length})");
-            }
-        }
-    }
-}
-else
-{
-    Console.WriteLine("[Config] No .env file found at this path.");
-}
-
 var builder = WebApplication.CreateBuilder(args);
 // 2.5 Common Services
 builder.Services.AddHttpContextAccessor();
 
-var connString = builder.Configuration.GetConnectionString("PostGis") ?? "Host=postgis;Port=5432;Database=bikeapelago;Username=osm;Password=osm_secret";
-builder.Services.AddDbContext<BikeapelagoDbContext>(options => 
+var connString = builder.Configuration.GetConnectionString("PostGis")
+    ?? throw new InvalidOperationException("PostGis connection string is required");
+builder.Services.AddDbContext<BikeapelagoDbContext>(options =>
     options.UseNpgsql(connString, o => o.UseNetTopologySuite())
 );
 
-var osmConnString = builder.Configuration.GetConnectionString("OsmDiscovery") ?? "Host=postgis;Port=5432;Database=osm_discovery;Username=osm;Password=osm_secret";
-builder.Services.AddDbContext<OsmDbContext>(options =>
-    options.UseNpgsql(osmConnString)
-);
 
 // 3. Register Repositories (Conditional for E2E/Tests)
 if (builder.Configuration["USE_MOCK_AUTH"] == "true" || Environment.GetEnvironmentVariable("USE_MOCK_AUTH") == "true")
@@ -70,7 +43,6 @@ builder.Services.AddScoped<PbfOsmDiscoveryService>(sp =>
     var path = builder.Configuration["OsmDiscovery:PbfPath"] ?? "./data/map.osm.pbf";
     return new PbfOsmDiscoveryService(logger, path);
 });
-builder.Services.AddScoped<GridCacheService>();
 builder.Services.AddScoped<IMapboxRoutingService, MapboxRoutingService>();
 builder.Services.AddScoped<GeographicSortingService>();
 builder.Services.AddScoped<PostGisOsmDiscoveryService>();
@@ -79,12 +51,6 @@ builder.Services.AddScoped<NodeGenerationService>();
 builder.Services.AddScoped<FitAnalysisService>();
 builder.Services.AddScoped<SchemaDiscoveryService>();
 builder.Services.AddScoped<ElevationService>();
-builder.Services.AddScoped<RegionalElevationService>();
-
-// Grid Cache Background Job Processor
-builder.Services.AddSingleton<GridCacheJobProcessor>();
-builder.Services.AddSingleton<IElevationJobQueue>(sp => sp.GetRequiredService<GridCacheJobProcessor>());
-builder.Services.AddHostedService(sp => sp.GetRequiredService<GridCacheJobProcessor>());
 
 builder.Services.AddSignalR();
 builder.Services.AddSingleton<ArchipelagoService>();
@@ -166,20 +132,6 @@ try
 catch (Exception ex)
 {
     app.Logger.LogWarning(ex, "Failed to apply migrations on startup. This is normal if the database is not yet available.");
-}
-
-// Apply OSM context migrations (cache tables)
-try
-{
-    using (var scope = app.Services.CreateScope())
-    {
-        var osmDb = scope.ServiceProvider.GetRequiredService<OsmDbContext>();
-        await osmDb.Database.MigrateAsync();
-    }
-}
-catch (Exception ex)
-{
-    app.Logger.LogWarning(ex, "Failed to apply OSM cache migrations on startup. This is normal if the OSM database is not yet available.");
 }
 
 // Role Seeding (gracefully handles database unavailability)

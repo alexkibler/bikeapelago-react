@@ -39,9 +39,9 @@ public class OsmDiscoveryService : IOsmDiscoveryService
         }
     }
 
-    public Task<List<DiscoveryPoint>> GetRandomNodesAsync(double lat, double lon, double radiusMeters, int count, string mode = "bike", double densityBias = 0.5)
+    public Task<List<DiscoveryPoint>> GetRandomNodesAsync(double lat, double lon, double radiusMeters, int count, string mode = "bike", double densityBias = 0.5, string gameMode = "singleplayer")
     {
-        return _impl.GetRandomNodesAsync(lat, lon, radiusMeters, count, mode, densityBias);
+        return _impl.GetRandomNodesAsync(lat, lon, radiusMeters, count, mode, densityBias, gameMode);
     }
 
     public Task<List<ValidateResult>> ValidateNodesAsync(ValidateRequest request)
@@ -51,7 +51,7 @@ public class OsmDiscoveryService : IOsmDiscoveryService
 
     private class MockOsmDiscoveryService : IOsmDiscoveryService
     {
-        public Task<List<DiscoveryPoint>> GetRandomNodesAsync(double lat, double lon, double radiusMeters, int count, string mode = "bike", double densityBias = 0.5)
+        public Task<List<DiscoveryPoint>> GetRandomNodesAsync(double lat, double lon, double radiusMeters, int count, string mode = "bike", double densityBias = 0.5, string gameMode = "singleplayer")
         {
             var mockPoints = new List<DiscoveryPoint>();
             var random = Random.Shared;
