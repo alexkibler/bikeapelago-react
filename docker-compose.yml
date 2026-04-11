@@ -110,6 +110,9 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - Mapbox__ApiKey=${MAPBOX_API_KEY}
+      - JWT_KEY=${JWT_KEY}
+      - ADMIN_EMAIL=${ADMIN_EMAIL}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
       - ConnectionStrings__PostGis=Host=postgis-bikeapelago;Port=5432;Database=bikeapelago;Username=${DB_USER:-osm};Password=${DB_PASSWORD}
       - ConnectionStrings__OsmDiscovery=Host=postgis-osm;Port=5432;Database=osm_discovery;Username=${OSM_DISCOVERY_USER:-osm};Password=${OSM_DISCOVERY_PASSWORD}
     ports:
@@ -132,7 +135,7 @@ services:
     command: pnpm --filter "@bikeapelago/bikeapelago-app" run dev --host
     depends_on:
       bikeapelago-api:
-        condition: service_healthy
+        condition: service_started
       frontend_builder:
         condition: service_completed_successfully
     ports:
@@ -149,7 +152,7 @@ services:
       - "8183:5173"
     depends_on:
       bikeapelago-api:
-        condition: service_healthy
+        condition: service_started
       frontend_builder:
         condition: service_completed_successfully
 
