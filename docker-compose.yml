@@ -49,6 +49,9 @@ services:
     restart: unless-stopped
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
+      - Mapbox__ApiKey=${MAPBOX_API_KEY}
+      - ConnectionStrings__PostGis=Host=${DB_HOST:-host.docker.internal};Port=${DB_PORT:-5432};Database=bikeapelago;Username=${DB_USER:-osm};Password=${DB_PASSWORD}
+      - ConnectionStrings__OsmDiscovery=Host=${DB_HOST:-host.docker.internal};Port=${DB_PORT:-5432};Database=osm_discovery;Username=${DB_USER:-osm};Password=${DB_PASSWORD}
     ports:
       - "8182:8080"
     networks:
