@@ -59,7 +59,7 @@ export default defineConfig({
 					}
 				},
 				{
-					command: 'npm run dev -- --port 5174',
+					command: 'pnpm run dev -- --port 5174',
 					url: 'http://localhost:5174',
 					reuseExistingServer: true,
 					timeout: 120 * 1000,
