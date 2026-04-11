@@ -31,16 +31,49 @@ x-bikeapelago-frontend-app-definition: &frontend-app-definition
 networks:
   bikeapelago:
     name: bikeapelago_dev
-    external: true
 
 volumes:
   bikeapelago_node_modules:
-  bikeapelago_postgis_data:
+  postgis_data:
+    name: avarts_postgis_data # CRITICAL: This perfectly maps back to the existing OrbStack volume!
+    external: true
 
 services:
 
   # ──────────────────────────────────────────────────────────────────────────
-  # Bikeapelago PostGIS Database
+  # OSM Discovery Database (The "Big" PostGIS) — profile: osm
+  # ──────────────────────────────────────────────────────────────────────────
+  postgis-osm:
+    profiles: [osm]
+    image: postgis/postgis:16-3.4-alpine
+    container_name: postgis-osm-dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: osm_discovery
+      POSTGRES_USER: osm
+      POSTGRES_PASSWORD: osm_secret
+    ports:
+      - "5433:5432"
+    volumes:
+      - osm_postgis_data:/var/lib/postgresql/data
+    networks:
+      - bikeapelago
+    command:
+      - postgres
+      - -c
+      - shared_buffers=512MB
+      - -c
+      - work_mem=256MB
+      - -c
+      - maintenance_work_mem=512MB
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U osm -d osm_discovery"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # Bikeapelago PostGIS Database (App Data)
   # ──────────────────────────────────────────────────────────────────────────
   postgis-bikeapelago:
     image: postgis/postgis:16-3.4
@@ -77,7 +110,7 @@ services:
       - ASPNETCORE_ENVIRONMENT=Development
       - Mapbox__ApiKey=${MAPBOX_API_KEY}
       - ConnectionStrings__PostGis=Host=postgis-bikeapelago;Port=5432;Database=bikeapelago;Username=${DB_USER:-osm};Password=${DB_PASSWORD}
-      - ConnectionStrings__OsmDiscovery=Host=${OSM_DISCOVERY_HOST};Port=${OSM_DISCOVERY_PORT:-5432};Database=osm_discovery;Username=${OSM_DISCOVERY_USER};Password=${OSM_DISCOVERY_PASSWORD}
+      - ConnectionStrings__OsmDiscovery=Host=postgis-osm;Port=5432;Database=osm_discovery;Username=${OSM_DISCOVERY_USER:-osm};Password=${OSM_DISCOVERY_PASSWORD}
     ports:
       - "8182:8080"
     depends_on:
@@ -128,7 +161,7 @@ services:
   archipelago:
     profiles: [archipelago]
     build:
-      context: ../..
+      context: ../
       dockerfile: ./archipelago/Dockerfile
     image: archipelago-bikeapelago:latest
     container_name: archipelago-dev
@@ -136,8 +169,8 @@ services:
     ports:
       - "38281:38281"
     volumes:
-      - ../../archipelago/config:/config
-      - ../../archipelago/output:/output
+      - ../archipelago/config:/config
+      - ../archipelago/output:/output
     environment:
       - AP_PORT=38281
     networks:
