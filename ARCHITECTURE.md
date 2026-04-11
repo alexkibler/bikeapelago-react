@@ -146,7 +146,7 @@ Active game sessions are unaffected — their nodes are stored in `MapNodes`. On
 
 ## Routing: Mapbox APIs
 
-Routing is now handled via Mapbox APIs instead of self-hosted GraphHopper/Valhalla.
+Routing is handled via Mapbox APIs.
 
 - **Validation**: `MapboxRoutingService.ValidateNodesAsync()` uses Mapbox Match Service to snap coordinates to the road network
 - **Optimization**: `MapboxRoutingService.OptimizeRouteAsync()` uses Mapbox Optimization API to find efficient visit order through up to 12 locations
