@@ -23,7 +23,7 @@ jobs:
           - name: api
             context: ./api
           - name: frontend
-            context: ./frontend
+            context: ./frontend/packages/apps/bikepelago-app
 
     steps:
       - name: Checkout code
