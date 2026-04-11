@@ -47,19 +47,8 @@ services:
     image: bikeapelago-api:latest
     container_name: bikeapelago-api-dev
     restart: unless-stopped
-    env_file:
-      - .env
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
-      - Mapbox__ApiKey=${MAPBOX_API_KEY:?MAPBOX_API_KEY required — see .env.example}
-      - ConnectionStrings__PostGis=Host=host.docker.internal;Port=5432;Database=bikeapelago;Username=osm;Password=osm_secret
-      - ConnectionStrings__OsmDiscovery=Host=host.docker.internal;Port=5432;Database=osm_discovery;Username=osm;Password=osm_secret
-      - AllowedOrigins__0=http://localhost:5173
-      - AllowedOrigins__1=http://localhost:4173
-      - AllowedOrigins__2=http://localhost:8182
-      - Jwt__Key=${JWT_KEY:?JWT_KEY required — see .env.example}
-      - Admin__Email=${ADMIN_EMAIL:-admin@localhost}
-      - Admin__Password=${ADMIN_PASSWORD:?ADMIN_PASSWORD required — see .env.example}
     ports:
       - "8182:8080"
     networks:
