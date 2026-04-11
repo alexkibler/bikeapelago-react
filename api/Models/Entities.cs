@@ -119,18 +119,21 @@ public class MapNode
     [JsonPropertyName("state")]
     public string State { get; set; } = "Hidden"; // "Hidden" | "Available" | "Checked"
 
+    [JsonPropertyName("elevation")]
+    public int? Elevation { get; set; }
+
     [NotMapped]
     [JsonPropertyName("lat")]
-    public double? Lat 
-    { 
+    public double? Lat
+    {
         get => Location?.Y;
         set => Location = new Point(Location?.X ?? 0, value ?? 0) { SRID = 4326 };
     }
 
     [NotMapped]
     [JsonPropertyName("lon")]
-    public double? Lon 
-    { 
+    public double? Lon
+    {
         get => Location?.X;
         set => Location = new Point(value ?? 0, Location?.Y ?? 0) { SRID = 4326 };
     }
