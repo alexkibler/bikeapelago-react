@@ -30,4 +30,9 @@ public interface IMapboxRoutingService
         NetTopologySuite.Geometries.Point userLocation,
         List<MapNode> targetNodes,
         string profile = "cycling");
+
+    /// <summary>
+    /// Calculates the estimated positive elevation gain of a route in meters.
+    /// </summary>
+    Task<double> CalculateElevationGainAsync(List<List<double>> geometry);
 }

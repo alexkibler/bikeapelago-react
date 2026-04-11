@@ -257,13 +257,16 @@ public class SessionsController(
             if (!result.Success)
                 return BadRequest(new { message = result.Error });
 
+            var elevationGain = await _mapboxRoutingService.CalculateElevationGainAsync(result.Geometry);
+
             return Ok(new
             {
                 success = true,
                 geometry = result.Geometry,
                 orderedNodeIds = result.OrderedNodeIds,
                 totalDistanceMeters = result.TotalDistanceMeters,
-                totalDurationSeconds = result.TotalDurationSeconds
+                totalDurationSeconds = result.TotalDurationSeconds,
+                elevation = elevationGain
             });
         }
         catch (Exception ex)
