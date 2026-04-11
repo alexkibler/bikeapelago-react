@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { useGameStore } from '../../store/gameStore';
-import { getGraphhopperUrl } from '../../lib/graphhopper';
 import { calculateDistance, downloadGPXFromPolyline } from '../../lib/geoUtils';
 import { Map, Download, Trash2, Loader2, ChevronDown, ChevronUp, UploadCloud } from 'lucide-react';
 
@@ -70,30 +69,11 @@ const RoutePanel = () => {
           return;
         }
 
-        const ghUrl = `${getGraphhopperUrl()}/route`;
-        const points = waypoints.map(wp => [wp[1], wp[0]]);
-        
-        const response = await fetch(ghUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            points: points,
-            profile: 'bike',
-            locale: 'en',
-            points_encoded: false,
-            elevation: true
-          })
-        });
-
-        if (!response.ok) throw new Error(`Routing failed with status ${response.status}`);
-        const data = await response.json() as { paths: Array<{ distance: number, ascend: number, points: { coordinates: number[][] } }> };
-        
-        const path = data.paths[0];
-        setRouteData({
-          distance: path.distance / 1000,
-          elevation: path.ascend || 0,
-          polyline: JSON.stringify(path.points.coordinates)
-        });
+        // TODO: Implement Mapbox routing API integration
+        // GraphHopper has been removed as part of the Mapbox migration.
+        // This endpoint should call the backend's /route-to-available endpoint instead.
+        setError('Routing feature is temporarily disabled during Mapbox migration');
+        setLoading(false);
       } catch (err: unknown) {
         setError(err instanceof Error ? err.message : 'Routing failed');
       } finally {

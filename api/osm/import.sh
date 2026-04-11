@@ -12,7 +12,7 @@
 # Prerequisites:
 #   - osm2pgsql-arm64:latest Docker image built:
 #       docker build -t osm2pgsql-arm64:latest ./bikeapelago-react/api/osm/osm2pgsql-arm64/
-#   - PBF file at graphhopper/data/na-roads-only.osm.pbf
+#   - PBF file at ./data/na-roads-only.osm.pbf (place in this script's sibling data/ directory)
 #       Filter from full NA planet: osmium tags-filter north-america-latest.osm.pbf w/highway -o na-roads-only.osm.pbf
 #   - PostGIS container running: docker compose up -d postgis
 #
@@ -21,9 +21,9 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 
-PBF_FILE="$REPO_ROOT/graphhopper/data/na-roads-only.osm.pbf"
+# PBF file should be placed in ./data/ directory alongside this script
+PBF_FILE="$SCRIPT_DIR/data/na-roads-only.osm.pbf"
 
 if [ ! -f "$PBF_FILE" ] || [ ! -s "$PBF_FILE" ]; then
   echo "ERROR: $PBF_FILE not found or empty."
@@ -43,7 +43,7 @@ docker exec postgis psql -U osm -d osm_discovery \
 
 # Import into staging tables
 docker run --rm \
-  -v "$REPO_ROOT/graphhopper/data:/data:ro" \
+  -v "$SCRIPT_DIR/data:/data:ro" \
   -v "$SCRIPT_DIR:/import:ro" \
   --network host \
   -e PGPASSWORD=osm_secret \

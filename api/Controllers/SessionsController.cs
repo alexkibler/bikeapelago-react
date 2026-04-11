@@ -12,12 +12,14 @@ public class SessionsController(
     IGameSessionRepository sessionRepository,
     IMapNodeRepository nodeRepository,
     IUserRepository userRepository,
-    FitAnalysisService fitAnalysisService) : ControllerBase
+    FitAnalysisService fitAnalysisService,
+    IMapboxRoutingService mapboxRoutingService) : ControllerBase
 {
     private readonly IGameSessionRepository _sessionRepository = sessionRepository;
     private readonly IMapNodeRepository _nodeRepository = nodeRepository;
     private readonly IUserRepository _userRepository = userRepository;
     private readonly FitAnalysisService _fitAnalysisService = fitAnalysisService;
+    private readonly IMapboxRoutingService _mapboxRoutingService = mapboxRoutingService;
 
     [HttpGet]
     public async Task<IActionResult> GetSessions()
@@ -214,7 +216,7 @@ public class SessionsController(
 
             using var stream = file.OpenReadStream();
             var result = _fitAnalysisService.AnalyzeFitFile(stream, availableNodes);
-            
+
             if (result.Path.Count == 0)
             {
                 return BadRequest("No GPS data found in FIT file");
@@ -225,6 +227,48 @@ public class SessionsController(
         catch (Exception ex)
         {
             return StatusCode(500, $"Failed to parse FIT file: {ex.Message}");
+        }
+    }
+
+    [HttpPost("{id}/route-to-available")]
+    public async Task<IActionResult> RouteToAvailableNodes(Guid id, [FromQuery] string profile = "cycling")
+    {
+        try
+        {
+            var session = await _sessionRepository.GetByIdAsync(id);
+            if (session == null)
+                return NotFound(new { message = "Session not found" });
+
+            if (session.Location == null)
+                return BadRequest(new { message = "Session has no starting location" });
+
+            var allNodes = await _nodeRepository.GetBySessionIdAsync(id);
+            var availableNodes = allNodes.Where(n => n.State == "Available").ToList();
+
+            if (availableNodes.Count == 0)
+                return BadRequest(new { message = "No available nodes to route to" });
+
+            // Call the Mapbox routing service to optimize the route
+            var result = await _mapboxRoutingService.RouteToMultipleNodesAsync(
+                session.Location,
+                availableNodes,
+                profile);
+
+            if (!result.Success)
+                return BadRequest(new { message = result.Error });
+
+            return Ok(new
+            {
+                success = true,
+                geometry = result.Geometry,
+                orderedNodeIds = result.OrderedNodeIds,
+                totalDistanceMeters = result.TotalDistanceMeters,
+                totalDurationSeconds = result.TotalDurationSeconds
+            });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { message = $"Route optimization failed: {ex.Message}" });
         }
     }
 }
