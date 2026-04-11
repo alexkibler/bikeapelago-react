@@ -25,6 +25,7 @@ jobs:
             dockerfile: ./api/Dockerfile
           - name: frontend
             context: ./frontend/packages/apps/bikepelago-app
+            dockerfile: Dockerfile
 
     steps:
       - name: Checkout code
