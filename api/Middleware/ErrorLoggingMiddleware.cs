@@ -61,10 +61,18 @@ public class ErrorLoggingMiddleware
                 request.Body.Position = 0;
                 using var reader = new StreamReader(request.Body, Encoding.UTF8, true, 1024, true);
                 var fullBody = await reader.ReadToEndAsync();
-                requestBody = fullBody.Length > 2000 ? fullBody.Substring(0, 2000) + "..." : fullBody;
+                var pathLower = request.Path.ToString().ToLowerInvariant();
+                if (pathLower.Contains("login") || pathLower.Contains("register") || pathLower.Contains("auth") || pathLower.Contains("password"))
+                {
+                    requestBody = "[REDACTED FOR SECURITY]";
+                }
+                else
+                {
+                    requestBody = fullBody.Length > 2000 ? fullBody.Substring(0, 2000) + "..." : fullBody;
+                }
                 request.Body.Position = 0; // Reset for others
             }
-
+            string authHeaderInfo = request.Headers.ContainsKey("Authorization") ? "[REDACTED]" : "None";
             var apiLog = new ApiLog
             {
                 Timestamp = DateTime.UtcNow,
@@ -77,7 +85,7 @@ public class ErrorLoggingMiddleware
                 UserId = context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? context.User.FindFirst("id")?.Value,
                 ExceptionType = ex?.GetType().Name,
                 StackTrace = ex?.StackTrace,
-                RequestBody = $"Request Header: {request.Headers["Authorization"]}\n\nBody: {requestBody}"
+                RequestBody = $"Request Header: {authHeaderInfo}\n\nBody: {requestBody}"
             };
 
             dbContext.ApiLogs.Add(apiLog);
