@@ -79,7 +79,7 @@ services:
     container_name: bikeapelago-api-dev
     restart: unless-stopped
     env_file:
-      - .env.local
+      - .env
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - MAPBOX_API_KEY=${MAPBOX_API_KEY:?MAPBOX_API_KEY required — see .env.example}
@@ -91,7 +91,7 @@ services:
       - Admin__Email=${ADMIN_EMAIL:-admin@localhost}
       - Admin__Password=${ADMIN_PASSWORD:?ADMIN_PASSWORD required — see .env.example}
     ports:
-      - "8080:8080"
+      - "3333:8080"
     depends_on:
       postgis:
         condition: service_healthy
