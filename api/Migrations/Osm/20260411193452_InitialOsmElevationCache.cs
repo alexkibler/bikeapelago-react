@@ -37,6 +37,14 @@ namespace Bikeapelago.Api.Migrations.Osm
                     table.PrimaryKey("PK_grid_cache_jobs", x => x.id);
                 });
 
+            // Partial unique index: only one active (pending/processing) job per grid cell + mode
+            migrationBuilder.Sql("""
+                CREATE UNIQUE INDEX IF NOT EXISTS uq_grid_cache_jobs_active
+                ON grid_cache_jobs (grid_x, grid_y, mode)
+                WHERE status IN ('pending', 'processing');
+                """);
+
+            // Regular index for querying
             migrationBuilder.CreateIndex(
                 name: "IX_grid_cache_jobs_grid_x_grid_y_mode",
                 table: "grid_cache_jobs",
@@ -61,6 +69,7 @@ namespace Bikeapelago.Api.Migrations.Osm
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(name: "srtm_elevation");
+            migrationBuilder.Sql("DROP INDEX IF EXISTS uq_grid_cache_jobs_active;");
             migrationBuilder.DropTable(name: "grid_cache_jobs");
         }
     }
