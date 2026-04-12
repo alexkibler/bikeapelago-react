@@ -79,16 +79,18 @@ public class SpatialMathTests
     }
 
     [Fact]
-    public void BiasOne_InnerRingHasMorePointsThanOuter()
+    public void BiasOne_InnerRingIsNearParityWithOuter()
     {
         // densityBias=1.0 = linear distance, clusters near center.
+        // For linear distribution, expected roughly 50/50 split between inner and outer.
+        // We ensure it's greater than 45% to account for randomness.
         var points = PostGisOsmDiscoveryService.GenerateRandomPointsInCircle(
             CenterLat, CenterLon, 50_000, count: 5000, densityBias: 1.0);
 
         var (inner, outer) = SplitByHalfRadius(points, CenterLat, CenterLon, 50_000);
 
-        Assert.True(inner > outer,
-            $"Expected inner ring to dominate with bias=1.0, got inner={inner} outer={outer}");
+        Assert.True(inner >= outer * 0.9,
+            $"Expected inner ring to be near parity with outer with bias=1.0, got inner={inner} outer={outer}");
     }
 
     [Fact]

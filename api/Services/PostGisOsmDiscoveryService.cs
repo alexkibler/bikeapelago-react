@@ -86,13 +86,34 @@ public class PostGisOsmDiscoveryService : IOsmDiscoveryService
         var allNodes = await FetchNodesForSubTargetsAsync(subTargets, subRadiusMeters, mode);
         fetchSw.Stop();
 
-        var shuffled = allNodes.OrderBy(_ => Random.Shared.Next()).ToList();
+        var filteredNodes = allNodes
+            .Where(p => CalculateDistance(lat, lon, p.Lat, p.Lon) <= radiusMeters)
+            .ToList();
 
-        _logger.LogInformation("Unnest query returned {Total} unique candidates in {Ms}ms", shuffled.Count, fetchSw.ElapsedMilliseconds);
+        var shuffled = filteredNodes.OrderBy(_ => Random.Shared.Next()).Take(count).ToList();
+
+        _logger.LogInformation("Unnest query returned {Total} unique candidates ({Filtered} inside radius) in {Ms}ms", allNodes.Count, filteredNodes.Count, fetchSw.ElapsedMilliseconds);
 
         totalSw.Stop();
         _logger.LogInformation("GetRandomNodesAsync total time: {Ms}ms", totalSw.ElapsedMilliseconds);
         return shuffled;
+    }
+
+    private static double CalculateDistance(double lat1, double lon1, double lat2, double lon2)
+    {
+        // Haversine formula
+        double r = 6371000; // meters
+        double phi1 = lat1 * Math.PI / 180;
+        double phi2 = lat2 * Math.PI / 180;
+        double dphi = (lat2 - lat1) * Math.PI / 180;
+        double dlambda = (lon2 - lon1) * Math.PI / 180;
+
+        double a = Math.Sin(dphi / 2) * Math.Sin(dphi / 2) +
+                   Math.Cos(phi1) * Math.Cos(phi2) *
+                   Math.Sin(dlambda / 2) * Math.Sin(dlambda / 2);
+        double c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
+
+        return r * c;
     }
 
     private async Task<List<DiscoveryPoint>> FetchNodesForSubTargetsAsync(
