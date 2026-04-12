@@ -11,7 +11,7 @@ namespace Bikeapelago.Api.Services
     {
         private const double SemicircleToDegree = 180.0 / 2147483648.0;
 
-        public FitAnalysisResult AnalyzeFitFile(Stream fitStream, IEnumerable<MapNode> availableNodes)
+        public FitAnalysisResult AnalyzeFitFile(Stream fitStream, IEnumerable<MapNode>? availableNodes = null)
         {
             var result = new FitAnalysisResult();
             var decode = new Decode();
@@ -80,8 +80,11 @@ namespace Bikeapelago.Api.Services
                 result.Stats.DurationSeconds = lastTime - firstTime;
             }
 
-            // Calculate Reached Nodes
-            result.NewlyCheckedNodes = FindReachedNodes(result.Path, availableNodes);
+            // Calculate Reached Nodes (if availableNodes are provided)
+            if (availableNodes != null)
+            {
+                result.NewlyCheckedNodes = FindReachedNodes(result.Path, availableNodes);
+            }
 
             return result;
         }
