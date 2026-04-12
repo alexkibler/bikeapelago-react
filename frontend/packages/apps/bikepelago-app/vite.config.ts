@@ -6,17 +6,18 @@ export default defineConfig(({ mode }) => {
   // Load env file based on `mode` in the current working directory.
   // Set the third parameter to '' to load all env instead of just those starting with `VITE_`.
   const env = loadEnv(mode, process.cwd(), '');
+  const apiUrl = env.VITE_PUBLIC_API_URL || env.VITE_API_URL || 'http://127.0.0.1:5054';
   
   return {
     plugins: [react()],
     server: {
       proxy: {
         '/api': {
-          target: env.VITE_PUBLIC_API_URL || 'http://127.0.0.1:5054',
+          target: apiUrl,
           changeOrigin: true,
         },
         '/hubs': {
-          target: env.VITE_PUBLIC_API_URL || 'http://127.0.0.1:5054',
+          target: apiUrl,
           ws: true,
           changeOrigin: true,
         }
