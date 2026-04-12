@@ -37,7 +37,11 @@ var builder = WebApplication.CreateBuilder(args);
 // 2.5 Common Services
 builder.Services.AddHttpContextAccessor();
 
-var connString = builder.Configuration.GetConnectionString("PostGis") ?? "Host=postgis;Port=5432;Database=bikeapelago;Username=osm;Password=osm_secret";
+var connString = builder.Configuration.GetConnectionString("PostGis");
+if (string.IsNullOrEmpty(connString))
+{
+    throw new InvalidOperationException("CRITICAL SECURITY: ConnectionStrings:PostGis must be configured in the environment (.env) to connect to the database.");
+}
 builder.Services.AddDbContext<BikeapelagoDbContext>(options => 
     options.UseNpgsql(connString, o => o.UseNetTopologySuite())
 );
@@ -100,6 +104,12 @@ builder.Services.AddAuthentication(options =>
 })
 .AddJwtBearer(options =>
 {
+    var jwtKey = builder.Configuration["JWT_KEY"] ?? builder.Configuration["Jwt:Key"];
+    if (string.IsNullOrEmpty(jwtKey) || jwtKey.Length < 32)
+    {
+        throw new InvalidOperationException("CRITICAL SECURITY: JWT_KEY must be configured in the environment (.env) and be at least 32 characters long. Default keys are disabled.");
+    }
+
     options.TokenValidationParameters = new TokenValidationParameters
     {
         ValidateIssuer = true,
@@ -108,7 +118,7 @@ builder.Services.AddAuthentication(options =>
         ValidateIssuerSigningKey = true,
         ValidIssuer = "bikeapelago-api",
         ValidAudience = "bikeapelago-frontend",
-        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"] ?? "your-secret-key-at-least-32-chars-long"))
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
     };
 });
 
@@ -177,8 +187,13 @@ try
         }
 
         // Seed Initial Admin
-        var adminEmail = builder.Configuration["Admin:Email"] ?? "admin@bikeapelago.com";
-        var adminPassword = builder.Configuration["Admin:Password"] ?? "Admin123!";
+        var adminEmail = builder.Configuration["ADMIN_EMAIL"] ?? builder.Configuration["Admin:Email"];
+        var adminPassword = builder.Configuration["ADMIN_PASSWORD"] ?? builder.Configuration["Admin:Password"];
+
+        if (string.IsNullOrEmpty(adminEmail) || string.IsNullOrEmpty(adminPassword))
+        {
+            throw new InvalidOperationException("CRITICAL SECURITY: ADMIN_EMAIL and ADMIN_PASSWORD must be strictly configured in the environment (.env) to seed the database. Default developer credentials are intentionally disabled.");
+        }
         var adminUser = userManager.FindByEmailAsync(adminEmail).Result;
         if (adminUser == null)
         {
@@ -209,9 +224,12 @@ app.UseCors("AllowVite");
 app.UseAuthentication();
 app.UseAuthorization();
 
+app.UseDefaultFiles();
+app.UseStaticFiles();
+
 app.MapControllers();
 app.MapReverseProxy();
 app.MapHub<ArchipelagoHub>("/hubs/archipelago");
-
+app.MapFallbackToFile("index.html");
 
 app.Run();

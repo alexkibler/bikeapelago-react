@@ -21,7 +21,8 @@ jobs:
       matrix:
         include:
           - name: api
-            context: ./api
+            context: .
+            file: api/Dockerfile
           - name: frontend
             context: ./frontend/packages/apps/bikepelago-app
 
@@ -52,6 +53,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: ${{ matrix.context }}
+          file: ${{ matrix.file }}
           push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

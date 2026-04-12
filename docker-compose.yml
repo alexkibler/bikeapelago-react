@@ -1,7 +1,7 @@
 # Bikeapelago local development compose
 #
 # Usage:
-#   docker compose up                                        # PostGIS only (run API with dotnet run)
+#   docker compose up                                        # Bikeapelago PostGIS database only (run API with dotnet run)
 #   docker compose --profile api up                         # + containerized .NET API
 #   docker compose --profile frontend up                    # + React frontend + admin UI
 #   docker compose --profile archipelago up                 # + local Archipelago server
@@ -12,6 +12,8 @@
 # Then just: docker compose up
 #
 # Copy .env.example to .env and fill in required values before starting.
+# Note: Bikeapelago database container (postgis-bikeapelago) always starts.
+#       OSM Discovery database is shared infrastructure accessed via reverse proxy.
 
 x-bikeapelago-frontend-app-definition: &frontend-app-definition
   profiles: [frontend]
@@ -29,12 +31,70 @@ x-bikeapelago-frontend-app-definition: &frontend-app-definition
 networks:
   bikeapelago:
     name: bikeapelago_dev
-    external: true
 
 volumes:
   bikeapelago_node_modules:
+  bikeapelago_postgis_data:
+  osm_postgis_data:
+    name: avarts_postgis_data # CRITICAL: This perfectly maps back to the existing OrbStack volume!
+    external: true
 
 services:
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # OSM Discovery Database (The "Big" PostGIS) — profile: osm
+  # ──────────────────────────────────────────────────────────────────────────
+  postgis-osm:
+    profiles: [osm]
+    image: postgis/postgis:16-3.4-alpine
+    container_name: postgis-osm-dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: osm_discovery
+      POSTGRES_USER: ${OSM_DISCOVERY_USER:-osm}
+      POSTGRES_PASSWORD: ${OSM_DISCOVERY_PASSWORD}
+    ports:
+      - "5433:5432"
+    volumes:
+      - osm_postgis_data:/var/lib/postgresql/data
+    networks:
+      - bikeapelago
+    command:
+      - postgres
+      - -c
+      - shared_buffers=512MB
+      - -c
+      - work_mem=256MB
+      - -c
+      - maintenance_work_mem=512MB
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U osm -d osm_discovery"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # Bikeapelago PostGIS Database (App Data)
+  # ──────────────────────────────────────────────────────────────────────────
+  postgis-bikeapelago:
+    image: postgis/postgis:16-3.4
+    container_name: postgis-bikeapelago-dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-osm}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: bikeapelago
+    ports:
+      - "${DB_BIKEAPELAGO_PORT:-5432}:5432"
+    volumes:
+      - bikeapelago_postgis_data:/var/lib/postgresql/data
+    networks:
+      - bikeapelago
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-osm}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   # ──────────────────────────────────────────────────────────────────────────
   # Bikeapelago API — profile: api
@@ -42,18 +102,24 @@ services:
   bikeapelago-api:
     profiles: [api]
     build:
-      context: ./api
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./api/Dockerfile
     image: bikeapelago-api:latest
     container_name: bikeapelago-api-dev
     restart: unless-stopped
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - Mapbox__ApiKey=${MAPBOX_API_KEY}
-      - ConnectionStrings__PostGis=Host=${DB_HOST:-host.docker.internal};Port=${DB_PORT:-5432};Database=bikeapelago;Username=${DB_USER:-osm};Password=${DB_PASSWORD}
-      - ConnectionStrings__OsmDiscovery=Host=${DB_HOST:-host.docker.internal};Port=${DB_PORT:-5432};Database=osm_discovery;Username=${DB_USER:-osm};Password=${DB_PASSWORD}
+      - JWT_KEY=${JWT_KEY}
+      - ADMIN_EMAIL=${ADMIN_EMAIL}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
+      - ConnectionStrings__PostGis=Host=postgis-bikeapelago;Port=5432;Database=bikeapelago;Username=${DB_USER:-osm};Password=${DB_PASSWORD}
+      - ConnectionStrings__OsmDiscovery=Host=postgis-osm;Port=5432;Database=osm_discovery;Username=${OSM_DISCOVERY_USER:-osm};Password=${OSM_DISCOVERY_PASSWORD}
     ports:
       - "8182:8080"
+    depends_on:
+      postgis-bikeapelago:
+        condition: service_healthy
     networks:
       - bikeapelago
 
@@ -69,7 +135,7 @@ services:
     command: pnpm --filter "@bikeapelago/bikeapelago-app" run dev --host
     depends_on:
       bikeapelago-api:
-        condition: service_healthy
+        condition: service_started
       frontend_builder:
         condition: service_completed_successfully
     ports:
@@ -86,7 +152,7 @@ services:
       - "8183:5173"
     depends_on:
       bikeapelago-api:
-        condition: service_healthy
+        condition: service_started
       frontend_builder:
         condition: service_completed_successfully
 
@@ -99,7 +165,7 @@ services:
   archipelago:
     profiles: [archipelago]
     build:
-      context: ../..
+      context: ../
       dockerfile: ./archipelago/Dockerfile
     image: archipelago-bikeapelago:latest
     container_name: archipelago-dev
@@ -107,8 +173,8 @@ services:
     ports:
       - "38281:38281"
     volumes:
-      - ../../archipelago/config:/config
-      - ../../archipelago/output:/output
+      - ../archipelago/config:/config
+      - ../archipelago/output:/output
     environment:
       - AP_PORT=38281
     networks:
