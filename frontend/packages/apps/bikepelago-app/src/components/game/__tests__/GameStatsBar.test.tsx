@@ -1,6 +1,7 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import GameStatsBar from '../GameStatsBar';
+import type { GameSession, MapNode } from '../../../types/game';
 
 // Mock the archipelago store
 vi.mock('../../store/archipelagoStore', () => ({
@@ -11,16 +12,18 @@ vi.mock('../../store/archipelagoStore', () => ({
 }));
 
 describe('GameStatsBar', () => {
-  const mockSession = {
+  const mockSession: GameSession = {
+    id: 'test-id',
     name: 'Test Session',
-    ap_slot_name: 'Test Rider'
+    ap_slot_name: 'Test Rider',
+    ap_server_url: 'localhost:38281'
   };
 
-  const mockNodes = [
-    { id: '1', state: 'Checked' },
-    { id: '2', state: 'Available' },
-    { id: '3', state: 'Hidden' },
-    { id: '4', state: 'Hidden' },
+  const mockNodes: MapNode[] = [
+    { id: '1', name: 'Node 1', lat: 40, lon: -70, state: 'Checked' },
+    { id: '2', name: 'Node 2', lat: 41, lon: -71, state: 'Available' },
+    { id: '3', name: 'Node 3', lat: 42, lon: -72, state: 'Hidden' },
+    { id: '4', name: 'Node 4', lat: 43, lon: -73, state: 'Hidden' },
   ];
 
   it('renders session info and node counts', () => {
@@ -38,9 +41,6 @@ describe('GameStatsBar', () => {
     
     const statsBtn = screen.getByLabelText('Toggle node statistics');
     
-    // Check that detail labels aren't visible initially
-    expect(screen.queryByText('Total Checked')).not.toBeInTheDocument(); // Wait, the labels are just "HIDDEN", "AVAILABLE", "CHECKED" in uppercase
-
     fireEvent.click(statsBtn);
     
     expect(screen.getByText('Hidden')).toBeInTheDocument();

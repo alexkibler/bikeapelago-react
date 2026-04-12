@@ -1,5 +1,5 @@
 import * as signalR from '@microsoft/signalr';
-import { useArchipelagoStore } from '../store/archipelagoStore';
+import { useArchipelagoStore, type ArchipelagoStatus } from '../store/archipelagoStore';
 
 class ArchipelagoClient {
   private connection: signalR.HubConnection | null = null;
@@ -24,7 +24,7 @@ class ArchipelagoClient {
 
         conn.on('OnStatusUpdate', (update: { status: string; error?: string }) => {
           console.log('ArchipelagoHub Status Update:', update);
-          useArchipelagoStore.getState().setStatus(update.status as any);
+          useArchipelagoStore.getState().setStatus(update.status as ArchipelagoStatus);
           if (update.error) useArchipelagoStore.getState().setError(update.error);
         });
 

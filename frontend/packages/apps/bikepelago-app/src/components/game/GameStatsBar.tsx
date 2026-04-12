@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { useArchipelagoStore } from '../../store/archipelagoStore';
+import type { GameSession, MapNode } from '../../types/game';
 
 interface GameStatsBarProps {
-  session: any;
-  nodes: any[];
+  session: GameSession | null;
+  nodes: MapNode[];
 }
 
 const GameStatsBar = ({ session, nodes }: GameStatsBarProps) => {

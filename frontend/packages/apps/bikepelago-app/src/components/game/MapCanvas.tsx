@@ -5,6 +5,7 @@ import 'leaflet/dist/leaflet.css';
 import { Navigation } from 'lucide-react';
 import { useGameStore } from '../../store/gameStore';
 import { downloadGPXFromPolyline } from '../../lib/geoUtils';
+import type { GameSession, MapNode } from '../../types/game';
 
 // Map resizer to handle container boundary updates when Layout triggers changes
 const MapResizer = () => {
@@ -16,7 +17,7 @@ const MapResizer = () => {
 };
 
 // Auto-fits map to the bounding box of all nodes whenever they change
-const MapAutoFitter = ({ nodes }: { nodes: any[] }) => {
+const MapAutoFitter = ({ nodes }: { nodes: MapNode[] }) => {
   const map = useMap();
   const fittedRef = useRef(false);
 
@@ -63,8 +64,8 @@ const getMarkerIcon = (state: string) => {
 };
 
 interface MapCanvasProps {
-  session: any;
-  nodes: any[];
+  session: GameSession;
+  nodes: MapNode[];
 }
 
 const MapCanvas = ({ session, nodes }: MapCanvasProps) => {
