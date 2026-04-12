@@ -159,16 +159,6 @@ const GameView = () => {
     session?.center_lon ?? -74.006
   ], [session?.center_lat, session?.center_lon]);
 
-  // ⚡ Bolt: Memoize expensive polyline JSON parsing and mapping to prevent main thread blocking on re-renders
-  const parsedPolyline = useMemo(() => {
-    return routeData.polyline ? JSON.parse(routeData.polyline).map((p: [number, number]) => [p[1], p[0]] as [number, number]) : [];
-  }, [routeData.polyline]);
-
-  // ⚡ Bolt: Memoize analysis path mapping to avoid unnecessary array allocations on re-renders
-  const analysisPath = useMemo(() => {
-    return analysisResult?.path ? analysisResult.path.map((p: { lat: number, lon: number }) => [p.lat, p.lon] as [number, number]) : [];
-  }, [analysisResult?.path]);
-
   if (loading) {
     return (
       <div className="h-full flex items-center justify-center bg-[var(--color-surface-alt-hex)]">
