@@ -107,16 +107,21 @@ pnpm -r run lint -- --fix
 
 ### Environment Variables
 
-Create a `.env` at the monorepo root:
+Vite reads environment variables from `.env` files. You can create one at:
+- **Monorepo root** (for all apps): `frontend/.env`
+- **Per app** (overrides root): `frontend/packages/apps/bikepelago-app/.env` or `frontend/packages/apps/admin-ui/.env`
 
+**Required variables:**
 ```
 VITE_PUBLIC_API_URL=http://localhost:5054
 ```
 
-Or to point to production:
+**Or to point to production:**
 ```
 VITE_PUBLIC_API_URL=https://bikeapelago.alexkibler.com
 ```
+
+See `.env.example` files in each app directory for reference.
 
 ### Vite Config
 
