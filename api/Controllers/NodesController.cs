@@ -125,11 +125,11 @@ public class NodesController(IMapNodeRepository nodeRepository, ILogger<NodesCon
 public class NodeUpdateController(
     IMapNodeRepository nodeRepository,
     IGameSessionRepository sessionRepository,
-    IServiceProvider serviceProvider) : ControllerBase
+    IProgressionEngineFactory engineFactory) : ControllerBase
 {
     private readonly IMapNodeRepository _nodeRepository = nodeRepository;
     private readonly IGameSessionRepository _sessionRepository = sessionRepository;
-    private readonly IServiceProvider _serviceProvider = serviceProvider;
+    private readonly IProgressionEngineFactory _engineFactory = engineFactory;
 
     public class PatchNodeRequest
     {
@@ -154,14 +154,8 @@ public class NodeUpdateController(
                 var session = await _sessionRepository.GetByIdAsync(node.SessionId);
                 if (session != null)
                 {
-                    IProgressionEngine? engine = session.Mode == "singleplayer"
-                        ? _serviceProvider.GetService(typeof(SinglePlayerProgressionEngine)) as IProgressionEngine
-                        : _serviceProvider.GetService(typeof(ArchipelagoProgressionEngine)) as IProgressionEngine;
-
-                    if (engine != null)
-                    {
-                        await engine.UnlockNextAsync(session.Id);
-                    }
+                    var engine = _engineFactory.CreateEngine(session.Mode);
+                    await engine.UnlockNextAsync(session.Id);
                 }
             }
         }

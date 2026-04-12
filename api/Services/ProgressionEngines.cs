@@ -70,3 +70,16 @@ public class ArchipelagoProgressionEngine(
         }
     }
 }
+
+public interface IProgressionEngineFactory
+{
+    IProgressionEngine CreateEngine(string gameMode);
+}
+
+public class ProgressionEngineFactory(
+    SinglePlayerProgressionEngine singlePlayerEngine,
+    ArchipelagoProgressionEngine archipelagoEngine) : IProgressionEngineFactory
+{
+    public IProgressionEngine CreateEngine(string gameMode) =>
+        gameMode == "singleplayer" ? singlePlayerEngine : archipelagoEngine;
+}
