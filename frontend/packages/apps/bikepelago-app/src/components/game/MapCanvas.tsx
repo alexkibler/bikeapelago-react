@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, ZoomControl, useMap, useMapEvents, Polyline, Circle } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -6,6 +6,19 @@ import { Navigation } from 'lucide-react';
 import { useGameStore } from '../../store/gameStore';
 import { downloadGPXFromPolyline } from '../../lib/geoUtils';
 import type { GameSession, MapNode } from '../../types/game';
+
+// Z-index constants
+const Z_INDEX = {
+  MAP_OVERLAY: 0,
+  USER_LOCATION: 1000,
+  CONTROLS: 1001
+} as const;
+
+// Map fit bounds constants
+const FIT_BOUNDS = {
+  PADDING: [48, 48] as const,
+  MAX_ZOOM: 15
+} as const;
 
 // Map resizer to handle container boundary updates when Layout triggers changes
 const MapResizer = () => {
@@ -30,7 +43,7 @@ const MapAutoFitter = ({ nodes }: { nodes: MapNode[] }) => {
     const latlngs = nodes.map(n => L.latLng(n.lat, n.lon));
     const bounds = L.latLngBounds(latlngs);
     if (bounds.isValid()) {
-      map.fitBounds(bounds, { padding: [48, 48], maxZoom: 15 });
+      map.fitBounds(bounds, { padding: FIT_BOUNDS.PADDING, maxZoom: FIT_BOUNDS.MAX_ZOOM });
     }
   }, [map, nodes]);
 
@@ -162,9 +175,9 @@ const MapCanvas = ({ session, nodes }: MapCanvasProps) => {
         ))}
 
         {userLocation && (
-          <Marker 
-            position={userLocation} 
-            zIndexOffset={1000}
+          <Marker
+            position={userLocation}
+            zIndexOffset={Z_INDEX.USER_LOCATION}
             icon={L.divIcon({
               className: 'relative',
               html: `
