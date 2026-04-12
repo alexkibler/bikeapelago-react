@@ -31,7 +31,7 @@ frontend/
 ### Prerequisites
 
 - **Node.js** 18+ (check with `node -v`)
-- **pnpm** 10+ (`npm install -g pnpm` if needed)
+- **pnpm** 10+ (install via `curl -fsSL https://get.pnpm.io/install.sh | sh -` if needed)
 - **.NET API** running on `http://localhost:5054` (see `/api/README.md`)
 - **PostGIS** running in Docker (`docker compose up postgis`)
 

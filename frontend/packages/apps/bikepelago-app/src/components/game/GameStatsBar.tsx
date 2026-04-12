@@ -6,7 +6,7 @@ interface GameStatsBarProps {
   nodes: any[];
 }
 
-const GameStatsBar: React.FC<GameStatsBarProps> = ({ session, nodes }) => {
+const GameStatsBar = ({ session, nodes }: GameStatsBarProps) => {
   const { status, error } = useArchipelagoStore();
   const [showStatsInfo, setShowStatsInfo] = useState(false);
   const checked = nodes.filter(n => n.state === 'Checked').length;
