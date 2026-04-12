@@ -81,13 +81,27 @@ namespace Bikeapelago.Api.Services
             }
 
             // Calculate Reached Nodes
+            result.NewlyCheckedNodes = FindReachedNodes(result.Path, availableNodes);
+
+            return result;
+        }
+
+        public static List<NewlyCheckedNode> FindReachedNodes(List<PathPoint> path, IEnumerable<MapNode> availableNodes)
+        {
+            var reached = new List<NewlyCheckedNode>();
             foreach (var node in availableNodes)
             {
                 if (node.Lat == null || node.Lon == null) continue;
 
                 bool isReached = false;
-                foreach (var point in result.Path)
+                foreach (var point in path)
                 {
+                    // Basic bounding box pre-filter (0.01 degrees ~1.1km)
+                    // Skips the expensive Haversine formula for points that are clearly far away.
+                    if (Math.Abs(node.Lat.Value - point.Lat) > 0.01 || 
+                        Math.Abs(node.Lon.Value - point.Lon) > 0.01)
+                        continue;
+
                     if (GetDistance(node.Lat.Value, node.Lon.Value, point.Lat, point.Lon) <= 30) // 30 meters
                     {
                         isReached = true;
@@ -97,7 +111,7 @@ namespace Bikeapelago.Api.Services
 
                 if (isReached)
                 {
-                    result.NewlyCheckedNodes.Add(new NewlyCheckedNode
+                    reached.Add(new NewlyCheckedNode
                     {
                         Id = node.Id,
                         ApLocationId = node.ApLocationId,
@@ -106,8 +120,7 @@ namespace Bikeapelago.Api.Services
                     });
                 }
             }
-
-            return result;
+            return reached;
         }
 
         private static double GetDistance(double lat1, double lon1, double lat2, double lon2)
