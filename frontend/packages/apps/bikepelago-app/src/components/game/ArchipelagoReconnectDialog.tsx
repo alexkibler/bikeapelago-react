@@ -10,13 +10,13 @@ interface ArchipelagoReconnectDialogProps {
   onCancel: () => void;
 }
 
-const ArchipelagoReconnectDialog: React.FC<ArchipelagoReconnectDialogProps> = ({
+const ArchipelagoReconnectDialog = ({
   error,
   initialUrl,
   initialSlot,
   onRetry,
   onCancel,
-}) => {
+}: ArchipelagoReconnectDialogProps) => {
   const [url, setUrl] = React.useState(initialUrl);
   const [slot, setSlot] = React.useState(initialSlot);
   const [password, setPassword] = React.useState('');

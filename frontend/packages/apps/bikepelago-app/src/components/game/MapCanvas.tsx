@@ -67,7 +67,7 @@ interface MapCanvasProps {
   nodes: any[];
 }
 
-const MapCanvas: React.FC<MapCanvasProps> = ({ session, nodes }) => {
+const MapCanvas = ({ session, nodes }: MapCanvasProps) => {
   const { activePanel, routeData, waypoints, analysisResult, userLocation } = useGameStore();
   const mapRef = useRef<L.Map | null>(null);
 

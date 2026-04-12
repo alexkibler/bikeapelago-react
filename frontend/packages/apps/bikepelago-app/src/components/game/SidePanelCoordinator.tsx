@@ -11,7 +11,7 @@ interface SidePanelCoordinatorProps {
   panel: string;
 }
 
-const SidePanelCoordinator: React.FC<SidePanelCoordinatorProps> = ({ panel }) => {
+const SidePanelCoordinator = ({ panel }: SidePanelCoordinatorProps) => {
   const { id } = useParams();
   const { setActivePanel } = useGameStore();
 
