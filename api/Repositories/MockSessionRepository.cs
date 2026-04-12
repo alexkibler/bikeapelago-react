@@ -51,4 +51,15 @@ public class MockSessionRepository : IGameSessionRepository
         _sessions.RemoveAll(s => s.UserId == userId);
         return Task.FromResult(true);
     }
+
+    public Task UpdateReceivedItemsAsync(Guid sessionId, List<long> itemIds)
+    {
+        var session = _sessions.Find(s => s.Id == sessionId);
+        if (session != null)
+        {
+            session.ReceivedItemIds = itemIds;
+            session.UpdatedAt = DateTime.UtcNow.ToString("O");
+        }
+        return Task.CompletedTask;
+    }
 }

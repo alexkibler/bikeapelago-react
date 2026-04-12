@@ -59,7 +59,10 @@ public class ArchipelagoServiceTests
         // Act
         // Invoke internal method via reflection (or change to internal)
         var method = typeof(ArchipelagoService).GetMethod("UpdateNodeStatesAsync", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-        await (Task)method.Invoke(_service, new object[] { sessionId, checkedLocationIds });
+        Assert.NotNull(method);
+        var task = (Task?)method.Invoke(_service, [sessionId, checkedLocationIds]);
+        Assert.NotNull(task);
+        await task;
 
         // Assert
         _mockNodeRepository.Verify(r => r.UpdateRangeAsync(It.Is<IEnumerable<MapNode>>(n => n.Count() == 2)), Times.Once());
@@ -89,10 +92,40 @@ public class ArchipelagoServiceTests
 
         // Act
         var method = typeof(ArchipelagoService).GetMethod("UpdateUnlockedNodesAsync", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-        await (Task)method.Invoke(_service, new object[] { sessionId, receivedItemIds });
+        Assert.NotNull(method);
+        var task = (Task?)method.Invoke(_service, [sessionId, receivedItemIds]);
+        Assert.NotNull(task);
+        await task;
 
         // Assert
         _mockNodeRepository.Verify(r => r.UpdateRangeAsync(It.Is<IEnumerable<MapNode>>(n => n.Count() == 2)), Times.Once());
         _mockNodeRepository.Verify(r => r.UpdateAsync(It.IsAny<MapNode>()), Times.Never());
+    }
+
+    [Fact]
+    public async Task SaveItemsToDbAsync_UsesAtomicUpdate()
+    {
+        // Arrange
+        var sessionId = Guid.NewGuid();
+        var itemIds = new long[] { 1, 2, 3 };
+        
+        _mockSessionRepository.Setup(r => r.UpdateReceivedItemsAsync(sessionId, It.IsAny<List<long>>()))
+            .Returns(Task.CompletedTask);
+
+        var method = typeof(ArchipelagoService).GetMethod("SaveItemsToDbAsync", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        Assert.NotNull(method);
+
+        // Act
+        var task = (Task?)method.Invoke(_service, [sessionId, itemIds]);
+        Assert.NotNull(task);
+        await task;
+
+        // Assert
+        // Verify we no longer use the RMW pattern (GetByIdAsync + UpdateAsync)
+        _mockSessionRepository.Verify(r => r.GetByIdAsync(sessionId), Times.Never());
+        _mockSessionRepository.Verify(r => r.UpdateAsync(It.IsAny<GameSession>()), Times.Never());
+        
+        // Verify we use the new atomic update method
+        _mockSessionRepository.Verify(r => r.UpdateReceivedItemsAsync(sessionId, It.Is<List<long>>(l => l.SequenceEqual(itemIds))), Times.Once());
     }
 }

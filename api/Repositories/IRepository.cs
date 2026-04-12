@@ -20,6 +20,7 @@ public interface IGameSessionRepository
     Task<GameSession> UpdateAsync(GameSession session);
     Task<bool> DeleteAsync(Guid id);
     Task<bool> DeleteAllByUserIdAsync(Guid userId);
+    Task UpdateReceivedItemsAsync(Guid sessionId, List<long> itemIds);
 }
 
 public interface IMapNodeRepository
