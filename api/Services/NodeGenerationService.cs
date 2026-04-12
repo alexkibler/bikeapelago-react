@@ -74,7 +74,7 @@ public class NodeGenerationService(
         if (points.Count < request.NodeCount)
             throw new Exception($"OSM Discovery returned only {points.Count} nodes, need {request.NodeCount}. Try increasing the radius.");
 
-        var selectedPoints = points.Take(request.NodeCount).ToList();
+        var selectedPoints = points.Take(request.NodeCount).OrderBy(_ => Guid.NewGuid()).ToList();
 
         // 4. Delete existing nodes
         sw.Restart();

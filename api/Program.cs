@@ -78,6 +78,8 @@ builder.Services.AddScoped<IOsmDiscoveryService, OsmDiscoveryService>();
 builder.Services.AddScoped<NodeGenerationService>();
 builder.Services.AddScoped<FitAnalysisService>();
 builder.Services.AddScoped<SchemaDiscoveryService>();
+builder.Services.AddScoped<SinglePlayerEngineService>();
+builder.Services.AddScoped<RouteInterpolationService>();
 
 // Grid Cache Background Job Processor
 builder.Services.AddHostedService<GridCacheJobProcessor>();

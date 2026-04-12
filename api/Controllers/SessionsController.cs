@@ -67,6 +67,106 @@ public class SessionsController(
         }
     }
 
+    [HttpPost("setup-from-route")]
+    [Microsoft.AspNetCore.Authorization.Authorize]
+    public async Task<IActionResult> SetupSessionFromRoute(
+        IFormFile file,
+        [FromForm] int nodeCount,
+        [FromServices] RouteInterpolationService routeInterpolationService)
+    {
+        try
+        {
+            if (file == null || file.Length == 0)
+                return BadRequest(new { message = "File is required." });
+
+            if (nodeCount < 2)
+                return BadRequest(new { message = "nodeCount must be at least 2." });
+
+            var authHeader = Request.Headers["Authorization"].FirstOrDefault();
+            if (string.IsNullOrEmpty(authHeader) || !authHeader.StartsWith("Bearer "))
+                return Unauthorized(new { message = "No auth token provided" });
+
+            var token = authHeader["Bearer ".Length..].Trim();
+            var user = await _userRepository.GetCurrentUserAsync(token);
+            if (user == null)
+                return Unauthorized(new { message = "Invalid token" });
+
+            List<PathPoint> pathPoints;
+            using var stream = file.OpenReadStream();
+
+            var ext = System.IO.Path.GetExtension(file.FileName).ToLowerInvariant();
+            if (ext == ".fit")
+            {
+                var result = _fitAnalysisService.AnalyzeFitFile(stream);
+                pathPoints = result.Path;
+            }
+            else if (ext == ".gpx")
+            {
+                var doc = System.Xml.Linq.XDocument.Load(stream);
+                System.Xml.Linq.XNamespace ns = doc.Root?.GetDefaultNamespace() ?? "";
+                pathPoints = doc.Descendants(ns + "trkpt")
+                    .Select(x => new PathPoint
+                    {
+                        Lat = (double)x.Attribute("lat")!,
+                        Lon = (double)x.Attribute("lon")!,
+                        Alt = x.Element(ns + "ele") != null ? (double?)x.Element(ns + "ele") : null
+                    })
+                    .ToList();
+            }
+            else
+            {
+                return BadRequest(new { message = "Unsupported file extension. Please provide a .fit or .gpx file." });
+            }
+
+            if (pathPoints.Count == 0)
+                return BadRequest(new { message = "No valid path coordinates found in file." });
+
+            var metrics = routeInterpolationService.ComputeBoundingMetrics(pathPoints);
+            var interpolatedPath = routeInterpolationService.InterpolateRoute(pathPoints, nodeCount);
+
+            var session = new GameSession
+            {
+                UserId = user.Id,
+                Mode = "singleplayer",
+                Status = SessionStatus.SetupInProgress,
+                Location = new NetTopologySuite.Geometries.Point(metrics.CenterLon, metrics.CenterLat) { SRID = 4326 },
+                Radius = (int)Math.Ceiling(metrics.MaxRadius)
+            };
+
+            var createdSession = await _sessionRepository.CreateAsync(session);
+
+            var shuffledPoints = interpolatedPath.OrderBy(_ => Guid.NewGuid()).ToList();
+            var mapNodes = shuffledPoints.Select((p, i) => new MapNode
+            {
+                SessionId = createdSession.Id,
+                ApLocationId = 800000 + (i + 1),
+                OsmNodeId = $"route-{createdSession.Id}-{i + 1}",
+                Name = $"Route Node {i + 1}",
+                Location = new NetTopologySuite.Geometries.Point(p.Lon, p.Lat) { SRID = 4326 },
+                State = i < 3 ? "Available" : "Hidden"
+            }).ToList();
+
+            await _nodeRepository.CreateRangeAsync(mapNodes);
+
+            createdSession.Status = SessionStatus.Active;
+            await _sessionRepository.UpdateAsync(createdSession);
+
+            return Ok(new {
+                session = createdSession,
+                summary = new {
+                    nodeCount = mapNodes.Count,
+                    centerLat = metrics.CenterLat,
+                    centerLon = metrics.CenterLon,
+                    radius = createdSession.Radius
+                }
+            });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
     [HttpPost("{id}/generate")]
     public async Task<IActionResult> GenerateSessionNodes(Guid id, [FromBody] Bikeapelago.Api.Services.NodeGenerationRequest request, [FromServices] Bikeapelago.Api.Services.NodeGenerationService nodeGenerationService)
     {
