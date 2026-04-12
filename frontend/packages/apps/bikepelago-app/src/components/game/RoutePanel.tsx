@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useGameStore } from '../../store/gameStore';
 import { calculateDistance, downloadGPXFromPolyline } from '../../lib/geoUtils';
 import { Map as MapIcon, Download, Trash2, Loader2, ChevronDown, ChevronUp, UploadCloud } from 'lucide-react';
@@ -46,6 +46,9 @@ const RoutePanel = ({ sessionId }: { sessionId: string }) => {
     Hidden: false
   });
 
+  const lastFetchedWaypointsRef = useRef<string>('');
+  const lastOptimizedAvailableNodesRef = useRef<string>('');
+
   const toggleCategory = (cat: string) => {
     setOpenCategories(prev => ({ ...prev, [cat]: !prev[cat as keyof typeof prev] }));
   };
@@ -54,6 +57,12 @@ const RoutePanel = ({ sessionId }: { sessionId: string }) => {
     const fetchRoute = async () => {
       if (waypoints.length < 2) {
         setRouteData({ distance: 0, elevation: 0, polyline: null });
+        lastFetchedWaypointsRef.current = '';
+        return;
+      }
+
+      const waypointsKey = JSON.stringify(waypoints);
+      if (waypointsKey === lastFetchedWaypointsRef.current) {
         return;
       }
 
@@ -66,6 +75,7 @@ const RoutePanel = ({ sessionId }: { sessionId: string }) => {
             elevation: waypoints.length * 10,
             polyline: JSON.stringify(waypoints.map(wp => [wp[1], wp[0], 250]))
           });
+          lastFetchedWaypointsRef.current = waypointsKey;
           setLoading(false);
           return;
         }
@@ -96,6 +106,7 @@ const RoutePanel = ({ sessionId }: { sessionId: string }) => {
           elevation: data.elevation || 0,
           polyline: JSON.stringify(data.geometry)
         });
+        lastFetchedWaypointsRef.current = waypointsKey;
       } catch (err: unknown) {
         setError(err instanceof Error ? err.message : 'Routing failed');
       } finally {
@@ -143,7 +154,7 @@ const RoutePanel = ({ sessionId }: { sessionId: string }) => {
           elevation: data.elevation || 0,
           polyline: JSON.stringify(data.geometry)
         });
-        
+
         // Add nodes as waypoints for visual feedback and ordered visiting
         // We'll also clear existing waypoints and replace them with the optimized order
         const allNodesMap = new Map(nodes.map(n => [n.id, n]));
@@ -151,15 +162,23 @@ const RoutePanel = ({ sessionId }: { sessionId: string }) => {
           .map((id: string) => allNodesMap.get(id))
           .filter(Boolean)
           .map((n: any) => [n.lat, n.lon] as [number, number]);
-        
+
         // If we have a user location, prepend it as the start
-        if (userLocation) {
-          clearWaypoints();
-          addWaypoints([userLocation, ...orderedPoints]);
-        } else {
-          clearWaypoints();
-          addWaypoints(orderedPoints);
-        }
+        const newWaypoints: [number, number][] = userLocation
+          ? [userLocation, ...orderedPoints]
+          : orderedPoints;
+
+        // Calculate the current available nodes key for this optimization
+        const currentAvailableNodesKey = JSON.stringify(
+          nodes.filter(n => n.state === 'Available').map(n => n.id).sort()
+        );
+
+        // Synchronously update the refs BEFORE triggering waypoint changes to prevent redundant fetch
+        lastFetchedWaypointsRef.current = JSON.stringify(newWaypoints);
+        lastOptimizedAvailableNodesRef.current = currentAvailableNodesKey;
+
+        clearWaypoints();
+        addWaypoints(newWaypoints);
       }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Routing failed');
@@ -171,6 +190,10 @@ const RoutePanel = ({ sessionId }: { sessionId: string }) => {
   const availableNodes = nodes.filter(n => n.state === 'Available');
   const checkedNodes = nodes.filter(n => n.state === 'Checked');
   const hiddenNodes = nodes.filter(n => n.state === 'Hidden');
+
+  const availableNodesKey = JSON.stringify(availableNodes.map(n => n.id).sort());
+  const isRouteAlreadyOptimized = lastOptimizedAvailableNodesRef.current === availableNodesKey &&
+                                  lastFetchedWaypointsRef.current === JSON.stringify(waypoints);
 
   return (
     <div className="flex flex-col h-full bg-[var(--color-surface-hex)] text-[var(--color-text-hex)] overflow-hidden relative">
@@ -188,9 +211,14 @@ const RoutePanel = ({ sessionId }: { sessionId: string }) => {
         <div className="space-y-3">
           <button
             onClick={handleRouteToAvailable}
-            className="w-full bg-[var(--color-primary-hex)] hover:bg-[var(--color-primary-hover-hex)] text-white font-black py-4 rounded-xl transition-all shadow-lg shadow-primary/20 active:scale-[0.98]"
+            disabled={availableNodes.length === 0 || isRouteAlreadyOptimized || loading}
+            className={`w-full font-black py-4 rounded-xl transition-all shadow-lg active:scale-[0.98] ${
+              availableNodes.length === 0 || isRouteAlreadyOptimized
+              ? 'bg-[rgb(var(--color-surface-overlay))] text-[var(--color-text-subtle-hex)] cursor-not-allowed opacity-50'
+              : 'bg-[var(--color-primary-hex)] hover:bg-[var(--color-primary-hover-hex)] text-white shadow-primary/20'
+            }`}
           >
-            Route To Available
+            {isRouteAlreadyOptimized ? 'Route Optimized' : 'Route To Available'}
           </button>
           <button
             onClick={clearWaypoints}
@@ -305,4 +333,3 @@ const RoutePanel = ({ sessionId }: { sessionId: string }) => {
 };
 
 export default RoutePanel;
-
