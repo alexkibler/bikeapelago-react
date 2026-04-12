@@ -16,24 +16,21 @@ ENV VITE_PUBLIC_API_URL=${VITE_PUBLIC_API_URL}
 
 RUN pnpm run build
 
-# ── Runtime (parameterized for any app) ──────────────────────────────────────
-FROM nginx:alpine AS runtime
+# ── Runtime Template (shared logic) ────────────────────────────────────────────
+FROM nginx:alpine AS runtime-template
 
-ARG TARGET_APP=bikepelago-app
-
-# Remove the default Nginx config
 RUN rm /etc/nginx/conf.d/default.conf
-
-# Copy our custom config template for envsubst
-COPY --from=builder /app/packages/apps/${TARGET_APP}/deploy/nginx.conf.template /etc/nginx/templates/default.conf.template
-
-# Default values for API proxy URLs
 ENV API_PROXY_URL=http://bikeapelago-api:8080/api/ \
     API_HUBS_URL=http://bikeapelago-api:8080/hubs/
-
-# Copy the built React app
-COPY --from=builder /app/packages/apps/${TARGET_APP}/dist /usr/share/nginx/html
-
 EXPOSE 80
-
 CMD ["nginx", "-g", "daemon off;"]
+
+# ── App Frontend (bikepelago-app) ───────────────────────────────────────────────
+FROM runtime-template AS runtime-frontend
+COPY --from=builder /app/packages/apps/bikepelago-app/deploy/nginx.conf.template /etc/nginx/templates/default.conf.template
+COPY --from=builder /app/packages/apps/bikepelago-app/dist /usr/share/nginx/html
+
+# ── Admin Frontend (admin-ui) ───────────────────────────────────────────────────
+FROM runtime-template AS runtime-admin-ui
+COPY --from=builder /app/packages/apps/admin-ui/deploy/nginx.conf.template /etc/nginx/templates/default.conf.template
+COPY --from=builder /app/packages/apps/admin-ui/dist /usr/share/nginx/html
