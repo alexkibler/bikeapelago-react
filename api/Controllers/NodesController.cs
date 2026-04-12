@@ -122,9 +122,14 @@ public class NodesController(IMapNodeRepository nodeRepository, ILogger<NodesCon
 
 [ApiController]
 [Route("api/nodes")]
-public class NodeUpdateController(IMapNodeRepository nodeRepository) : ControllerBase
+public class NodeUpdateController(
+    IMapNodeRepository nodeRepository,
+    IGameSessionRepository sessionRepository,
+    SinglePlayerEngineService singlePlayerEngineService) : ControllerBase
 {
     private readonly IMapNodeRepository _nodeRepository = nodeRepository;
+    private readonly IGameSessionRepository _sessionRepository = sessionRepository;
+    private readonly SinglePlayerEngineService _singlePlayerEngineService = singlePlayerEngineService;
 
     public class PatchNodeRequest
     {
@@ -138,13 +143,20 @@ public class NodeUpdateController(IMapNodeRepository nodeRepository) : Controlle
         var node = await _nodeRepository.GetByIdAsync(id);
         if (node == null) return NotFound(new { message = "Node not found." });
 
-        // We only allow patching to states OTHER than Checked manually, 
-        // OR we just don't allow patching state here if we want to be strict.
-        // For now, let's just make it so it doesn't trigger Archipelago here anymore.
-        
         if (request.State != null)
         {
+            var oldState = node.State;
             node.State = request.State;
+
+            // Trigger Single Player engine unlock
+            if (oldState != "Checked" && request.State == "Checked")
+            {
+                var session = await _sessionRepository.GetByIdAsync(node.SessionId);
+                if (session != null && session.Mode == "singleplayer")
+                {
+                    await _singlePlayerEngineService.UnlockNextNodeAsync(session.Id);
+                }
+            }
         }
 
         var updated = await _nodeRepository.UpdateAsync(node);
