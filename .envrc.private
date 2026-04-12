@@ -1,0 +1,8 @@
+export JWT_KEY=A8MGEPPBp+CaEUr1LmfyvJaYup5AM39Ryz6PdmtCCCs=
+
+# Admin account credentials
+export ADMIN_EMAIL=admin@localhost
+export ADMIN_PASSWORD=password
+
+export OSM_DISCOVERY_PASSWORD=postgres
+export DB_PASSWORD=postgres

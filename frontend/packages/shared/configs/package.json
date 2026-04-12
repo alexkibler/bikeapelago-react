@@ -1,0 +1,10 @@
+{
+  "name": "@bikeapelago/shared-configs",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    "./eslint.config.js": "./src/eslint.config.js",
+    "./tsconfig.json": "./src/tsconfig.config.json"
+  }
+}

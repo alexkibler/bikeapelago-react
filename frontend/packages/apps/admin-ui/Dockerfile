@@ -3,13 +3,14 @@ FROM node:24-alpine AS builder
 WORKDIR /app
 
 COPY package.json package-lock.json ./
-RUN npm install --frozen-lockfile || npm install
+RUN npm install -g pnpm
+RUN pnpm install --frozen-lockfile || pnpm install
 
 COPY . ./
 
 # In production, the admin UI is served by Nginx which proxies /api/* to the
 # .NET container on the same Docker network.
-RUN npm run build
+RUN pnpm run build
 
 # ── Stage 2: Nginx ───────────────────────────────────────────────────────────
 FROM nginx:alpine AS runtime

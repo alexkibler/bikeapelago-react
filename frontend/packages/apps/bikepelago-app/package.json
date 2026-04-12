@@ -7,6 +7,7 @@
     "build:apworld": "node scripts/build-apworld.js",
     "dev": "npm run build:apworld && vite",
     "build": "npm run build:apworld && tsc -b && vite build",
+    "tsc": "tsc -p tsconfig.app.json",
     "lint": "eslint .",
     "preview": "vite preview",
     "test:e2e": "playwright test",
@@ -33,6 +34,7 @@
     "zustand": "^5.0.12"
   },
   "devDependencies": {
+    "@bikeapelago/shared-configs": "workspace:^",
     "@eslint/js": "^9.39.4",
     "@markw65/fit-file-writer": "^0.1.9",
     "@playwright/test": "^1.59.1",
