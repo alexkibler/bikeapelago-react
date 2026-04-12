@@ -22,6 +22,7 @@ build/
 coverage/
 .env.local
 .env.*.local
+.envrc.private
 
 # Dependencies
 package-lock.json
