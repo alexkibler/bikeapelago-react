@@ -78,6 +78,10 @@ builder.Services.AddScoped<IOsmDiscoveryService, OsmDiscoveryService>();
 builder.Services.AddScoped<NodeGenerationService>();
 builder.Services.AddScoped<FitAnalysisService>();
 builder.Services.AddScoped<SchemaDiscoveryService>();
+builder.Services.AddScoped<SinglePlayerProgressionEngine>();
+builder.Services.AddScoped<ArchipelagoProgressionEngine>();
+builder.Services.AddScoped<IProgressionEngineFactory, ProgressionEngineFactory>();
+builder.Services.AddScoped<RouteInterpolationService>();
 
 // Grid Cache Background Job Processor
 builder.Services.AddHostedService<GridCacheJobProcessor>();
