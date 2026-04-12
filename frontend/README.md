@@ -107,21 +107,7 @@ pnpm -r run lint -- --fix
 
 ### Environment Variables
 
-Vite reads environment variables from `.env` files. You can create one at:
-- **Monorepo root** (for all apps): `frontend/.env`
-- **Per app** (overrides root): `frontend/packages/apps/bikepelago-app/.env` or `frontend/packages/apps/admin-ui/.env`
-
-**Required variables:**
-```
-VITE_PUBLIC_API_URL=http://localhost:5054
-```
-
-**Or to point to production:**
-```
-VITE_PUBLIC_API_URL=https://bikeapelago.alexkibler.com
-```
-
-See `.env.example` files in each app directory for reference.
+Frontend configuration (primarily `VITE_PUBLIC_API_URL`) is managed via `.env` files. See the [Environment Configuration](../README.md#environment-configuration) section in the root README for details.
 
 ### Vite Config
 

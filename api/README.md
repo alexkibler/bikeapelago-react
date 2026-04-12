@@ -186,7 +186,11 @@ This separation gives high-quality node generation (geospatial) + reliable routi
 
 ## Configuration
 
-### `appsettings.Development.json`
+The API is configured via `appsettings.json` and environment variables. For a full list of supported environment variables, see the [Environment Configuration](../README.md#environment-configuration) section in the root README.
+
+### Database Connection
+
+By default, the API expects a PostgreSQL database with PostGIS. Configure the connection string in `appsettings.Development.json` or via environment variables:
 
 ```json
 {
