@@ -16,6 +16,19 @@ server {
         proxy_read_timeout 120s;
     }
 
+    # Proxy /hubs/* for SignalR WebSocket connections (if needed)
+    location /hubs/ {
+        proxy_pass         ${API_HUBS_URL};
+        proxy_http_version 1.1;
+        proxy_set_header   Upgrade           $http_upgrade;
+        proxy_set_header   Connection        "upgrade";
+        proxy_set_header   Host              $host;
+        proxy_set_header   X-Real-IP         $remote_addr;
+        proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto $scheme;
+        proxy_read_timeout 120s;
+    }
+
     # SPA fallback — all other routes serve index.html
     location / {
         try_files $uri $uri/ /index.html;
