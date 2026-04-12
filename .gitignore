@@ -61,3 +61,5 @@ test-valhalla.sh
 .mcp.json
 .env
 frontend/packages/apps/bikepelago-app/lint_output.txt
+*.gpx
+playwright-report/
