@@ -19,7 +19,8 @@ RUN pnpm run build
 # ── Runtime Template (shared logic) ────────────────────────────────────────────
 FROM nginx:alpine AS runtime-template
 
-RUN rm /etc/nginx/conf.d/default.conf
+RUN apk add --no-cache ca-certificates && \
+    rm /etc/nginx/conf.d/default.conf
 ENV API_PROXY_URL=http://bikeapelago-api:8080/api/ \
     API_HUBS_URL=http://bikeapelago-api:8080/hubs/
 EXPOSE 80
