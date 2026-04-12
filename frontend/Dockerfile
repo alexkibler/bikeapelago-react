@@ -4,8 +4,8 @@ WORKDIR /app
 
 RUN npm install -g pnpm
 
-COPY frontend/package.json frontend/pnpm-lock.yaml frontend/pnpm-workspace.yaml ./
-COPY frontend/packages ./packages
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY packages ./packages
 RUN pnpm install
 
 # In production, the frontend is served by Nginx which proxies /api/* to the
