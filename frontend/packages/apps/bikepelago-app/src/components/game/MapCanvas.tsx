@@ -91,7 +91,7 @@ const MapCanvas = ({ session, nodes }: MapCanvasProps) => {
   // ⚡ Bolt: Memoize analysis path mapping to avoid unnecessary array allocations on re-renders
   const analysisPath = useMemo(() => {
     return analysisResult?.path ? analysisResult.path.map((p: { lat: number, lon: number }) => [p.lat, p.lon] as [number, number]) : [];
-  }, [analysisResult?.path]);
+  }, [analysisResult]);
 
   return (
     <div className="flex-1 relative">

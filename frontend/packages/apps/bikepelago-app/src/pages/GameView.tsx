@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { useGameStore } from '../store/gameStore';
@@ -153,11 +153,6 @@ const GameView = () => {
       }
     }
   }, [checkedLocationIds, nodes, setNodes]);
-
-  const center = useMemo<[number, number]>(() => [
-    session?.center_lat ?? 40.7128,
-    session?.center_lon ?? -74.006
-  ], [session?.center_lat, session?.center_lon]);
 
   if (loading) {
     return (
