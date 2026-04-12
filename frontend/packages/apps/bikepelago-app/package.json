@@ -5,8 +5,8 @@
   "type": "module",
   "scripts": {
     "build:apworld": "node scripts/build-apworld.js",
-    "dev": "npm run build:apworld && vite",
-    "build": "npm run build:apworld && vite build",
+    "dev": "pnpm run build:apworld && vite",
+    "build": "pnpm run build:apworld && vite build",
     "tsc": "tsc -p tsconfig.app.json",
     "lint": "eslint .",
     "preview": "vite preview",

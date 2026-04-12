@@ -2,11 +2,10 @@
 FROM node:24-alpine AS builder
 WORKDIR /app
 
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN npm install -g pnpm
-RUN pnpm install
 
 COPY . ./
+RUN pnpm install
 
 # In production, the frontend is served by Nginx which proxies /api/* to the
 # .NET container on the same Docker network. So VITE_PUBLIC_API_URL is empty
