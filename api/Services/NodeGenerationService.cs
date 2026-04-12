@@ -42,12 +42,25 @@ public class NodeGenerationService(
         var total = Stopwatch.StartNew();
         var sw = Stopwatch.StartNew();
 
-        // 1. Verify session exists
+        // 1. Verify session exists and is not already active
         var session = await _sessionRepository.GetByIdAsync(request.SessionId)
             ?? throw new Exception("Session not found");
-        _logger.LogInformation("[generate] GetSession: {Ms}ms", sw.ElapsedMilliseconds);
 
-        // 2. Fetch random nodes from PostGIS
+        if (session.Status != SessionStatus.SetupInProgress)
+        {
+            throw new InvalidOperationException($"Cannot generate nodes for a session that is in {session.Status} status. Only sessions in SetupInProgress can have nodes generated.");
+        }
+
+        // 2. Check if any nodes have already been checked (progression preserved)
+        sw.Restart();
+        var existingNodes = await _nodeRepository.GetBySessionIdAsync(request.SessionId);
+        if (existingNodes.Any(n => n.State == "Checked"))
+        {
+            throw new InvalidOperationException("Cannot regenerate nodes for a session that already has checked nodes. Progression would be lost.");
+        }
+        _logger.LogInformation("[generate] CheckExistingNodes: {Ms}ms", sw.ElapsedMilliseconds);
+
+        // 3. Fetch random nodes from PostGIS
         sw.Restart();
         var points = await _osmDiscoveryService.GetRandomNodesAsync(
             request.CenterLat,
@@ -63,12 +76,12 @@ public class NodeGenerationService(
 
         var selectedPoints = points.Take(request.NodeCount).ToList();
 
-        // 3. Delete existing nodes
+        // 4. Delete existing nodes
         sw.Restart();
         await _nodeRepository.DeleteBySessionIdAsync(request.SessionId);
         _logger.LogInformation("[generate] DeleteExisting: {Ms}ms", sw.ElapsedMilliseconds);
 
-        // 4. Bulk insert
+        // 5. Bulk insert
         sw.Restart();
         var mapNodes = selectedPoints.Select((point, i) => new MapNode
         {
@@ -82,7 +95,7 @@ public class NodeGenerationService(
         await _nodeRepository.CreateRangeAsync(mapNodes);
         _logger.LogInformation("[generate] BulkInsert ({Count} nodes): {Ms}ms", mapNodes.Count, sw.ElapsedMilliseconds);
 
-        // 5. Update session
+        // 6. Update session
         sw.Restart();
         session.Location = new NetTopologySuite.Geometries.Point(request.CenterLon, request.CenterLat) { SRID = 4326 };
         session.Radius = (int)request.Radius;

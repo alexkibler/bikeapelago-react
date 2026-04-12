@@ -67,4 +67,14 @@ public class EfCoreSessionRepository(BikeapelagoDbContext context) : IGameSessio
         }
         return false;
     }
+
+    public async Task UpdateReceivedItemsAsync(Guid sessionId, List<long> itemIds)
+    {
+        await _context.GameSessions
+            .Where(s => s.Id == sessionId)
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(s => s.ReceivedItemIds, itemIds)
+                .SetProperty(s => s.UpdatedAt, DateTime.UtcNow.ToString("O"))
+            );
+    }
 }

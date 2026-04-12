@@ -1,4 +1,6 @@
 using System;
+using System.Net;
+using System.Net.Sockets;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
@@ -34,7 +36,7 @@ public class ArchipelagoService(IHubContext<ArchipelagoHub> hubContext, ILogger<
 
         using var scope = _scopeFactory.CreateScope();
         var nodeRepository = scope.ServiceProvider.GetRequiredService<IMapNodeRepository>();
-        
+
         var nodes = await nodeRepository.GetBySessionIdAsync(sessionId);
         var changed = false;
 
@@ -63,7 +65,7 @@ public class ArchipelagoService(IHubContext<ArchipelagoHub> hubContext, ILogger<
 
         using var scope = _scopeFactory.CreateScope();
         var nodeRepository = scope.ServiceProvider.GetRequiredService<IMapNodeRepository>();
-        
+
         var nodes = await nodeRepository.GetBySessionIdAsync(sessionId);
         var changed = false;
 
@@ -112,9 +114,32 @@ public class ArchipelagoService(IHubContext<ArchipelagoHub> hubContext, ILogger<
         }
 
         _logger.LogInformation("Connecting Session {SessionId} to Archipelago server at {Url} as {Slot}", sessionId, url, slotName);
-        session = ArchipelagoSessionFactory.CreateSession(url);
-        
-        session.Items.ItemReceived += (helper) => {
+
+        var connectionUrl = url;
+        // Local Dev Convenience: If the hostname is 'archipelago' but it's not resolvable (because API is local but Archipelago is in Docker),
+        // we automatically try localhost:port which is what is mapped to the host.
+        if (url.StartsWith("archipelago:") && !url.Contains("localhost") && !url.Contains("127.0.0.1"))
+        {
+            try
+            {
+                var host = url.Contains(':') ? url.Split(':')[0] : url;
+                Dns.GetHostEntry(host);
+            }
+            catch (SocketException)
+            {
+                _logger.LogInformation("Hostname 'archipelago' is not resolvable. Translating to 'localhost' for local development.");
+                connectionUrl = url.Replace("archipelago", "localhost");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogTrace(ex, "Dns.GetHostEntry failed for {Host}", url.Split(':')[0]);
+            }
+        }
+
+        session = ArchipelagoSessionFactory.CreateSession(connectionUrl);
+
+        session.Items.ItemReceived += (helper) =>
+        {
             _pendingItemUpdates.AddOrUpdate(sessionId,
                 _ => Task.Delay(250).ContinueWith(_ => ProcessItemUpdateAsync(sessionId)),
                 (id, existingTask) => existingTask.IsCompleted || existingTask.IsFaulted || existingTask.IsCanceled
@@ -124,9 +149,11 @@ public class ArchipelagoService(IHubContext<ArchipelagoHub> hubContext, ILogger<
 
             bool isInitialSync = !_sessions.ContainsKey(sessionId);
 
-            while (helper.Any()) {
+            while (helper.Any())
+            {
                 var item = helper.DequeueItem();
-                if (!isInitialSync) {
+                if (!isInitialSync)
+                {
                     var itemName = session.Items.GetItemName(item.ItemId) ?? item.ItemId.ToString();
                     var player = session.Players.GetPlayerAlias(item.Player) ?? "Unknown";
                     var text = $"Received {itemName} from {player}";
@@ -135,28 +162,35 @@ public class ArchipelagoService(IHubContext<ArchipelagoHub> hubContext, ILogger<
             }
         };
 
-        session.Locations.CheckedLocationsUpdated += (locations) => {
+        session.Locations.CheckedLocationsUpdated += (locations) =>
+        {
             var locationArray = locations.ToArray();
             _ = BroadcastLocations(sessionId, locationArray);
             _ = UpdateNodeStatesAsync(sessionId, locationArray);
         };
 
-        session.Socket.PacketReceived += (packet) => {
-             if (packet is PrintJsonPacket printJson) {
-                 var text = string.Join("", printJson.Data.Select(d => d.Text));
-                 _ = BroadcastMessage(sessionId, text, "system");
-             }
+        session.Socket.PacketReceived += (packet) =>
+        {
+            if (packet is PrintJsonPacket printJson)
+            {
+                var text = string.Join("", printJson.Data.Select(d => d.Text));
+                _ = BroadcastMessage(sessionId, text, "system");
+            }
         };
 
-        session.Socket.ErrorReceived += (ex, message) => {
+        session.Socket.ErrorReceived += (ex, message) =>
+        {
             _logger.LogError(ex, "Archipelago Socket Error: {Message}", message);
             _ = BroadcastStatus(sessionId, "error", message);
         };
 
         LoginResult result;
-        try {
+        try
+        {
             result = session.TryConnectAndLogin("Bikeapelago", slotName, ItemsHandlingFlags.AllItems, password: password);
-        } catch (Exception ex) {
+        }
+        catch (Exception ex)
+        {
             _logger.LogError(ex, "Failed to connect to Archipelago socket.");
             await BroadcastStatus(sessionId, "error", "Failed to connect to host: " + ex.Message);
             return;
@@ -167,7 +201,7 @@ public class ArchipelagoService(IHubContext<ArchipelagoHub> hubContext, ILogger<
             _sessions[sessionId] = session;
             var checkedLocations = session.Locations.AllLocationsChecked.ToArray();
             var receivedItems = session.Items.AllItemsReceived.Select(i => i.ItemId).ToArray();
-            
+
             _ = BroadcastStatus(sessionId, "connected");
             _ = BroadcastLocations(sessionId, checkedLocations);
             _ = BroadcastItems(sessionId, receivedItems);
@@ -233,22 +267,21 @@ public class ArchipelagoService(IHubContext<ArchipelagoHub> hubContext, ILogger<
     private async Task BroadcastItems(Guid sessionId, long[] itemIds)
     {
         if (!_sessions.TryGetValue(sessionId, out var session)) return;
-        
+
         var items = itemIds.Select(id => new ArchipelagoItem(id, session.Items.GetItemName(id) ?? $"Item {id}")).ToArray();
         await _hubContext.Clients.Group(sessionId.ToString()).SendAsync("OnItemsUpdate", new ArchipelagoItemsUpdate(items));
     }
 
     private async Task SaveItemsToDbAsync(Guid sessionId, long[] itemIds)
     {
-        try {
+        try
+        {
             using var scope = _scopeFactory.CreateScope();
             var sessionRepository = scope.ServiceProvider.GetRequiredService<IGameSessionRepository>();
-            var session = await sessionRepository.GetByIdAsync(sessionId);
-            if (session != null) {
-                session.ReceivedItemIds = itemIds.ToList();
-                await sessionRepository.UpdateAsync(session);
-            }
-        } catch (Exception ex) {
+            await sessionRepository.UpdateReceivedItemsAsync(sessionId, itemIds.ToList());
+        }
+        catch (Exception ex)
+        {
             _logger.LogError(ex, "Failed to save items to DB for session {SessionId}", sessionId);
         }
     }
@@ -259,7 +292,7 @@ public class ArchipelagoService(IHubContext<ArchipelagoHub> hubContext, ILogger<
 
         var allReceivedItems = session.Items.AllItemsReceived.Select(i => i.ItemId).ToArray();
         _logger.LogInformation("Processing batch item update for session {SessionId} ({Count} items)", sessionId, allReceivedItems.Length);
-        
+
         await UpdateUnlockedNodesAsync(sessionId, allReceivedItems);
         await SaveItemsToDbAsync(sessionId, allReceivedItems);
         await BroadcastItems(sessionId, allReceivedItems);
