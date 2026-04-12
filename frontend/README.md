@@ -111,7 +111,11 @@ Create a `.env` at the monorepo root:
 
 ```
 VITE_PUBLIC_API_URL=http://localhost:5054
-VITE_PUBLIC_DB_URL=https://pb.bikeapelago.alexkibler.com
+```
+
+Or to point to production:
+```
+VITE_PUBLIC_API_URL=https://bikeapelago.alexkibler.com
 ```
 
 ### Vite Config
