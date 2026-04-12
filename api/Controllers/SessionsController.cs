@@ -104,14 +104,23 @@ public class SessionsController(
             {
                 var doc = System.Xml.Linq.XDocument.Load(stream);
                 System.Xml.Linq.XNamespace ns = doc.Root?.GetDefaultNamespace() ?? "";
-                pathPoints = doc.Descendants(ns + "trkpt")
-                    .Select(x => new PathPoint
+                var trkpts = doc.Descendants(ns + "trkpt");
+
+                pathPoints = new List<PathPoint>();
+                foreach (var pt in trkpts)
+                {
+                    var latAttr = pt.Attribute("lat");
+                    var lonAttr = pt.Attribute("lon");
+                    if (latAttr == null || lonAttr == null)
+                        return BadRequest(new { message = "GPX track points must have lat and lon attributes." });
+
+                    pathPoints.Add(new PathPoint
                     {
-                        Lat = (double)x.Attribute("lat")!,
-                        Lon = (double)x.Attribute("lon")!,
-                        Alt = x.Element(ns + "ele") != null ? (double?)x.Element(ns + "ele") : null
-                    })
-                    .ToList();
+                        Lat = (double)latAttr,
+                        Lon = (double)lonAttr,
+                        Alt = pt.Element(ns + "ele") != null ? (double?)pt.Element(ns + "ele") : null
+                    });
+                }
             }
             else
             {
