@@ -44,7 +44,7 @@ class ArchipelagoClient {
         conn.on('OnChatMessage', (message: { text: string; type: string; timestamp: string }) => {
           useArchipelagoStore.getState().addMessage({
             text: message.text,
-            //@ts-ignore
+            // @ts-expect-error message.type exists but type is string not ChatMessageType
             type: message.type,
           });
         });
@@ -80,10 +80,11 @@ class ArchipelagoClient {
       
       // Tell the backend to connect to actual Archipelago
       await conn.invoke('ConnectToArchipelago', sessionId, url, slotName, password || null);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('SignalR Hub Connection Failed:', err);
       useArchipelagoStore.getState().setStatus('error');
-      useArchipelagoStore.getState().setError(err.message || 'SignalR error');
+      const errorMessage = err instanceof Error ? err.message : 'SignalR error';
+      useArchipelagoStore.getState().setError(errorMessage);
     }
   }
 
