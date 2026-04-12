@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import type { MapNode } from '../types/game';
 
 export type GamePanel = 'chat' | 'upload' | 'route' | 'inventory' | null;
 
@@ -13,8 +14,8 @@ interface GameState {
   setWaypoints: (points: [number, number][]) => void;
   clearWaypoints: () => void;
   
-  nodes: any[];
-  setNodes: (nodes: any[]) => void;
+  nodes: MapNode[];
+  setNodes: (nodes: MapNode[]) => void;
   
   routeData: {
     distance: number;

@@ -12,13 +12,14 @@ import ArchipelagoReconnectDialog from '../components/game/ArchipelagoReconnectD
 import GameStatsBar from '../components/game/GameStatsBar';
 import MapCanvas from '../components/game/MapCanvas';
 import SidePanelCoordinator from '../components/game/SidePanelCoordinator';
+import type { GameSession, MapNode } from '../types/game';
 
 const GameView = () => {
-  const { id } = useParams();
+  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { activePanel, nodes, setNodes, syncVersion } = useGameStore();
   
-  const [session, setSession] = useState<any>(null);
+  const [session, setSession] = useState<GameSession | null>(null);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState('');
   const [showReconnect, setShowReconnect] = useState(false);
@@ -81,22 +82,22 @@ const GameView = () => {
       const sessionRes = await fetch(`/api/sessions/${id}`, { headers, signal });
       if (!sessionRes.ok) {
         if (id === 'mock_session_123') {
-           setSession({ id: 'mock_session_123', ap_seed_name: 'Mock Seed', ap_slot_name: 'Mock Slot', center_lat: 40.7128, center_lon: -74.006 });
+           setSession({ id: 'mock_session_123', ap_seed_name: 'Mock Seed', ap_slot_name: 'Mock Slot', center_lat: 40.7128, center_lon: -74.006 } as GameSession);
            setNodes([
              { id: 'mock_node_1', name: 'Mock Node 1', lat: 40.7128, lon: -74.006, state: 'Available', ap_location_id: 1001 },
              { id: 'mock_node_2', name: 'Mock Node 2', lat: 40.7158, lon: -74.009, state: 'Available', ap_location_id: 1002 }
-           ]);
+           ] as MapNode[]);
            return;
         }
         throw new Error('Session not found');
       }
       const sessionData = await sessionRes.json();
-      setSession(sessionData);
+      setSession(sessionData as GameSession);
 
       const nodesRes = await fetch(`/api/sessions/${id}/nodes`, { headers, signal });
       if (!nodesRes.ok) throw new Error('Failed to load nodes');
       const nodesData = await nodesRes.json();
-      setNodes(nodesData);
+      setNodes(nodesData as MapNode[]);
 
       if (sessionData.received_item_ids) {
         setReceivedItems(sessionData.received_item_ids.map((id: number) => ({ id, name: `Item ${id}` })));
@@ -107,10 +108,10 @@ const GameView = () => {
         console.log(`Connecting to Archipelago: ${sessionData.ap_server_url} as ${sessionData.ap_slot_name}`);
         archipelago.connect(id!, sessionData.ap_server_url, sessionData.ap_slot_name);
       }
-    } catch (err: any) {
-      if (err.name === 'AbortError') return; // Ignore aborts
+    } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') return; 
       console.error('fetchData error:', err);
-      setErrorMsg(err.message);
+      setErrorMsg(err instanceof Error ? err.message : 'An unknown error occurred');
     } finally {
       if (!signal.aborted) {
         setLoading(false);
@@ -132,15 +133,15 @@ const GameView = () => {
 
   // Sync Archipelago checked locations with local node states
   useEffect(() => {
-    const rawCheckedIds = Array.isArray(checkedLocationIds) ? checkedLocationIds : Array.from((checkedLocationIds as any) || []);
+    const rawCheckedIds = checkedLocationIds;
     const checkedIdsSet = new Set(rawCheckedIds);
     
     if (nodes.length > 0 && checkedIdsSet.size > 0) {
-      const updatedNodes = nodes.map(node => {
+      const updatedNodes: MapNode[] = nodes.map(node => {
         const locId = node.ap_location_id || node.apLocationId;
         if (locId && checkedIdsSet.has(locId)) {
           if (node.state !== 'Checked') {
-            return { ...node, state: 'Checked' };
+            return { ...node, state: 'Checked' as const };
           }
         }
         return node;
