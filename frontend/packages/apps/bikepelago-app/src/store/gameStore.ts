@@ -12,6 +12,21 @@ interface RouteData {
   polyline: PolylinePoint[];
 }
 
+interface DiscoveryRouteResponse {
+  distanceMeters: number;
+  elevation?: number;
+  geometry: [number, number][];
+}
+
+interface OptimizationResponse {
+  success: boolean;
+  message?: string;
+  totalDistanceMeters: number;
+  elevation?: number;
+  geometry: [number, number][];
+  orderedNodeIds: string[];
+}
+
 interface GameState {
   activePanel: GamePanel;
   setActivePanel: (panel: GamePanel) => void;
@@ -87,7 +102,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     set({ isRouting: true, routingError: null });
     try {
       // Mock for Playwright/Tests if needed
-      if ((window as any).PLAYWRIGHT_TEST) {
+      if ((window as unknown as Record<string, unknown>).PLAYWRIGHT_TEST) {
          set({
             routeData: {
               distance: waypoints.length * 1.5,
@@ -99,7 +114,7 @@ export const useGameStore = create<GameState>((set, get) => ({
           return;
       }
 
-      const data = await apiFetch<any>(ENDPOINTS.DISCOVERY.ROUTE, {
+      const data = await apiFetch<DiscoveryRouteResponse>(ENDPOINTS.DISCOVERY.ROUTE, {
         method: 'POST',
         body: JSON.stringify({
           waypoints: waypoints.map(wp => ({ lat: wp[0], lon: wp[1] })),
@@ -118,8 +133,9 @@ export const useGameStore = create<GameState>((set, get) => ({
         },
         isRouting: false
       });
-    } catch (err: any) {
-      set({ routingError: err.message || 'Routing failed', isRouting: false });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Routing failed';
+      set({ routingError: message, isRouting: false });
     }
   },
 
@@ -128,7 +144,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     set({ isRouting: true, routingError: null });
     
     try {
-      const data = await apiFetch<any>(`${ENDPOINTS.SESSIONS}/${sessionId}/route-to-available?profile=cycling`, {
+      const data = await apiFetch<OptimizationResponse>(`${ENDPOINTS.SESSIONS}/${sessionId}/route-to-available?profile=cycling`, {
         method: 'POST'
       });
       
@@ -157,8 +173,9 @@ export const useGameStore = create<GameState>((set, get) => ({
       } else {
         throw new Error(data.message || 'Optimization failed');
       }
-    } catch (err: any) {
-      set({ routingError: err.message || 'Optimization failed', isRouting: false });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Optimization failed';
+      set({ routingError: message, isRouting: false });
     }
   },
 
