@@ -121,7 +121,11 @@ public class PostGisOsmDiscoveryService : IOsmDiscoveryService
     {
         double[] lons = subTargets.Select(p => p.Lon).ToArray();
         double[] lats = subTargets.Select(p => p.Lat).ToArray();
-        double subRadiusDegrees = subRadiusMeters / 111000.0;
+        
+        // 1 degree lat is ~111,132m. Longitude varies by cos(lat).
+        // We use a slightly generous degree radius to ensure we don't miss nodes
+        // near the edges of the sub-radius, then filter precisely in SQL.
+        double subRadiusDegrees = (subRadiusMeters * 1.2) / 111132.0;
         int safetyCap = subTargets.Count * 20;
 
         await using var conn = new NpgsqlConnection(_connectionString);
@@ -130,41 +134,40 @@ public class PostGisOsmDiscoveryService : IOsmDiscoveryService
         await using var cmd = conn.CreateCommand();
         cmd.CommandTimeout = 60;
 
-        // Extract physical nodes directly from valid lines, removing the need for
-        // the obsolete planet_osm_way_nodes relational table.
-        // Filter uses the pre-computed cycling_safe/walking_safe boolean columns
-        // stored by the Lua flex script — no tags hstore needed.
-        // LATERAL join forces the planner to use the GIST index per sub-target.
+        // 1. Unnest probes into target geometries.
+        // 2. Find ALL valid road lines within a rough degree-radius of ANY probe.
+        // 3. For each probe, find the SINGLE NEAREST node that is within the true sub-radius.
+        // This prevents the "urban bias" where one probe in a city returns 1000 nodes
+        // while one in a rural area returns 5, causing the city to dominate the sample.
         cmd.CommandText = """
-            WITH sub_targets AS (
-                -- Unnest the C# arrays into target geometries (SRID 4326)
-                SELECT ST_SetSRID(ST_MakePoint(lon, lat), 4326) AS target_geom
+            WITH probes AS (
+                SELECT ST_SetSRID(ST_MakePoint(lon, lat), 4326) AS probe_geom
                 FROM unnest(@lons, @lats) AS t(lon, lat)
             ),
-            valid_lines AS (
-                -- LATERAL forces index-nested-loop: one GIST lookup per sub-target
-                SELECT DISTINCT w.geom
-                FROM sub_targets st
+            valid_nodes AS (
+                -- For each probe, find nodes of safe roads within the sub-radius
+                SELECT 
+                    p.probe_geom,
+                    (ST_DumpPoints(w.geom)).geom AS node_geom
+                FROM probes p
                 CROSS JOIN LATERAL (
                     SELECT w.geom
                     FROM planet_osm_ways w
-                    WHERE ST_DWithin(w.geom, st.target_geom, @sub_radius_degrees)
+                    WHERE ST_DWithin(w.geom, p.probe_geom, @sub_radius_degrees)
                       AND ((@is_walk AND w.walking_safe) OR (NOT @is_walk AND w.cycling_safe))
                 ) w
             ),
-            dumped_points AS (
-                -- Extract the physical nodes (vertices) out of those valid lines
-                SELECT (ST_DumpPoints(geom)).geom AS pt_geom
-                FROM valid_lines
+            filtered_nodes AS (
+                -- Narrow down to nodes actually within the metric sub-radius (using geography for accuracy)
+                -- and pick one random node per probe to ensure geographic fairness.
+                SELECT DISTINCT ON (probe_geom)
+                    ST_X(node_geom)::float8 AS x,
+                    ST_Y(node_geom)::float8 AS y
+                FROM valid_nodes
+                WHERE ST_DWithin(node_geom::geography, probe_geom::geography, @sub_radius_meters)
+                ORDER BY probe_geom, RANDOM()
             )
-            -- Deduplicate, randomize, and cap
-            SELECT x, y FROM (
-                SELECT DISTINCT
-                    ST_X(pt_geom)::float8 AS x,
-                    ST_Y(pt_geom)::float8 AS y
-                FROM dumped_points
-            ) deduped
-            ORDER BY RANDOM()
+            SELECT x, y FROM filtered_nodes
             LIMIT @safety_cap;
             """;
 
@@ -172,6 +175,7 @@ public class PostGisOsmDiscoveryService : IOsmDiscoveryService
         cmd.Parameters.Add(new NpgsqlParameter("lons", NpgsqlDbType.Array | NpgsqlDbType.Double) { Value = lons });
         cmd.Parameters.Add(new NpgsqlParameter("lats", NpgsqlDbType.Array | NpgsqlDbType.Double) { Value = lats });
         cmd.Parameters.AddWithValue("sub_radius_degrees", subRadiusDegrees);
+        cmd.Parameters.AddWithValue("sub_radius_meters", subRadiusMeters);
         cmd.Parameters.AddWithValue("is_walk", isWalk);
         cmd.Parameters.AddWithValue("safety_cap", safetyCap);
 
@@ -187,19 +191,24 @@ public class PostGisOsmDiscoveryService : IOsmDiscoveryService
     internal static List<DiscoveryPoint> GenerateRandomPointsInCircle(double centerLat, double centerLon, double radiusMeters, int count, double densityBias = 0.5)
     {
         var points = new List<DiscoveryPoint>(count);
-        double cosLat = Math.Cos(centerLat * Math.PI / 180.0);
+        
+        // WGS84 constants
+        const double MetersPerDegreeLat = 111132.0;
+        double radLat = centerLat * Math.PI / 180.0;
+        double cosLat = Math.Cos(radLat);
 
         for (int i = 0; i < count; i++)
         {
             // Math.Pow(random, densityBias) controls how probes cluster within the radius:
             //   0.5  = Uniform area distribution (geographically fair, sparse center) — default
             //   0.75 = "Goldilocks" zone (denser center for routing, still spreads to edges)
-            //   1.0  = Linear distance distribution (heavy center clustering)
+            //   1.0+ = Linear or exponential distance distribution (heavy center clustering)
             double distance = Math.Pow(Random.Shared.NextDouble(), densityBias) * radiusMeters;
             double angle = Random.Shared.NextDouble() * 2.0 * Math.PI;
 
-            double latOffset = distance * Math.Cos(angle) / 111000.0;
-            double lonOffset = distance * Math.Sin(angle) / (111000.0 * cosLat);
+            // Simple equirectangular projection is fine for discovery probes
+            double latOffset = distance * Math.Cos(angle) / MetersPerDegreeLat;
+            double lonOffset = distance * Math.Sin(angle) / (MetersPerDegreeLat * cosLat);
 
             points.Add(new DiscoveryPoint(centerLon + lonOffset, centerLat + latOffset));
         }
