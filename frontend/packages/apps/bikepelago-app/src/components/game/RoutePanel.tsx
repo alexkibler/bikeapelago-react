@@ -70,7 +70,7 @@ const RoutePanel = ({ sessionId }: { sessionId: string }) => {
       setLoading(true);
       setError(null);
       try {
-        if ((window as any).PLAYWRIGHT_TEST) {
+        if ((window as Record<string, unknown>).PLAYWRIGHT_TEST) {
           setRouteData({
             distance: waypoints.length * 1.5,
             elevation: waypoints.length * 10,

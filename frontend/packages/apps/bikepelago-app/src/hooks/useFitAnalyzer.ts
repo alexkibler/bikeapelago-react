@@ -75,7 +75,7 @@ export function useFitAnalyzer(sessionId: string, onAnalysisComplete: (result: F
         let msg = `Backend error ${res.status}`;
         try {
           msg = await res.text();
-        } catch (_e) { /* ignore JSON error if not json */ }
+        } catch { /* ignore JSON error if not json */ }
         throw new Error(msg);
       }
 
@@ -108,7 +108,7 @@ export function useFitAnalyzer(sessionId: string, onAnalysisComplete: (result: F
 
       if (!res.ok) {
         let msg = `Backend error ${res.status}`;
-        try { msg = await res.text(); } catch (_e) { /* ignore */ }
+        try { msg = await res.text(); } catch { /* ignore */ }
         throw new Error(msg);
       }
 

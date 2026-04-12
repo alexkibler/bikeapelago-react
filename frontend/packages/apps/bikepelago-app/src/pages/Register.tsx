@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Bike, Lock, User, ArrowRight, Loader2, Mail, UserPlus } from 'lucide-react';
+import { Lock, User, ArrowRight, Loader2, Mail, UserPlus } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 
 const Register = () => {
