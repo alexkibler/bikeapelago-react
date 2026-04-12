@@ -1,10 +1,11 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useGameStore } from '../../store/gameStore';
-import { calculateDistance, downloadGPXFromPolyline } from '../../lib/geoUtils';
-import { Map as MapIcon, Download, Trash2, Loader2, ChevronDown, ChevronUp, UploadCloud } from 'lucide-react';
+import { downloadGPXFromPolyline } from '../../lib/geoUtils';
+import { Map as MapIcon, Download, Loader2, ChevronDown, ChevronUp, UploadCloud } from 'lucide-react';
 import { getToken } from '../../store/authStore';
+import type { MapNode } from '../../types/game';
 
-const NodeListItem = ({ node, onClick }: { node: any, onClick: () => void }) => {
+const NodeListItem = ({ node, onClick }: { node: MapNode, onClick: () => void }) => {
   return (
     <button
       onClick={onClick}
@@ -36,7 +37,7 @@ const CategoryHeader = ({ title, count, color, isOpen, onClick }: { title: strin
 );
 
 const RoutePanel = ({ sessionId }: { sessionId: string }) => {
-  const { waypoints, setWaypoints, clearWaypoints, setRouteData, routeData, nodes, addWaypoint, addWaypoints, userLocation, togglePanel } = useGameStore();
+  const { waypoints, setWaypoints, clearWaypoints, setRouteData, routeData, nodes, addWaypoint, userLocation, togglePanel } = useGameStore();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
@@ -69,7 +70,7 @@ const RoutePanel = ({ sessionId }: { sessionId: string }) => {
       setLoading(true);
       setError(null);
       try {
-        if ((window as any).PLAYWRIGHT_TEST) {
+        if ((window as Record<string, unknown>).PLAYWRIGHT_TEST) {
           setRouteData({
             distance: waypoints.length * 1.5,
             elevation: waypoints.length * 10,
@@ -161,7 +162,7 @@ const RoutePanel = ({ sessionId }: { sessionId: string }) => {
         const orderedPoints: [number, number][] = data.orderedNodeIds
           .map((id: string) => allNodesMap.get(id))
           .filter(Boolean)
-          .map((n: any) => [n.lat, n.lon] as [number, number]);
+          .map((n: MapNode) => [n.lat, n.lon] as [number, number]);
 
         // If we have a user location, prepend it as the start
         const newWaypoints: [number, number][] = userLocation

@@ -4,7 +4,7 @@ import { Upload, FileCheck, Loader2, Play, CheckCircle2, XCircle } from 'lucide-
 import { useFitAnalyzer } from '../../hooks/useFitAnalyzer';
 
 const UploadPanel = ({ sessionId }: { sessionId: string }) => {
-  const { analysisResult, setAnalysisResult, nodes, setNodes } = useGameStore();
+  const { analysisResult, setAnalysisResult } = useGameStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 

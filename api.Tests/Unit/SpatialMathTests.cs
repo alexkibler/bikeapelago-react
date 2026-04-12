@@ -79,25 +79,26 @@ public class SpatialMathTests
     }
 
     [Fact]
-    public void BiasOne_InnerRingHasMorePointsThanOuter()
+    public void BiasOneFive_InnerRingHasMorePointsThanInner()
     {
-        // densityBias=1.0 = linear distance, clusters near center.
+        // densityBias=1.5 = heavy clustering near center.
+        // P(r <= R/2) = (0.5)^(1/1.5) approx 0.63.
         var points = PostGisOsmDiscoveryService.GenerateRandomPointsInCircle(
-            CenterLat, CenterLon, 50_000, count: 5000, densityBias: 1.0);
+            CenterLat, CenterLon, 50_000, count: 5000, densityBias: 1.5);
 
         var (inner, outer) = SplitByHalfRadius(points, CenterLat, CenterLon, 50_000);
 
         Assert.True(inner > outer,
-            $"Expected inner ring to dominate with bias=1.0, got inner={inner} outer={outer}");
+            $"Expected inner ring to dominate with bias=1.5, got inner={inner} outer={outer}");
     }
 
     [Fact]
     public void GoldilocksBias_IsBeweenDefaultAndLinear()
     {
-        // densityBias=0.75 should sit between 0.5 and 1.0 in terms of inner/outer ratio.
+        // densityBias=1.0 should sit between 0.5 (uniform area) and 1.5 (heavy center) in terms of inner/outer ratio.
         var points05 = PostGisOsmDiscoveryService.GenerateRandomPointsInCircle(CenterLat, CenterLon, 50_000, 5000, 0.5);
-        var points075 = PostGisOsmDiscoveryService.GenerateRandomPointsInCircle(CenterLat, CenterLon, 50_000, 5000, 0.75);
         var points10 = PostGisOsmDiscoveryService.GenerateRandomPointsInCircle(CenterLat, CenterLon, 50_000, 5000, 1.0);
+        var points15 = PostGisOsmDiscoveryService.GenerateRandomPointsInCircle(CenterLat, CenterLon, 50_000, 5000, 1.5);
 
         double RatioInnerToOuter(List<Bikeapelago.Api.Models.DiscoveryPoint> pts)
         {
@@ -106,11 +107,11 @@ public class SpatialMathTests
         }
 
         double r05 = RatioInnerToOuter(points05);
-        double r075 = RatioInnerToOuter(points075);
         double r10 = RatioInnerToOuter(points10);
+        double r15 = RatioInnerToOuter(points15);
 
-        Assert.True(r05 < r075 && r075 < r10,
-            $"Goldilocks bias=0.75 ratio {r075:F3} should be between bias=0.5 ({r05:F3}) and bias=1.0 ({r10:F3})");
+        Assert.True(r05 < r10 && r10 < r15,
+            $"Linear bias=1.0 ratio {r10:F3} should be between bias=0.5 ({r05:F3}) and bias=1.5 ({r15:F3})");
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────

@@ -77,7 +77,7 @@ const Home = () => {
       await deleteSession(sessionToDelete.id);
       setSessionToDelete(null);
       toast.success('Session deleted successfully.');
-    } catch (err) {
+    } catch {
       toast.error('Failed to delete session. Please try again.');
     } finally {
       setIsDeleting(false);
