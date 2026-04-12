@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useMemo } from 'react';
 import { MapContainer, TileLayer, Marker, ZoomControl, useMap, useMapEvents, Polyline, Circle } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -83,8 +83,15 @@ const MapCanvas = ({ session, nodes }: MapCanvasProps) => {
     session.center_lon ?? -74.006
   ];
 
-  const parsedPolyline = routeData.polyline ? JSON.parse(routeData.polyline).map((p: [number, number]) => [p[1], p[0]] as [number, number]) : [];
-  const analysisPath = analysisResult?.path ? analysisResult.path.map((p: { lat: number, lon: number }) => [p.lat, p.lon] as [number, number]) : [];
+  // ⚡ Bolt: Memoize expensive polyline JSON parsing and mapping to prevent main thread blocking on re-renders
+  const parsedPolyline = useMemo(() => {
+    return routeData.polyline ? JSON.parse(routeData.polyline).map((p: [number, number]) => [p[1], p[0]] as [number, number]) : [];
+  }, [routeData.polyline]);
+
+  // ⚡ Bolt: Memoize analysis path mapping to avoid unnecessary array allocations on re-renders
+  const analysisPath = useMemo(() => {
+    return analysisResult?.path ? analysisResult.path.map((p: { lat: number, lon: number }) => [p.lat, p.lon] as [number, number]) : [];
+  }, [analysisResult?.path]);
 
   return (
     <div className="flex-1 relative">
