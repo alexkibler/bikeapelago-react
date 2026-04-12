@@ -223,7 +223,10 @@ Opens at `http://localhost:5174` (or see terminal for exact port).
 
 **Point dev server to production API:**
 
-Edit `.env` in the frontend root:
+Each app maintains its own configuration. Create a `.env` in the specific package directory you are working in:
+- Game App: `frontend/packages/apps/bikepelago-app/.env`
+- Admin UI: `frontend/packages/apps/admin-ui/.env`
+
 ```env
 VITE_PUBLIC_API_URL=https://bikeapelago.alexkibler.com
 ```

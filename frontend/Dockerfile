@@ -1,5 +1,5 @@
 # ── Stage 1: Build ──────────────────────────────────────────────────────────
-FROM node:24-alpine AS builder
+FROM node:25-alpine AS builder
 WORKDIR /app
 
 RUN npm install -g pnpm
@@ -24,7 +24,6 @@ RUN apk add --no-cache ca-certificates && \
 ENV API_PROXY_URL=http://bikeapelago-api:8080/api/ \
     API_HUBS_URL=http://bikeapelago-api:8080/hubs/
 EXPOSE 80
-CMD ["nginx", "-g", "daemon off;"]
 
 # ── App Frontend (bikepelago-app) ───────────────────────────────────────────────
 FROM runtime-template AS runtime-frontend

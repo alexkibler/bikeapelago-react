@@ -74,7 +74,9 @@ These variables are primarily used by the .NET API and Docker Compose:
 
 ### Frontend `.env`
 
-Vite reads environment variables from `.env` files. You can create one at `frontend/.env` (applies to all apps) or in specific package directories like `frontend/packages/apps/bikepelago-app/.env`.
+Vite reads environment variables from `.env` files in the specific package directories. Create one in each app directory as needed:
+- Game App: `frontend/packages/apps/bikepelago-app/.env`
+- Admin UI: `frontend/packages/apps/admin-ui/.env`
 
 | Variable | Description | Example |
 |---|---|---|
