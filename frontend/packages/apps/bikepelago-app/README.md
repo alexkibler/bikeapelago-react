@@ -42,7 +42,7 @@ npm run test:e2e
 The application is configured via environment variables in `.env` files.
 
 ### Key Variables
-- `VITE_API_URL`: The base URL for the .NET API.
+- `VITE_PUBLIC_API_URL`: The base URL for the .NET API.
 
 ## Deployment
 
