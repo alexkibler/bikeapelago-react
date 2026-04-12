@@ -48,6 +48,10 @@ Bikeapelago uses a decoupled architecture:
 - **Frontend**: A React application using **Zustand** for state management and **Tailwind CSS** with **DaisyUI** for styling. It communicates with the .NET API via REST.
 - **Backend**: A .NET 10 Web API following a repository pattern. It uses **EF Core** with **PostgreSQL/PostGIS** for persistence and authentication. It also includes an **OsmDiscoveryService** for location-based features.
 
+## Features
+- **Archipelago Integration**: Seamlessly connect your real-world activities to your Archipelago multiworld game.
+- **Single Player Route Setup**: Upload a GPX or FIT file to create a singleplayer session with nodes distributed evenly along your route. Nodes unlock sequentially as you check them.
+
 ## Documentation
 
 - [Architecture Details](ARCHITECTURE.md): Deep dive into the design decisions and patterns.
