@@ -107,12 +107,7 @@ pnpm -r run lint -- --fix
 
 ### Environment Variables
 
-Create a `.env` at the monorepo root:
-
-```
-VITE_PUBLIC_API_URL=http://localhost:5054
-VITE_PUBLIC_DB_URL=https://pb.bikeapelago.alexkibler.com
-```
+Frontend configuration (primarily `VITE_PUBLIC_API_URL`) is managed via `.env` files. See the [Environment Configuration](../README.md#environment-configuration) section in the root README for details.
 
 ### Vite Config
 
@@ -169,7 +164,102 @@ pnpm --filter "@bikeapelago/bikeapelago-app" run build
 
 Output goes to `dist/` — ready to serve with any static host (Netlify, Vercel, nginx, etc).
 
-Docker image: See `frontend/Dockerfile.dev` for local dev container setup.
+### Docker Testing (Production-like)
+
+Test the app in a Docker container without modifying local machine state. The container serves the built React app via Nginx and proxies API calls to the backend.
+
+**Build the Docker image:**
+```bash
+docker build -f frontend/Dockerfile \
+  -t bikeapelago-frontend:latest \
+  --target runtime-frontend \
+  frontend
+```
+
+**Run against production API:**
+```bash
+docker run -d --name frontend-test -p 8080:80 \
+  -e API_PROXY_URL=https://bikeapelago.alexkibler.com/api/ \
+  -e API_HUBS_URL=https://bikeapelago.alexkibler.com/hubs/ \
+  bikeapelago-frontend:latest
+```
+
+Then open `http://localhost:8080` and test:
+- Frontend loads ✓
+- Login works (API calls to production) ✓
+- Game page functions (WebSocket connections work) ✓
+
+**Run against local API (if available):**
+```bash
+docker run -d --name frontend-test -p 8080:80 \
+  -e API_PROXY_URL=http://host.docker.internal:8080/api/ \
+  -e API_HUBS_URL=http://host.docker.internal:8080/hubs/ \
+  bikeapelago-frontend:latest
+```
+
+**Stop the container:**
+```bash
+docker kill frontend-test
+docker rm frontend-test
+```
+
+---
+
+### Local Development (Vite dev server)
+
+**Debug the game app locally with hot reload:**
+```bash
+pnpm install
+pnpm --filter "@bikeapelago/bikeapelago-app" run dev
+```
+Opens at `http://localhost:5173` with live reloading on file changes.
+
+**Debug the admin UI locally:**
+```bash
+pnpm install
+pnpm --filter "@bikeapelago/admin-ui" run dev
+```
+Opens at `http://localhost:5174` (or see terminal for exact port).
+
+**Point dev server to production API:**
+
+Each app maintains its own configuration. Create a `.env` in the specific package directory you are working in:
+- Game App: `frontend/packages/apps/bikepelago-app/.env`
+- Admin UI: `frontend/packages/apps/admin-ui/.env`
+
+```env
+VITE_PUBLIC_API_URL=https://bikeapelago.alexkibler.com
+```
+
+Then restart the dev server. All API calls go to production while you iterate on frontend code locally.
+
+---
+
+### Docker Testing - Admin UI
+
+**Build the admin UI Docker image:**
+```bash
+docker build -f frontend/Dockerfile \
+  -t bikeapelago-admin-ui:latest \
+  --target runtime-admin-ui \
+  frontend
+```
+
+**Run the admin UI against production API:**
+```bash
+docker run -d --name admin-test -p 8081:80 \
+  -e API_PROXY_URL=https://bikeapelago.alexkibler.com/api/ \
+  -e API_HUBS_URL=https://bikeapelago.alexkibler.com/hubs/ \
+  bikeapelago-admin-ui:latest
+```
+
+Open `http://localhost:8081` and test the admin dashboard.
+
+**Stop the container:**
+```bash
+docker kill admin-test
+docker rm admin-test
+```
 
 ## Common Commands
 

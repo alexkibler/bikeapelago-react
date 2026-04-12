@@ -54,6 +54,34 @@ Bikeapelago uses a decoupled architecture:
 - [Frontend README](frontend/README.md): Detailed information about the React application.
 - [API README](api/README.md): Detailed information about the .NET backend.
 
+## Environment Configuration
+
+The application is configured using environment variables. For local development, create a `.env` file in the project root based on `.env.example`.
+
+### Root `.env` (Backend & Docker)
+
+These variables are primarily used by the .NET API and Docker Compose:
+
+| Variable | Description | Default / Example |
+|---|---|---|
+| `MAPBOX_API_KEY` | **Required** for routing and node validation. | `pk.eyJ...` |
+| `JWT_KEY` | Key for signing authentication tokens. | `openssl rand -base64 32` |
+| `DB_USER` | PostgreSQL user for the main application database. | `osm` |
+| `DB_PASSWORD` | PostgreSQL password for the main application database. | - |
+| `OSM_DISCOVERY_HOST` | Host for the OSM Discovery database (PostGIS). | `localhost` |
+| `ADMIN_EMAIL` | Initial admin account email for seeding. | `admin@localhost` |
+| `ADMIN_PASSWORD` | Password for the initial admin account. | - |
+
+### Frontend `.env`
+
+Vite reads environment variables from `.env` files in the specific package directories. Create one in each app directory as needed:
+- Game App: `frontend/packages/apps/bikepelago-app/.env`
+- Admin UI: `frontend/packages/apps/admin-ui/.env`
+
+| Variable | Description | Example |
+|---|---|---|
+| `VITE_PUBLIC_API_URL` | The base URL for the .NET API. | `http://localhost:5054` |
+
 ## Verification
 
 The project includes a comprehensive E2E test suite using **Playwright**, located in the `frontend/tests` directory.
