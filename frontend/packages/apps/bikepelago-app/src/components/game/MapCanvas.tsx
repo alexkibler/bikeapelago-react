@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useMemo } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { MapContainer, TileLayer, Marker, ZoomControl, useMap, useMapEvents, Polyline, Circle } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -11,7 +11,12 @@ import type { GameSession, MapNode } from '../../types/game';
 const MapResizer = () => {
   const map = useMap();
   useEffect(() => {
-    setTimeout(() => map.invalidateSize(), 100);
+    const observer = new ResizeObserver(() => {
+      map.invalidateSize();
+    });
+    const container = map.getContainer();
+    observer.observe(container);
+    return () => observer.disconnect();
   }, [map]);
   return null;
 };
@@ -19,15 +24,13 @@ const MapResizer = () => {
 // Auto-fits map to the bounding box of all nodes whenever they change
 const MapAutoFitter = ({ nodes }: { nodes: MapNode[] }) => {
   const map = useMap();
-  const fittedRef = useRef(false);
 
   useEffect(() => {
-    if (nodes.length === 0 || fittedRef.current) return;
+    if (nodes.length === 0) return;
     const latlngs = nodes.map(n => L.latLng(n.lat, n.lon));
     const bounds = L.latLngBounds(latlngs);
     if (bounds.isValid()) {
       map.fitBounds(bounds, { padding: [48, 48], maxZoom: 15 });
-      fittedRef.current = true;
     }
   }, [map, nodes]);
 
