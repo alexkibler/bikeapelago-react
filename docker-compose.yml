@@ -27,10 +27,12 @@ x-bikeapelago-frontend-app-definition: &frontend-app-definition
   restart: unless-stopped
   networks:
     - bikeapelago
+  environment:
+    VITE_PUBLIC_API_URL: http://bikeapelago-api:8080
 
 networks:
   bikeapelago:
-    name: bikeapelago_dev
+    name: bikeapelago
 
 volumes:
   bikeapelago_node_modules:
@@ -68,7 +70,7 @@ services:
       - -c
       - maintenance_work_mem=512MB
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U osm -d osm_discovery"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -91,7 +93,7 @@ services:
     networks:
       - bikeapelago
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-osm}"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-osm} -d $${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -103,7 +105,7 @@ services:
     profiles: [api]
     build:
       context: .
-      dockerfile: ./api/Dockerfile
+      dockerfile: ./api/Dockerfile.dev
     image: bikeapelago-api:latest
     container_name: bikeapelago-api-dev
     restart: unless-stopped
@@ -116,7 +118,7 @@ services:
       - ConnectionStrings__PostGis=Host=postgis-bikeapelago;Port=5432;Database=bikeapelago;Username=${DB_USER:-osm};Password=${DB_PASSWORD}
       - ConnectionStrings__OsmDiscovery=Host=postgis-osm;Port=5432;Database=osm_discovery;Username=${OSM_DISCOVERY_USER:-osm};Password=${OSM_DISCOVERY_PASSWORD}
     ports:
-      - "8182:8080"
+      - "8080:8080"
     depends_on:
       postgis-bikeapelago:
         condition: service_healthy

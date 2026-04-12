@@ -11,7 +11,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'http://localhost:5054',
+        target: process.env.VITE_PUBLIC_API_URL || 'http://127.0.0.1:8080',
         changeOrigin: true,
       },
     },
