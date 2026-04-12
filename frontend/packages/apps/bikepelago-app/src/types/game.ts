@@ -20,3 +20,29 @@ export interface GameSession {
   radius?: number;
   received_item_ids?: number[];
 }
+
+export interface PathPoint {
+  lat: number;
+  lon: number;
+  alt?: number;
+}
+
+export interface RideStats {
+  distanceMeters: number;
+  elevationGainMeters: number;
+  durationSeconds: number;
+  avgSpeedKph?: number;
+}
+
+export interface NewlyCheckedNode {
+  id: string;
+  apLocationId?: number;
+  lat: number;
+  lon: number;
+}
+
+export interface FitAnalysisResult {
+  path: PathPoint[];
+  stats: RideStats;
+  newlyCheckedNodes: NewlyCheckedNode[];
+}

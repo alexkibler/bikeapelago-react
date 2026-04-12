@@ -1,31 +1,6 @@
 import { useState } from 'react';
 import { getToken } from '../store/authStore';
-
-export interface PathPoint {
-  lat: number;
-  lon: number;
-  alt?: number;
-}
-
-export interface RideStats {
-  distanceMeters: number;
-  elevationGainMeters: number;
-  durationSeconds: number;
-  avgSpeedKph?: number;
-}
-
-export interface NewlyCheckedNode {
-  id: string;
-  apLocationId?: number;
-  lat: number;
-  lon: number;
-}
-
-export interface FitAnalysisResult {
-  path: PathPoint[];
-  stats: RideStats;
-  newlyCheckedNodes: NewlyCheckedNode[];
-}
+import type { FitAnalysisResult } from '../types/game';
 
 export function useFitAnalyzer(sessionId: string, onAnalysisComplete: (result: FitAnalysisResult | null) => void) {
   const [loading, setLoading] = useState(false);

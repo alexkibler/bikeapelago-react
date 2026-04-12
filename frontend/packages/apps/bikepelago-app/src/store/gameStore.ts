@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { MapNode } from '../types/game';
+import type { MapNode, FitAnalysisResult } from '../types/game';
 import { apiFetch, ENDPOINTS } from '../lib/api';
 
 export type GamePanel = 'chat' | 'upload' | 'route' | 'inventory' | null;
@@ -49,8 +49,8 @@ interface GameState {
   fetchRoute: () => Promise<void>;
   optimizeRouteToAvailable: (sessionId: string) => Promise<void>;
   
-  analysisResult: import('../hooks/useFitAnalyzer').FitAnalysisResult | null;
-  setAnalysisResult: (result: import('../hooks/useFitAnalyzer').FitAnalysisResult | null) => void;
+  analysisResult: FitAnalysisResult | null;
+  setAnalysisResult: (result: FitAnalysisResult | null) => void;
   
   userLocation: [number, number] | null;
   setUserLocation: (point: [number, number] | null) => void;

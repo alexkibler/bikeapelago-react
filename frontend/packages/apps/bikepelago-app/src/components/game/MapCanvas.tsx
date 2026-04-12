@@ -5,7 +5,7 @@ import 'leaflet/dist/leaflet.css';
 import { Navigation } from 'lucide-react';
 import { useGameStore } from '../../store/gameStore';
 import { downloadGPXFromPolyline } from '../../lib/geoUtils';
-import type { GameSession, MapNode } from '../../types/game';
+import type { GameSession, MapNode, NodeState } from '../../types/game';
 import { MapResizer, MapAutoFitter, MapEvents } from './MapControls';
 
 // Z-index constants
@@ -15,13 +15,13 @@ const Z_INDEX = {
   CONTROLS: 1001
 } as const;
 
-const NODE_COLORS: Record<string, string> = {
+const NODE_COLORS: Record<NodeState, string> = {
   Hidden: '#525252',     // neutral-600
   Available: '#f97316',  // orange-500
   Checked: '#22c55e'     // green-500
 };
 
-const getMarkerIcon = (state: string) => {
+const getMarkerIcon = (state: NodeState) => {
   const color = NODE_COLORS[state] || NODE_COLORS.Hidden;
   return L.divIcon({ 
     className: 'custom-div-icon', 
@@ -100,7 +100,7 @@ const MapCanvas = ({ session, nodes }: MapCanvasProps) => {
           <Marker 
             key={node.id} 
             position={[node.lat, node.lon]} 
-            icon={getMarkerIcon(node.state)} 
+            icon={getMarkerIcon(node.state as NodeState)} 
             title={node.name}
           />
         ))}
