@@ -1,0 +1,4 @@
+## 2025-04-12 - Fix Hardcoded JWT Secret Fallback
+**Vulnerability:** A hardcoded secret (`"your-secret-key-at-least-32-chars-long"`) was being used as a fallback for generating and validating JSON Web Tokens (JWT) if the environment variable was missing.
+**Learning:** Even though `Program.cs` properly checked for the presence of `JWT_KEY` during application startup and threw an error, the `EfCoreUserRepository.cs` component duplicated the key retrieval logic and included an insecure fallback. This could lead to a scenario where, if validation was somehow bypassed or testing code loaded this repository directly without validation, the application would securely fall back to a known hardcoded key, exposing tokens to attackers.
+**Prevention:** Centralize secret validation or ensure all components that retrieve sensitive configuration values throw an exception explicitly when the configuration is missing, rather than providing an insecure fallback.

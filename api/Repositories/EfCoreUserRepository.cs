@@ -59,7 +59,7 @@ public class EfCoreUserRepository(BikeapelagoDbContext context, IConfiguration c
     {
         if (string.IsNullOrEmpty(token)) return null;
 
-        var key = _configuration["Jwt:Key"] ?? "your-secret-key-at-least-32-chars-long";
+        var key = _configuration["JWT_KEY"] ?? _configuration["Jwt:Key"] ?? throw new InvalidOperationException("CRITICAL SECURITY: JWT_KEY must be configured in the environment (.env) and be at least 32 characters long. Default keys are disabled.");
         var handler = new JwtSecurityTokenHandler();
         var validationParams = new TokenValidationParameters
         {
@@ -89,7 +89,7 @@ public class EfCoreUserRepository(BikeapelagoDbContext context, IConfiguration c
 
     private async Task<string> GenerateJwt(User user)
     {
-        var key = _configuration["Jwt:Key"] ?? "your-secret-key-at-least-32-chars-long";
+        var key = _configuration["JWT_KEY"] ?? _configuration["Jwt:Key"] ?? throw new InvalidOperationException("CRITICAL SECURITY: JWT_KEY must be configured in the environment (.env) and be at least 32 characters long. Default keys are disabled.");
         var credentials = new SigningCredentials(
             new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key)),
             SecurityAlgorithms.HmacSha256);
