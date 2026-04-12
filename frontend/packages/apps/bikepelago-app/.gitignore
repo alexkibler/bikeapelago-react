@@ -22,3 +22,15 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# CI / Test Reports
+playwright-report/
+test-results/
+playwright-report/data/*.md
+
+# Temp files
+*.fit
+temp.fit
+temp_test_cancel.fit
+test-browser-fit.js
+test-uint.js

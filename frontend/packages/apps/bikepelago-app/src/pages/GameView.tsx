@@ -62,7 +62,7 @@ const GameView = () => {
     };
 
     updateSessionDB();
-  }, [apStatus, pendingConnection, session, toast]);
+  }, [apStatus, pendingConnection, session, toast, setPendingConnection]);
   
   // Activate Geolocation tracking
   useGeolocation();

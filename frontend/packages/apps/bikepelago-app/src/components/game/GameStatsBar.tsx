@@ -20,6 +20,14 @@ const GameStatsBar = ({ session, nodes }: GameStatsBarProps) => {
 
   return (
     <div className="absolute top-0 left-0 right-0 bg-[var(--color-surface-hex)]/90 backdrop-blur-md border-b border-[var(--color-border-strong-hex)] px-4 py-2 flex items-center justify-between h-12 z-[1000]">
+      {/* Click away layer to close statistics popover */}
+      {showStatsInfo && (
+        <div 
+          className="fixed inset-0 z-[1005]" 
+          onClick={() => setShowStatsInfo(false)}
+          aria-hidden="true"
+        />
+      )}
       <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-[var(--color-border-hex)] bg-[rgb(var(--color-surface-overlay))] relative group min-w-0">
         <div className={`w-2 h-2 rounded-full flex-shrink-0 ${statusColor}`}></div>
         <span className="text-xs font-medium text-[var(--color-text-muted-hex)] truncate">
@@ -75,12 +83,6 @@ const GameStatsBar = ({ session, nodes }: GameStatsBarProps) => {
                 <span className="text-[var(--color-success-hex)] font-bold">{checked}</span>
               </div>
             </div>
-            {/* Click away layer to close */}
-            <div 
-               className="fixed inset-0 z-[-1]" 
-               onClick={() => setShowStatsInfo(false)}
-               aria-hidden="true"
-            />
           </div>
         )}
       </div>

@@ -38,9 +38,19 @@ export async function apiFetch<T>(
   }
 
   if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.message || `API request failed with status ${response.status}`);
+    let message = `API request failed with status ${response.status}`;
+    try {
+      const errorData = await response.json();
+      message = errorData.message || message;
+    } catch {
+      // If JSON parsing fails, we use the default status message
+    }
+    throw new Error(message);
   }
 
-  return response.json() as Promise<T>;
+  try {
+    return await response.json() as Promise<T>;
+  } catch (err) {
+    throw new Error('Failed to parse server response');
+  }
 }

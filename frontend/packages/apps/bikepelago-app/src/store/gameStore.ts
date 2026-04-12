@@ -101,19 +101,6 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     set({ isRouting: true, routingError: null });
     try {
-      // Mock for Playwright/Tests if needed
-      if ((window as unknown as Record<string, unknown>).PLAYWRIGHT_TEST) {
-         set({
-            routeData: {
-              distance: waypoints.length * 1.5,
-              elevation: waypoints.length * 10,
-              polyline: waypoints.map(wp => [wp[1], wp[0]] as PolylinePoint)
-            },
-            isRouting: false
-          });
-          return;
-      }
-
       const data = await apiFetch<DiscoveryRouteResponse>(ENDPOINTS.DISCOVERY.ROUTE, {
         method: 'POST',
         body: JSON.stringify({
