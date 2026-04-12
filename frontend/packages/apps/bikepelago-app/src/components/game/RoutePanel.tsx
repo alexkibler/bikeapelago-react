@@ -103,7 +103,11 @@ const RoutePanel = ({ sessionId }: { sessionId: string }) => {
       }
     };
 
-    fetchRoute();
+    const timeout = setTimeout(() => {
+      fetchRoute();
+    }, 500);
+
+    return () => clearTimeout(timeout);
   }, [waypoints, setRouteData]);
 
   const downloadGPX = () => {

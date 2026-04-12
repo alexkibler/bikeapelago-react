@@ -36,6 +36,7 @@ else
 var builder = WebApplication.CreateBuilder(args);
 // 2.5 Common Services
 builder.Services.AddHttpContextAccessor();
+builder.Services.AddMemoryCache();
 
 var connString = builder.Configuration.GetConnectionString("PostGis");
 if (string.IsNullOrEmpty(connString))

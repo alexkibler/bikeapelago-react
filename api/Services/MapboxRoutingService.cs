@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Caching.Memory;
 using System.Text.Json;
 using Bikeapelago.Api.Models;
 using Microsoft.Extensions.Logging;
@@ -5,10 +6,11 @@ using NetTopologySuite.Geometries;
 
 namespace Bikeapelago.Api.Services;
 
-public class MapboxRoutingService(HttpClient httpClient, ILogger<MapboxRoutingService> logger, IConfiguration configuration) : IMapboxRoutingService
+public class MapboxRoutingService(HttpClient httpClient, ILogger<MapboxRoutingService> logger, IConfiguration configuration, IMemoryCache memoryCache) : IMapboxRoutingService
 {
     private readonly HttpClient _httpClient = httpClient;
     private readonly ILogger<MapboxRoutingService> _logger = logger;
+    private readonly IMemoryCache _cache = memoryCache;
     private readonly string _mapboxApiKey = configuration["Mapbox:ApiKey"] ?? configuration["MAPBOX_API_KEY"] ?? string.Empty;
     private const double MaxDistanceMeters = 20;
     private const string MapboxMatchingUrl = "https://api.mapbox.com/matching/v5/mapbox";
@@ -307,6 +309,7 @@ public class MapboxRoutingService(HttpClient httpClient, ILogger<MapboxRoutingSe
     /// <summary>
     /// Approximates the positive elevation gain of a route geometry by calling the free Open-Meteo Elevation API.
     /// Safely downsamples routes to a maximum of 100 points to adhere to HTTP GET limits.
+    /// Results are cached server-side to prevent rate-limiting from redundant requests.
     /// </summary>
     public async Task<double> CalculateElevationGainAsync(List<List<double>> geometry)
     {
@@ -333,6 +336,14 @@ public class MapboxRoutingService(HttpClient httpClient, ILogger<MapboxRoutingSe
 
         var lats = string.Join(",", sampledPoints.Select(p => Math.Round(p[1], 4).ToString(System.Globalization.CultureInfo.InvariantCulture)));
         var lons = string.Join(",", sampledPoints.Select(p => Math.Round(p[0], 4).ToString(System.Globalization.CultureInfo.InvariantCulture)));
+
+        // Use a composite cache key based on the downsampled coordinates string
+        string cacheKey = $"elev_gain_{lats.GetHashCode()}_{lons.GetHashCode()}";
+        if (_cache.TryGetValue(cacheKey, out double cachedGain))
+        {
+            _logger.LogInformation("Returning cached elevation gain: {Gain}m", Math.Round(cachedGain));
+            return cachedGain;
+        }
 
         var url = $"https://api.open-meteo.com/v1/elevation?latitude={lats}&longitude={lons}";
 
@@ -374,6 +385,10 @@ public class MapboxRoutingService(HttpClient httpClient, ILogger<MapboxRoutingSe
                 }
 
                 _logger.LogInformation("Calculated {Gain}m elevation gain from {Count} downsampled points", Math.Round(totalGain), sampledPoints.Count);
+                
+                // Cache for 1 hour
+                _cache.Set(cacheKey, totalGain, TimeSpan.FromHours(1));
+                
                 return totalGain;
             }
         }
