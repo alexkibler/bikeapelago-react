@@ -125,11 +125,11 @@ public class NodesController(IMapNodeRepository nodeRepository, ILogger<NodesCon
 public class NodeUpdateController(
     IMapNodeRepository nodeRepository,
     IGameSessionRepository sessionRepository,
-    SinglePlayerEngineService singlePlayerEngineService) : ControllerBase
+    IServiceProvider serviceProvider) : ControllerBase
 {
     private readonly IMapNodeRepository _nodeRepository = nodeRepository;
     private readonly IGameSessionRepository _sessionRepository = sessionRepository;
-    private readonly SinglePlayerEngineService _singlePlayerEngineService = singlePlayerEngineService;
+    private readonly IServiceProvider _serviceProvider = serviceProvider;
 
     public class PatchNodeRequest
     {
@@ -148,13 +148,20 @@ public class NodeUpdateController(
             var oldState = node.State;
             node.State = request.State;
 
-            // Trigger Single Player engine unlock
+            // Trigger engine progression
             if (oldState != "Checked" && request.State == "Checked")
             {
                 var session = await _sessionRepository.GetByIdAsync(node.SessionId);
-                if (session != null && session.Mode == "singleplayer")
+                if (session != null)
                 {
-                    await _singlePlayerEngineService.UnlockNextNodeAsync(session.Id);
+                    IProgressionEngine? engine = session.Mode == "singleplayer"
+                        ? _serviceProvider.GetService(typeof(SinglePlayerProgressionEngine)) as IProgressionEngine
+                        : _serviceProvider.GetService(typeof(ArchipelagoProgressionEngine)) as IProgressionEngine;
+
+                    if (engine != null)
+                    {
+                        await engine.UnlockNextAsync(session.Id);
+                    }
                 }
             }
         }
