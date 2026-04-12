@@ -45,6 +45,16 @@ public class MockNodeRepository : IMapNodeRepository
         return Task.FromResult(node);
     }
 
+    public Task UpdateRangeAsync(IEnumerable<MapNode> nodes)
+    {
+        foreach (var node in nodes)
+        {
+            var idx = _nodes.FindIndex(n => n.Id == node.Id);
+            if (idx != -1) _nodes[idx] = node;
+        }
+        return Task.CompletedTask;
+    }
+
     public Task DeleteBySessionIdAsync(Guid sessionId)
     {
         _nodes.RemoveAll(n => n.SessionId == sessionId);

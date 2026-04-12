@@ -36,7 +36,7 @@ const CategoryHeader = ({ title, count, color, isOpen, onClick }: { title: strin
 );
 
 const RoutePanel = ({ sessionId }: { sessionId: string }) => {
-  const { waypoints, clearWaypoints, setRouteData, routeData, nodes, addWaypoint, addWaypoints, userLocation, togglePanel } = useGameStore();
+  const { waypoints, setWaypoints, clearWaypoints, setRouteData, routeData, nodes, addWaypoint, addWaypoints, userLocation, togglePanel } = useGameStore();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
@@ -177,8 +177,7 @@ const RoutePanel = ({ sessionId }: { sessionId: string }) => {
         lastFetchedWaypointsRef.current = JSON.stringify(newWaypoints);
         lastOptimizedAvailableNodesRef.current = currentAvailableNodesKey;
 
-        clearWaypoints();
-        addWaypoints(newWaypoints);
+        setWaypoints(newWaypoints);
       }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Routing failed');

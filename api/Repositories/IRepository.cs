@@ -29,5 +29,6 @@ public interface IMapNodeRepository
     Task<MapNode> CreateAsync(MapNode node);
     Task CreateRangeAsync(IEnumerable<MapNode> nodes);
     Task<MapNode> UpdateAsync(MapNode node);
+    Task UpdateRangeAsync(IEnumerable<MapNode> nodes);
     Task DeleteBySessionIdAsync(Guid sessionId);
 }
