@@ -6,8 +6,7 @@ export interface MapNode {
   lat: number;
   lon: number;
   state: NodeState;
-  ap_location_id?: number;
-  apLocationId?: number;
+  apLocationId: number;
 }
 
 export interface GameSession {

@@ -123,9 +123,18 @@ public class PostGisOsmDiscoveryService : IOsmDiscoveryService
         double[] lats = subTargets.Select(p => p.Lat).ToArray();
         
         // 1 degree lat is ~111,132m. Longitude varies by cos(lat).
-        // We use a slightly generous degree radius to ensure we don't miss nodes
-        // near the edges of the sub-radius, then filter precisely in SQL.
-        double subRadiusDegrees = (subRadiusMeters * 1.2) / 111132.0;
+        // We use a generous degree radius to ensure we don't miss nodes
+        // near the edges of the sub-radius due to earth curvature, 
+        // then filter precisely in SQL using geography.
+        double avgLat = lats.Average();
+        double cosLat = Math.Cos(avgLat * Math.PI / 180.0);
+        double degreesPerMeter = 1.0 / 111132.0;
+        
+        // Use the larger of the two degree-equivalent distances (usually longitude) 
+        // and add a 50% buffer to be safe against projection distortions.
+        double maxDegreesPerMeter = degreesPerMeter / Math.Max(0.1, cosLat);
+        double subRadiusDegrees = (subRadiusMeters * 1.5) * maxDegreesPerMeter;
+        
         int safetyCap = subTargets.Count * 20;
 
         await using var conn = new NpgsqlConnection(_connectionString);

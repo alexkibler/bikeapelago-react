@@ -1,7 +1,16 @@
 import { create } from 'zustand';
 import type { MapNode } from '../types/game';
+import { apiFetch, ENDPOINTS } from '../lib/api';
 
 export type GamePanel = 'chat' | 'upload' | 'route' | 'inventory' | null;
+
+export type PolylinePoint = [number, number];
+
+interface RouteData {
+  distance: number;
+  elevation: number;
+  polyline: PolylinePoint[];
+}
 
 interface GameState {
   activePanel: GamePanel;
@@ -17,12 +26,13 @@ interface GameState {
   nodes: MapNode[];
   setNodes: (nodes: MapNode[]) => void;
   
-  routeData: {
-    distance: number;
-    elevation: number;
-    polyline: string | null;
-  };
-  setRouteData: (data: { distance: number, elevation: number, polyline: string | null }) => void;
+  routeData: RouteData;
+  setRouteData: (data: RouteData) => void;
+  
+  isRouting: boolean;
+  routingError: string | null;
+  fetchRoute: () => Promise<void>;
+  optimizeRouteToAvailable: (sessionId: string) => Promise<void>;
   
   analysisResult: import('../hooks/useFitAnalyzer').FitAnalysisResult | null;
   setAnalysisResult: (result: import('../hooks/useFitAnalyzer').FitAnalysisResult | null) => void;
@@ -34,7 +44,7 @@ interface GameState {
   triggerSync: () => void;
 }
 
-export const useGameStore = create<GameState>((set) => ({
+export const useGameStore = create<GameState>((set, get) => ({
   activePanel: null,
   setActivePanel: (panel) => set({ activePanel: panel }),
   togglePanel: (panel) => set((state) => ({ 
@@ -49,7 +59,11 @@ export const useGameStore = create<GameState>((set) => ({
     waypoints: [...state.waypoints, ...points] 
   })),
   setWaypoints: (waypoints) => set({ waypoints }),
-  clearWaypoints: () => set({ waypoints: [], routeData: { distance: 0, elevation: 0, polyline: null } }),
+  clearWaypoints: () => set({ 
+    waypoints: [], 
+    routeData: { distance: 0, elevation: 0, polyline: [] },
+    routingError: null
+  }),
   
   nodes: [],
   setNodes: (nodes) => set({ nodes }),
@@ -57,10 +71,97 @@ export const useGameStore = create<GameState>((set) => ({
   routeData: {
     distance: 0,
     elevation: 0,
-    polyline: null
+    polyline: []
   },
   setRouteData: (data) => set({ routeData: data }),
   
+  isRouting: false,
+  routingError: null,
+  fetchRoute: async () => {
+    const { waypoints } = get();
+    if (waypoints.length < 2) {
+      set({ routeData: { distance: 0, elevation: 0, polyline: [] }, routingError: null });
+      return;
+    }
+
+    set({ isRouting: true, routingError: null });
+    try {
+      // Mock for Playwright/Tests if needed
+      if ((window as any).PLAYWRIGHT_TEST) {
+         set({
+            routeData: {
+              distance: waypoints.length * 1.5,
+              elevation: waypoints.length * 10,
+              polyline: waypoints.map(wp => [wp[1], wp[0]] as PolylinePoint)
+            },
+            isRouting: false
+          });
+          return;
+      }
+
+      const data = await apiFetch<any>(ENDPOINTS.DISCOVERY.ROUTE, {
+        method: 'POST',
+        body: JSON.stringify({
+          waypoints: waypoints.map(wp => ({ lat: wp[0], lon: wp[1] })),
+          profile: 'cycling'
+        })
+      });
+
+      // Parse geometry safely. Expecting array of [lon, lat] from Mapbox geojson
+      const polyline = (data.geometry || []).map((p: [number, number]) => [p[1], p[0]] as PolylinePoint);
+
+      set({
+        routeData: {
+          distance: data.distanceMeters / 1000,
+          elevation: data.elevation || 0,
+          polyline
+        },
+        isRouting: false
+      });
+    } catch (err: any) {
+      set({ routingError: err.message || 'Routing failed', isRouting: false });
+    }
+  },
+
+  optimizeRouteToAvailable: async (sessionId: string) => {
+    const { nodes, userLocation } = get();
+    set({ isRouting: true, routingError: null });
+    
+    try {
+      const data = await apiFetch<any>(`${ENDPOINTS.SESSIONS}/${sessionId}/route-to-available?profile=cycling`, {
+        method: 'POST'
+      });
+      
+      if (data.success) {
+        const polyline = (data.geometry || []).map((p: [number, number]) => [p[1], p[0]] as PolylinePoint);
+        
+        set({
+          routeData: {
+            distance: data.totalDistanceMeters / 1000,
+            elevation: data.elevation || 0,
+            polyline
+          }
+        });
+
+        const allNodesMap = new Map(nodes.map(n => [n.id, n]));
+        const orderedPoints: [number, number][] = data.orderedNodeIds
+          .map((id: string) => allNodesMap.get(id))
+          .filter(Boolean)
+          .map((n: MapNode) => [n.lat, n.lon] as [number, number]);
+
+        const newWaypoints: [number, number][] = userLocation
+          ? [userLocation, ...orderedPoints]
+          : orderedPoints;
+
+        set({ waypoints: newWaypoints, isRouting: false });
+      } else {
+        throw new Error(data.message || 'Optimization failed');
+      }
+    } catch (err: any) {
+      set({ routingError: err.message || 'Optimization failed', isRouting: false });
+    }
+  },
+
   analysisResult: null,
   setAnalysisResult: (result) => set({ analysisResult: result }),
   

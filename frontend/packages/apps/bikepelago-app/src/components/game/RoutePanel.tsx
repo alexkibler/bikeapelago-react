@@ -1,8 +1,7 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useGameStore } from '../../store/gameStore';
 import { downloadGPXFromPolyline } from '../../lib/geoUtils';
 import { Map as MapIcon, Download, Loader2, ChevronDown, ChevronUp, UploadCloud } from 'lucide-react';
-import { getToken } from '../../store/authStore';
 import type { MapNode } from '../../types/game';
 
 const NodeListItem = ({ node, onClick }: { node: MapNode, onClick: () => void }) => {
@@ -37,163 +36,37 @@ const CategoryHeader = ({ title, count, color, isOpen, onClick }: { title: strin
 );
 
 const RoutePanel = ({ sessionId }: { sessionId: string }) => {
-  const { waypoints, setWaypoints, clearWaypoints, setRouteData, routeData, nodes, addWaypoint, userLocation, togglePanel } = useGameStore();
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  
+  const waypoints = useGameStore(s => s.waypoints);
+  const clearWaypoints = useGameStore(s => s.clearWaypoints);
+  const routeData = useGameStore(s => s.routeData);
+  const nodes = useGameStore(s => s.nodes);
+  const addWaypoint = useGameStore(s => s.addWaypoint);
+  const togglePanel = useGameStore(s => s.togglePanel);
+  const isRouting = useGameStore(s => s.isRouting);
+  const routingError = useGameStore(s => s.routingError);
+  const fetchRoute = useGameStore(s => s.fetchRoute);
+  const optimizeRouteToAvailable = useGameStore(s => s.optimizeRouteToAvailable);
+
   const [openCategories, setOpenCategories] = useState({
     Available: true,
     Checked: false,
     Hidden: false
   });
 
-  const lastFetchedWaypointsRef = useRef<string>('');
-  const lastOptimizedAvailableNodesRef = useRef<string>('');
-
   const toggleCategory = (cat: string) => {
     setOpenCategories(prev => ({ ...prev, [cat]: !prev[cat as keyof typeof prev] }));
   };
 
   useEffect(() => {
-    const fetchRoute = async () => {
-      if (waypoints.length < 2) {
-        setRouteData({ distance: 0, elevation: 0, polyline: null });
-        lastFetchedWaypointsRef.current = '';
-        return;
-      }
-
-      const waypointsKey = JSON.stringify(waypoints);
-      if (waypointsKey === lastFetchedWaypointsRef.current) {
-        return;
-      }
-
-      setLoading(true);
-      setError(null);
-      try {
-        if ((window as Record<string, unknown>).PLAYWRIGHT_TEST) {
-          setRouteData({
-            distance: waypoints.length * 1.5,
-            elevation: waypoints.length * 10,
-            polyline: JSON.stringify(waypoints.map(wp => [wp[1], wp[0], 250]))
-          });
-          lastFetchedWaypointsRef.current = waypointsKey;
-          setLoading(false);
-          return;
-        }
-
-        const token = getToken();
-        const headers = {
-          'Content-Type': 'application/json',
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-        };
-
-        const res = await fetch('/api/discovery/route', {
-          method: 'POST',
-          headers,
-          body: JSON.stringify({
-            waypoints: waypoints.map(wp => ({ lat: wp[0], lon: wp[1] })),
-            profile: 'cycling'
-          })
-        });
-
-        if (!res.ok) {
-          const errData = await res.json();
-          throw new Error(errData.message || 'Routing failed');
-        }
-
-        const data = await res.json();
-        setRouteData({
-          distance: data.distanceMeters / 1000,
-          elevation: data.elevation || 0,
-          polyline: JSON.stringify(data.geometry)
-        });
-        lastFetchedWaypointsRef.current = waypointsKey;
-      } catch (err: unknown) {
-        setError(err instanceof Error ? err.message : 'Routing failed');
-      } finally {
-        setLoading(false);
-      }
-    };
-
     const timeout = setTimeout(() => {
       fetchRoute();
     }, 500);
-
     return () => clearTimeout(timeout);
-  }, [waypoints, setRouteData]);
-
-  const downloadGPX = () => {
-    if (!routeData.polyline) return;
-    downloadGPXFromPolyline(routeData.polyline);
-  };
-
-  const handleRouteToAvailable = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const token = getToken();
-      const headers = {
-        'Content-Type': 'application/json',
-        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-      };
-      
-      const res = await fetch(`/api/sessions/${sessionId}/route-to-available?profile=cycling`, {
-        method: 'POST',
-        headers
-      });
-      
-      if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.message || 'Routing failed');
-      }
-      
-      const data = await res.json();
-      if (data.success) {
-        // Update route data in store
-        setRouteData({
-          distance: data.totalDistanceMeters / 1000,
-          elevation: data.elevation || 0,
-          polyline: JSON.stringify(data.geometry)
-        });
-
-        // Add nodes as waypoints for visual feedback and ordered visiting
-        // We'll also clear existing waypoints and replace them with the optimized order
-        const allNodesMap = new Map(nodes.map(n => [n.id, n]));
-        const orderedPoints: [number, number][] = data.orderedNodeIds
-          .map((id: string) => allNodesMap.get(id))
-          .filter(Boolean)
-          .map((n: MapNode) => [n.lat, n.lon] as [number, number]);
-
-        // If we have a user location, prepend it as the start
-        const newWaypoints: [number, number][] = userLocation
-          ? [userLocation, ...orderedPoints]
-          : orderedPoints;
-
-        // Calculate the current available nodes key for this optimization
-        const currentAvailableNodesKey = JSON.stringify(
-          nodes.filter(n => n.state === 'Available').map(n => n.id).sort()
-        );
-
-        // Synchronously update the refs BEFORE triggering waypoint changes to prevent redundant fetch
-        lastFetchedWaypointsRef.current = JSON.stringify(newWaypoints);
-        lastOptimizedAvailableNodesRef.current = currentAvailableNodesKey;
-
-        setWaypoints(newWaypoints);
-      }
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Routing failed');
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [waypoints, fetchRoute]);
 
   const availableNodes = nodes.filter(n => n.state === 'Available');
   const checkedNodes = nodes.filter(n => n.state === 'Checked');
   const hiddenNodes = nodes.filter(n => n.state === 'Hidden');
-
-  const availableNodesKey = JSON.stringify(availableNodes.map(n => n.id).sort());
-  const isRouteAlreadyOptimized = lastOptimizedAvailableNodesRef.current === availableNodesKey &&
-                                  lastFetchedWaypointsRef.current === JSON.stringify(waypoints);
 
   return (
     <div className="flex flex-col h-full bg-[var(--color-surface-hex)] text-[var(--color-text-hex)] overflow-hidden relative">
@@ -210,15 +83,20 @@ const RoutePanel = ({ sessionId }: { sessionId: string }) => {
         {/* Action Buttons */}
         <div className="space-y-3">
           <button
-            onClick={handleRouteToAvailable}
-            disabled={availableNodes.length === 0 || isRouteAlreadyOptimized || loading}
+            onClick={() => optimizeRouteToAvailable(sessionId)}
+            disabled={availableNodes.length === 0 || isRouting}
             className={`w-full font-black py-4 rounded-xl transition-all shadow-lg active:scale-[0.98] ${
-              availableNodes.length === 0 || isRouteAlreadyOptimized
+              availableNodes.length === 0 || isRouting
               ? 'bg-[rgb(var(--color-surface-overlay))] text-[var(--color-text-subtle-hex)] cursor-not-allowed opacity-50'
               : 'bg-[var(--color-primary-hex)] hover:bg-[var(--color-primary-hover-hex)] text-white shadow-primary/20'
             }`}
           >
-            {isRouteAlreadyOptimized ? 'Route Optimized' : 'Route To Available'}
+            {isRouting ? (
+              <span className="flex items-center justify-center gap-2">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Optimizing...
+              </span>
+            ) : 'Route To Available'}
           </button>
           <button
             onClick={clearWaypoints}
@@ -286,15 +164,15 @@ const RoutePanel = ({ sessionId }: { sessionId: string }) => {
           )}
         </div>
 
-        {loading && (
+        {isRouting && (
           <div className="flex items-center justify-center py-4 text-[var(--color-primary-hex)]">
             <Loader2 className="w-6 h-6 animate-spin" />
           </div>
         )}
 
-        {error && (
+        {routingError && (
           <div className="p-3 bg-[var(--color-error-hex)]/10 border border-[var(--color-error-hex)]/20 rounded-lg text-[var(--color-error-hex)] text-sm">
-            {error}
+            {routingError}
           </div>
         )}
       </div>
@@ -314,10 +192,10 @@ const RoutePanel = ({ sessionId }: { sessionId: string }) => {
           </div>
 
           <button
-            onClick={downloadGPX}
-            disabled={!routeData.polyline}
+            onClick={() => downloadGPXFromPolyline(routeData.polyline)}
+            disabled={routeData.polyline.length === 0}
             className={`flex items-center gap-2 px-6 py-3 rounded-xl font-black transition-all ${
-              routeData.polyline
+              routeData.polyline.length > 0
               ? 'bg-[var(--color-primary-hex)]/20 text-[var(--color-primary-hex)] hover:bg-[var(--color-primary-hex)]/30 border border-[var(--color-primary-hex)]/30 shadow-lg'
               : 'bg-[rgb(var(--color-surface-overlay))] text-[var(--color-text-subtle-hex)] border border-[var(--color-border-hex)] cursor-not-allowed'
             }`}

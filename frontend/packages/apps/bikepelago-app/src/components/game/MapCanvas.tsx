@@ -1,11 +1,12 @@
-import React, { useEffect, useMemo, useRef } from 'react';
-import { MapContainer, TileLayer, Marker, ZoomControl, useMap, useMapEvents, Polyline, Circle } from 'react-leaflet';
+import React, { useMemo, useRef } from 'react';
+import { MapContainer, TileLayer, Marker, ZoomControl, Polyline, Circle } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Navigation } from 'lucide-react';
 import { useGameStore } from '../../store/gameStore';
 import { downloadGPXFromPolyline } from '../../lib/geoUtils';
 import type { GameSession, MapNode } from '../../types/game';
+import { MapResizer, MapAutoFitter, MapEvents } from './MapControls';
 
 // Z-index constants
 const Z_INDEX = {
@@ -13,55 +14,6 @@ const Z_INDEX = {
   USER_LOCATION: 1000,
   CONTROLS: 1001
 } as const;
-
-// Map fit bounds constants
-const FIT_BOUNDS = {
-  PADDING: [48, 48] as const,
-  MAX_ZOOM: 15
-} as const;
-
-// Map resizer to handle container boundary updates when Layout triggers changes
-const MapResizer = () => {
-  const map = useMap();
-  useEffect(() => {
-    const observer = new ResizeObserver(() => {
-      map.invalidateSize();
-    });
-    const container = map.getContainer();
-    observer.observe(container);
-    return () => observer.disconnect();
-  }, [map]);
-  return null;
-};
-
-// Auto-fits map to the bounding box of all nodes whenever they change
-const MapAutoFitter = ({ nodes }: { nodes: MapNode[] }) => {
-  const map = useMap();
-
-  useEffect(() => {
-    if (nodes.length === 0) return;
-    const latlngs = nodes.map(n => L.latLng(n.lat, n.lon));
-    const bounds = L.latLngBounds(latlngs);
-    if (bounds.isValid()) {
-      map.fitBounds(bounds, { padding: FIT_BOUNDS.PADDING, maxZoom: FIT_BOUNDS.MAX_ZOOM });
-    }
-  }, [map, nodes]);
-
-  return null;
-};
-
-// Map click listener for routing
-const MapEvents = () => {
-  const { activePanel, addWaypoint } = useGameStore();
-  useMapEvents({
-    click(e) {
-      if (activePanel === 'route') {
-        addWaypoint([e.latlng.lat, e.latlng.lng]);
-      }
-    },
-  });
-  return null;
-};
 
 const NODE_COLORS: Record<string, string> = {
   Hidden: '#525252',     // neutral-600
@@ -85,7 +37,12 @@ interface MapCanvasProps {
 }
 
 const MapCanvas = ({ session, nodes }: MapCanvasProps) => {
-  const { activePanel, routeData, waypoints, analysisResult, userLocation } = useGameStore();
+  const activePanel = useGameStore(s => s.activePanel);
+  const routeData = useGameStore(s => s.routeData);
+  const waypoints = useGameStore(s => s.waypoints);
+  const analysisResult = useGameStore(s => s.analysisResult);
+  const userLocation = useGameStore(s => s.userLocation);
+  
   const mapRef = useRef<L.Map | null>(null);
 
   const locateUser = () => {
@@ -99,12 +56,7 @@ const MapCanvas = ({ session, nodes }: MapCanvasProps) => {
     session.center_lon ?? -74.006
   ];
 
-  // ⚡ Bolt: Memoize expensive polyline JSON parsing and mapping to prevent main thread blocking on re-renders
-  const parsedPolyline = useMemo(() => {
-    return routeData.polyline ? JSON.parse(routeData.polyline).map((p: [number, number]) => [p[1], p[0]] as [number, number]) : [];
-  }, [routeData.polyline]);
-
-  // ⚡ Bolt: Memoize analysis path mapping to avoid unnecessary array allocations on re-renders
+  // Analysis path mapping is relatively simple but good to keep memoized
   const analysisPath = useMemo(() => {
     return analysisResult?.path ? analysisResult.path.map((p: { lat: number, lon: number }) => [p.lat, p.lon] as [number, number]) : [];
   }, [analysisResult]);
@@ -153,8 +105,8 @@ const MapCanvas = ({ session, nodes }: MapCanvasProps) => {
           />
         ))}
 
-        {parsedPolyline.length > 0 && (
-          <Polyline positions={parsedPolyline} color="#f97316" weight={5} opacity={0.7} />
+        {routeData.polyline.length > 0 && (
+          <Polyline positions={routeData.polyline} color="#f97316" weight={5} opacity={0.7} />
         )}
 
         {analysisPath.length > 0 && (
@@ -234,8 +186,8 @@ const MapCanvas = ({ session, nodes }: MapCanvasProps) => {
                 <span className="text-[var(--color-text-hex)] font-bold text-lg leading-none">{routeData.elevation.toFixed(0)}<span className="text-xs text-[var(--color-text-muted-hex)] font-normal ml-1">m</span></span>
               </div>
             </div>
-            {routeData.polyline && (
-              <button onClick={() => downloadGPXFromPolyline(routeData.polyline as string)} className="px-3 py-2 bg-orange-600 hover:bg-orange-500 rounded-lg text-xs font-bold text-white transition-colors flex items-center gap-2">
+            {routeData.polyline.length > 0 && (
+              <button onClick={() => downloadGPXFromPolyline(routeData.polyline)} className="px-3 py-2 bg-orange-600 hover:bg-orange-500 rounded-lg text-xs font-bold text-white transition-colors flex items-center gap-2">
                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
                 GPX
               </button>
