@@ -144,8 +144,7 @@ public class SessionsController(
 
             var createdSession = await _sessionRepository.CreateAsync(session);
 
-            var shuffledPoints = interpolatedPath.OrderBy(_ => Guid.NewGuid()).ToList();
-            var mapNodes = shuffledPoints.Select((p, i) => new MapNode
+            var mapNodes = interpolatedPath.Select((p, i) => new MapNode
             {
                 SessionId = createdSession.Id,
                 ApLocationId = 800000 + (i + 1),
