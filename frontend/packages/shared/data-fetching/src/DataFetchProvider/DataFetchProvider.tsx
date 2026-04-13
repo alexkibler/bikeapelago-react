@@ -10,14 +10,15 @@ const DataFetchProviderContext = createContext<TDataFetchProviderContext | undef
   undefined,
 );
 
-export function DataFetchProvider({ children, token }: PropsWithChildren<DataFetchProviderProps>) {
-  const queryClient = useMemo(() => new QueryClient(), []);
+export function DataFetchProvider({ children, handleUnauthorized, token }: PropsWithChildren<DataFetchProviderProps>) {
+  const queryClient = useMemo(() => new QueryClient(), [token]);
 
   const value = useMemo(
     () => ({
+      handleUnauthorized,
       token,
     }),
-    [token],
+    [handleUnauthorized, token],
   );
 
   return (

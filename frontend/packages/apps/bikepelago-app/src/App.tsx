@@ -9,7 +9,7 @@ import NewGame from './pages/NewGame';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Settings from './pages/Settings';
-import { useAuthStore } from './store/authStore';
+import { handleUnauthorized, useAuthStore } from './store/authStore';
 import { DataFetchProvider } from '@bikeapelago/shared-data-fetching';
 import './App.css';
 
@@ -23,7 +23,7 @@ function App() {
 
   return (
     <Router>
-      <DataFetchProvider token={token ?? null}>
+      <DataFetchProvider handleUnauthorized={handleUnauthorized} token={token ?? null}>
         <Layout>
           <Routes>
             <Route path="/login" element={<Login />} />

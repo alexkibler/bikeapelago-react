@@ -7,7 +7,7 @@ export function useApiGet<
   TSearchParams extends Record<string, string> | void | undefined,
   TResponse
 >(): QueryRequestCallback<TSearchParams, TResponse> {
-  const { token } = useDataFetchProviderCtx();
+  const { handleUnauthorized, token } = useDataFetchProviderCtx();
 
   const request: QueryRequestCallback<TSearchParams, TResponse> = useCallback(async (url: string, {
     searchParams: _searchParams,
@@ -24,13 +24,18 @@ export function useApiGet<
     });
 
     if (!res.ok) {
+      if (res.status === 401) {
+        handleUnauthorized();
+        // brute force short circuit
+        return undefined as unknown as TResponse;
+      }
       throw new Error(`Request Failed`);
     }
 
     const data = await res.json() as TResponse;
 
     return data
-  }, [token]);
+  }, [handleUnauthorized, token]);
 
   return request
 }

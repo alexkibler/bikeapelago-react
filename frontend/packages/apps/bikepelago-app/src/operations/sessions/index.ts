@@ -9,6 +9,5 @@ export function useSessionsGet() {
   return useQuery({
     queryKey: ['sessions'],
     queryFn: async () => await sessionsGetRequest({}),
-    initialData: [],
   })
 }
