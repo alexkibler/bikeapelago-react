@@ -399,4 +399,44 @@ public class MapboxRoutingService(HttpClient httpClient, ILogger<MapboxRoutingSe
 
         return 0;
     }
+
+    /// <inheritdoc />
+    public string GenerateGpx(List<List<double>> geometry, List<MapNode> orderedNodes, bool turnByTurn)
+    {
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
+        sb.AppendLine("<gpx version=\"1.1\" creator=\"Bikeapelago\" xmlns=\"http://www.topografix.com/GPX/1/1\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:schemaLocation=\"http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd\">");
+
+        if (turnByTurn)
+        {
+            sb.AppendLine("  <trk>");
+            sb.AppendLine("    <name>Bikeapelago Route (Turn-by-Turn)</name>");
+            sb.AppendLine("    <trkseg>");
+            foreach (var point in geometry)
+            {
+                // geometry points are [lon, lat]
+                sb.AppendLine($"      <trkpt lat=\"{point[1]}\" lon=\"{point[0]}\" />");
+            }
+            sb.AppendLine("    </trkseg>");
+            sb.AppendLine("  </trk>");
+        }
+        else
+        {
+            sb.AppendLine("  <rte>");
+            sb.AppendLine("    <name>Bikeapelago Destinations (Straight Line)</name>");
+            foreach (var node in orderedNodes)
+            {
+                if (node.Location != null)
+                {
+                    sb.AppendLine($"    <rtept lat=\"{node.Location.Y}\" lon=\"{node.Location.X}\">");
+                    sb.AppendLine($"      <name>{System.Security.SecurityElement.Escape(node.Name)}</name>");
+                    sb.AppendLine("    </rtept>");
+                }
+            }
+            sb.AppendLine("  </rte>");
+        }
+
+        sb.AppendLine("</gpx>");
+        return sb.ToString();
+    }
 }

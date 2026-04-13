@@ -10,6 +10,7 @@ interface RouteData {
   distance: number;
   elevation: number;
   polyline: PolylinePoint[];
+  gpxString?: string;
 }
 
 interface DiscoveryRouteResponse {
@@ -25,6 +26,7 @@ interface OptimizationResponse {
   elevation?: number;
   geometry: [number, number][];
   orderedNodeIds: string[];
+  gpxString?: string;
 }
 
 interface GameState {
@@ -47,7 +49,7 @@ interface GameState {
   isRouting: boolean;
   routingError: string | null;
   fetchRoute: () => Promise<void>;
-  optimizeRouteToAvailable: (sessionId: string) => Promise<void>;
+  optimizeRouteToAvailable: (sessionId: string, turnByTurn?: boolean) => Promise<void>;
   
   analysisResult: FitAnalysisResult | null;
   setAnalysisResult: (result: FitAnalysisResult | null) => void;
@@ -126,12 +128,12 @@ export const useGameStore = create<GameState>((set, get) => ({
     }
   },
 
-  optimizeRouteToAvailable: async (sessionId: string) => {
+  optimizeRouteToAvailable: async (sessionId: string, turnByTurn = true) => {
     const { nodes, userLocation } = get();
     set({ isRouting: true, routingError: null });
     
     try {
-      const data = await apiFetch<OptimizationResponse>(`${ENDPOINTS.SESSIONS}/${sessionId}/route-to-available?profile=cycling`, {
+      const data = await apiFetch<OptimizationResponse>(`${ENDPOINTS.SESSIONS}/${sessionId}/route-to-available?profile=cycling&turnByTurn=${turnByTurn}`, {
         method: 'POST'
       });
       
@@ -142,7 +144,8 @@ export const useGameStore = create<GameState>((set, get) => ({
           routeData: {
             distance: data.totalDistanceMeters / 1000,
             elevation: data.elevation || 0,
-            polyline
+            polyline,
+            gpxString: data.gpxString
           }
         });
 

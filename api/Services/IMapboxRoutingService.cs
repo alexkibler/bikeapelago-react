@@ -35,4 +35,12 @@ public interface IMapboxRoutingService
     /// Calculates the estimated positive elevation gain of a route in meters.
     /// </summary>
     Task<double> CalculateElevationGainAsync(List<List<double>> geometry);
+
+    /// <summary>
+    /// Generates a GPX XML string for the given geometry or list of nodes.
+    /// </summary>
+    /// <param name="geometry">Full route track points (lon,lat lists)</param>
+    /// <param name="orderedNodes">Optimized sequence of target nodes</param>
+    /// <param name="turnByTurn">If true, generates a track (<trk>); if false, generates a route (<rte>)</param>
+    string GenerateGpx(List<List<double>> geometry, List<MapNode> orderedNodes, bool turnByTurn);
 }
