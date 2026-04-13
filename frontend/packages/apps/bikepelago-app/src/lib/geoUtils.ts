@@ -14,8 +14,7 @@ export function calculateDistance(lat1: number, lon1: number, lat2: number, lon2
   return R * c;
 }
 
-export function downloadGPXFromPolyline(polylineString: string) {
-  const coordinates = JSON.parse(polylineString) as [number, number, number?][];
+export function generateGPXFromCoordinates(coordinates: [number, number, number?][]): string {
   let gpx = `<?xml version="1.0" encoding="UTF-8"?>
 <gpx version="1.1" creator="Bikeapelago" xmlns="http://www.topografix.com/GPX/1/1">
   <trk>
@@ -24,7 +23,7 @@ export function downloadGPXFromPolyline(polylineString: string) {
   
   coordinates.forEach((coord) => {
     gpx += `
-      <trkpt lat="${coord[1]}" lon="${coord[0]}">
+      <trkpt lat="${coord[0]}" lon="${coord[1]}">
         <ele>${coord[2] || 0}</ele>
       </trkpt>`;
   });
@@ -33,6 +32,12 @@ export function downloadGPXFromPolyline(polylineString: string) {
     </trkseg>
   </trk>
 </gpx>`;
+
+  return gpx;
+}
+
+export function downloadGPXFromPolyline(coordinates: [number, number, number?][]) {
+  const gpx = generateGPXFromCoordinates(coordinates);
 
   const blob = new Blob([gpx], { type: 'application/gpx+xml' });
   const url = URL.createObjectURL(blob);
