@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { PlayCircle, User, ArrowRight, Plus, Monitor, Loader2, Download, Trash2, AlertTriangle } from 'lucide-react';
-import { useSessions, type GameSession } from '../hooks/useSessions';
+import { useSessions } from '../hooks/useSessions';
+import type { GameSession } from '../types/apiResponses';
 import { useAuthStore } from '../store/authStore';
 import { toast } from '../store/toastStore';
 

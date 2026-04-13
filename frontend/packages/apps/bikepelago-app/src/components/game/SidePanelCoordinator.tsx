@@ -1,4 +1,3 @@
-import React from 'react';
 import { useParams } from 'react-router-dom';
 import { X } from 'lucide-react';
 import { useGameStore } from '../../store/gameStore';

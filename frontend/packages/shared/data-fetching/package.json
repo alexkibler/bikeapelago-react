@@ -1,0 +1,19 @@
+{
+  "name": "@bikeapelago/shared-data-fetching",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "tsc": "tsc",
+    "lint": "eslint ."
+  },
+  "devDependencies": {
+    "@bikeapelago/shared-configs": "workspace:^"
+  },
+  "dependencies": {
+    "@tanstack/react-query": "^5.97.0",
+    "path-to-regexp": "8.4.2"
+  }
+}

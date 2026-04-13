@@ -1,44 +1,8 @@
-import { useState, useEffect } from 'react';
 import { getToken, handleUnauthorized } from '../store/authStore';
-
-export interface GameSession {
-  id: string;
-  name: string | null;
-  ap_seed_name: string | null;
-  ap_server_url: string | null;
-  ap_slot_name: string | null;
-  mode: string;
-  status: string;
-}
+import { useSessionsGet } from '../operations/sessions';
 
 export function useSessions() {
-  const [sessions, setSessions] = useState<GameSession[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const fetchSessions = async () => {
-      try {
-        const token = getToken();
-        const res = await fetch('/api/sessions', {
-          headers: token ? { 'Authorization': `Bearer ${token}` } : {}
-        });
-        if (!res.ok) {
-            if (res.status === 401) { handleUnauthorized(); return; }
-            const errText = await res.text();
-            throw new Error(`HTTP ${res.status} - ${errText}`);
-        }
-        const data = await res.json();
-        setSessions(data);
-      } catch (err: unknown) {
-        setError('Failed to load sessions.');
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchSessions();
-  }, []);
+  const sessionsQuery = useSessionsGet();
 
   const deleteSession = async (id: string) => {
     try {
@@ -52,7 +16,6 @@ export function useSessions() {
         const errText = await res.text();
         throw new Error(`HTTP ${res.status} - ${errText}`);
       }
-      setSessions(prev => prev.filter(s => s.id !== id));
     } catch (err: unknown) {
       console.error('Failed to delete session:', err);
       throw err;
@@ -71,12 +34,17 @@ export function useSessions() {
         const errText = await res.text();
         throw new Error(`HTTP ${res.status} - ${errText}`);
       }
-      setSessions([]);
     } catch (err: unknown) {
       console.error('Failed to delete all sessions:', err);
       throw err;
     }
   };
 
-  return { sessions, loading, error, deleteSession, deleteAllSessions };
+  return {
+    sessions: sessionsQuery.data,
+    loading: sessionsQuery.isLoading,
+    error: sessionsQuery.error?.message,
+    deleteSession,
+    deleteAllSessions
+  };
 }
