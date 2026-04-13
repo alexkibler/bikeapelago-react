@@ -19,7 +19,11 @@ const GameView = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const toast = useToast();
-  const { activePanel, nodes, setNodes, syncVersion } = useGameStore();
+  
+  const activePanel = useGameStore(s => s.activePanel);
+  const nodes = useGameStore(s => s.nodes);
+  const setNodes = useGameStore(s => s.setNodes);
+  const syncVersion = useGameStore(s => s.syncVersion);
 
   const [session, setSession] = useState<GameSession | null>(null);
   const [loading, setLoading] = useState(true);
@@ -27,7 +31,10 @@ const GameView = () => {
   const [showReconnect, setShowReconnect] = useState(false);
   const [pendingConnection, setPendingConnection] = useState<{ url: string; slot: string } | null>(null);
 
-  const { checkedLocationIds, status: apStatus, error: apError, setReceivedItems } = useArchipelagoStore();
+  const checkedLocationIds = useArchipelagoStore(s => s.checkedLocationIds);
+  const apStatus = useArchipelagoStore(s => s.status);
+  const apError = useArchipelagoStore(s => s.error);
+  const setReceivedItems = useArchipelagoStore(s => s.setReceivedItems);
 
   // Show reconnect dialog on connection failure; hide it if we successfully connect
   useEffect(() => {
@@ -80,12 +87,6 @@ const GameView = () => {
       if (sessionData.received_item_ids) {
         setReceivedItems(sessionData.received_item_ids.map((itemId: number) => ({ id: itemId, name: `Item ${itemId}` })));
       }
-
-      // Only connect if the request hasn't been aborted by unmount
-      // Note: Password is not stored; users must re-enter it on reconnect for security
-      if (!signal.aborted && sessionData.ap_server_url && sessionData.ap_slot_name) {
-        archipelago.connect(id, sessionData.ap_server_url, sessionData.ap_slot_name);
-      }
     } catch (err) {
       if (err instanceof Error && err.name === 'AbortError') return;
       const message = err instanceof Error ? err.message : 'An unknown error occurred';
@@ -98,6 +99,7 @@ const GameView = () => {
     }
   }, [id, setNodes, setReceivedItems, toast]);
 
+  // Effect for fetching data (depends on id and syncVersion)
   useEffect(() => {
     const controller = new AbortController();
     
@@ -106,9 +108,22 @@ const GameView = () => {
     }
     return () => {
       controller.abort();
-      archipelago.disconnect();
     };
   }, [id, fetchData, syncVersion]);
+
+  // Effect for Archipelago connection (depends only on session loading)
+  useEffect(() => {
+    if (id && session?.ap_server_url && session?.ap_slot_name) {
+      archipelago.connect(id, session.ap_server_url, session.ap_slot_name);
+    }
+  }, [id, session?.ap_server_url, session?.ap_slot_name]);
+
+  // Handle cleanup on unmount or session ID change
+  useEffect(() => {
+    return () => {
+      archipelago.disconnect();
+    };
+  }, [id]);
 
   // Sync Archipelago checked locations with local node states
   useEffect(() => {
