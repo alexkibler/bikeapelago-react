@@ -28,9 +28,8 @@ docker compose up
 ```
 
 Profiles:
-- `--profile api`: Containerized .NET API
-- `--profile frontend`: Dev React frontend (port 18182) + Admin UI (port 18183)
-- `--profile prod-frontend`: Production Nginx frontends (port 8182 / 8183)
+- `--profile api`: Containerized .NET API (Source build)
+- `--profile frontend`: Dev React frontend (port 18182) + Admin UI (port 18183) (Source build)
 - `--profile archipelago`: Local Archipelago server
 
 ### 2. Manual Setup
@@ -58,23 +57,6 @@ pnpm run dev
 ```
 
 The frontend will be available at `http://localhost:5173`.
-
-### 3. OrbStack Deployment (Production Frontend)
-
-If you have a deployed API and want to run the frontends via OrbStack pointing to it:
-
-1. Update your `.env`:
-   ```bash
-   API_PROXY_URL=https://api.your-deployed-domain.com/api/
-   API_HUBS_URL=https://api.your-deployed-domain.com/hubs/
-   ```
-2. Start the production frontend profile:
-   ```bash
-   docker compose --profile prod-frontend up -d
-   ```
-3. Access your apps via OrbStack's local domains:
-   - Game: `http://bikeapelago-react-prod.bikeapelago.orb.local`
-   - Admin: `http://bikeapelago-admin-prod.bikeapelago.orb.local`
 
 ## Architecture Overview
 

@@ -1,25 +1,14 @@
 # Bikeapelago local development compose
 #
-# Usage:
-#   docker compose up                                        # Bikeapelago PostGIS database only (run API with dotnet run)
-#   docker compose --profile api up                         # + containerized .NET API
-#   docker compose --profile frontend up                    # + React dev frontend + admin dev UI
-#   docker compose --profile prod-frontend up               # + React PROD frontend + admin PROD UI (Nginx)
+# Usage (Local Development - Building from source):
+#   docker compose up                                        # Bikeapelago PostGIS database only
+#   docker compose --profile api up                         # + containerized .NET API (Source)
+#   docker compose --profile frontend up                    # + React dev frontend + admin dev UI (Source)
 #   docker compose --profile archipelago up                 # + local Archipelago server
-#   docker compose --profile api --profile frontend up      # full app stack (dev)
 #
-# To run EVERYTHING with a single command, add this to your .env:
+# To run EVERYTHING locally with a single command, add this to your .env:
 #   COMPOSE_PROFILES=api,frontend,archipelago
 # Then just: docker compose up
-#
-# For OrbStack "Production" deployment (hit deployed API):
-#   1. Set API_PROXY_URL=https://your-api-domain.com/api/ in .env
-#   2. Set API_HUBS_URL=https://your-api-domain.com/hubs/ in .env
-#   3. docker compose --profile prod-frontend up -d
-#
-# Copy .env.example to .env and fill in required values before starting.
-# Note: Bikeapelago database container (postgis-bikeapelago) always starts.
-#       OSM Discovery database is shared infrastructure accessed via reverse proxy.
 
 x-bikeapelago-frontend-app-definition: &frontend-app-definition
   profiles: [frontend]
@@ -35,18 +24,6 @@ x-bikeapelago-frontend-app-definition: &frontend-app-definition
     - bikeapelago
   environment:
     VITE_PUBLIC_API_URL: http://bikeapelago-api:5054
-
-x-bikeapelago-frontend-prod-definition: &frontend-prod-definition
-  profiles: [prod-frontend]
-  build:
-    context: ./frontend
-    dockerfile: Dockerfile
-  restart: unless-stopped
-  networks:
-    - bikeapelago
-  environment:
-    API_PROXY_URL: ${API_PROXY_URL:-http://bikeapelago-api:8080/api/}
-    API_HUBS_URL: ${API_HUBS_URL:-http://bikeapelago-api:8080/hubs/}
 
 networks:
   bikeapelago:
@@ -117,13 +94,13 @@ services:
       retries: 5
 
   # ──────────────────────────────────────────────────────────────────────────
-  # Bikeapelago API — profile: api
+  # Bikeapelago API (Source Build) — profile: api
   # ──────────────────────────────────────────────────────────────────────────
   bikeapelago-api:
     profiles: [api]
     build:
       context: .
-      dockerfile: ./api/Dockerfile.dev
+      dockerfile: ./api/Dockerfile
     image: bikeapelago-api:latest
     container_name: bikeapelago-api-dev
     restart: unless-stopped
@@ -144,7 +121,7 @@ services:
       - bikeapelago
 
   # ──────────────────────────────────────────────────────────────────────────
-  # Bikeapelago React frontend — profile: frontend
+  # Bikeapelago React frontend (Source Build) — profile: frontend
   # ──────────────────────────────────────────────────────────────────────────
   frontend_builder:
     <<: *frontend-app-definition
@@ -162,7 +139,7 @@ services:
       - "18182:5173"
 
   # ──────────────────────────────────────────────────────────────────────────
-  # Bikeapelago Admin UI — profile: frontend
+  # Bikeapelago Admin UI (Source Build) — profile: frontend
   # ──────────────────────────────────────────────────────────────────────────
   bikeapelago-admin:
     <<: *frontend-app-definition
@@ -175,29 +152,6 @@ services:
         condition: service_started
       frontend_builder:
         condition: service_completed_successfully
-
-  # ──────────────────────────────────────────────────────────────────────────
-  # PRODUCTION Frontends (OrbStack/Deploy)
-  # ──────────────────────────────────────────────────────────────────────────
-  bikeapelago-react-prod:
-    <<: *frontend-prod-definition
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-      target: runtime-frontend
-    container_name: bikeapelago-react-prod
-    ports:
-      - "8182:80"
-
-  bikeapelago-admin-prod:
-    <<: *frontend-prod-definition
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-      target: runtime-admin-ui
-    container_name: bikeapelago-admin-prod
-    ports:
-      - "8183:80"
 
   # ──────────────────────────────────────────────────────────────────────────
   # Archipelago — profile: archipelago  (OPTIONAL)
