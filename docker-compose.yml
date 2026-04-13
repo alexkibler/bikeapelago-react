@@ -37,6 +37,8 @@ networks:
 volumes:
   bikeapelago_node_modules:
   bikeapelago_postgis_data:
+    name: avarts_postgis_data # CRITICAL: This perfectly maps back to the existing OrbStack volume!
+    external: true
   osm_postgis_data:
     name: avarts_postgis_data # CRITICAL: This perfectly maps back to the existing OrbStack volume!
     external: true
@@ -118,7 +120,7 @@ services:
       - ConnectionStrings__PostGis=Host=postgis-bikeapelago;Port=5432;Database=bikeapelago;Username=${DB_USER:-osm};Password=${DB_PASSWORD}
       - ConnectionStrings__OsmDiscovery=Host=postgis-osm;Port=5432;Database=osm_discovery;Username=${OSM_DISCOVERY_USER:-osm};Password=${OSM_DISCOVERY_PASSWORD}
     ports:
-      - "8080:8080"
+      - "8182:8080"
     depends_on:
       postgis-bikeapelago:
         condition: service_healthy
