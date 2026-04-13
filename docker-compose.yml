@@ -119,8 +119,10 @@ services:
       - ADMIN_PASSWORD=${ADMIN_PASSWORD}
       - ConnectionStrings__PostGis=Host=postgis-bikeapelago;Port=5432;Database=bikeapelago;Username=${DB_USER:-osm};Password=${DB_PASSWORD}
       - ConnectionStrings__OsmDiscovery=Host=postgis-osm;Port=5432;Database=osm_discovery;Username=${OSM_DISCOVERY_USER:-osm};Password=${OSM_DISCOVERY_PASSWORD}
-    ports:
-      - "8182:8080"
+    # API is accessed via the frontend proxy on port 8182, 
+    # so we don't need to expose it to the host directly.
+    # ports:
+    #   - "8182:8080"
     depends_on:
       postgis-bikeapelago:
         condition: service_healthy
