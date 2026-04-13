@@ -13,6 +13,7 @@ export default defineConfig(({ mode }) => {
       tailwindcss(),
     ],
     server: {
+      allowedHosts: ['bikeapelago.alexkibler.com', '.alexkibler.com'],
       proxy: {
         '/api': {
           target: apiUrl,

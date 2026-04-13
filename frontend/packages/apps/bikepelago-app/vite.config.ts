@@ -16,6 +16,7 @@ export default defineConfig(({ mode }) => {
       css: true,
     },
     server: {
+      allowedHosts: ['bikeapelago.alexkibler.com', '.alexkibler.com'],
       proxy: {
         '/api': {
           target: apiUrl,

@@ -1,0 +1,118 @@
+# Bikeapelago production-like compose
+# This uses built static assets served via Nginx instead of dev servers.
+
+x-frontend-prod-definition: &frontend-prod-definition
+  profiles: [frontend]
+  build:
+    context: ./frontend
+    dockerfile: Dockerfile
+  restart: unless-stopped
+  networks:
+    - bikeapelago
+
+networks:
+  bikeapelago:
+    name: bikeapelago
+
+volumes:
+  bikeapelago_postgis_data:
+  osm_postgis_data:
+    name: avarts_postgis_data
+    external: true
+
+services:
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # OSM Discovery Database (The "Big" PostGIS)
+  # ──────────────────────────────────────────────────────────────────────────
+  postgis-osm:
+    image: postgis/postgis:16-3.4-alpine
+    container_name: postgis-osm-prod
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: osm_discovery
+      POSTGRES_USER: ${OSM_DISCOVERY_USER:-osm}
+      POSTGRES_PASSWORD: ${OSM_DISCOVERY_PASSWORD}
+    volumes:
+      - osm_postgis_data:/var/lib/postgresql/data
+    networks:
+      - bikeapelago
+    command:
+      - postgres
+      - -c
+      - shared_buffers=512MB
+      - -c
+      - work_mem=256MB
+      - -c
+      - maintenance_work_mem=512MB
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  postgis-bikeapelago:
+    image: postgis/postgis:16-3.4
+    container_name: postgis-bikeapelago-prod
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-osm}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: bikeapelago
+    ports:
+      - "${DB_BIKEAPELAGO_PORT:-5432}:5432"
+    volumes:
+      - bikeapelago_postgis_data:/var/lib/postgresql/data
+    networks:
+      - bikeapelago
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-osm} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  bikeapelago-api:
+    profiles: [api]
+    build:
+      context: .
+      dockerfile: ./api/Dockerfile.dev # Re-using dev dockerfile for .NET as it runs the app directly
+    image: bikeapelago-api:prod
+    container_name: bikeapelago-api-prod
+    restart: unless-stopped
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - Mapbox__ApiKey=${MAPBOX_API_KEY}
+      - JWT_KEY=${JWT_KEY}
+      - ADMIN_EMAIL=${ADMIN_EMAIL}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
+      - ConnectionStrings__PostGis=Host=postgis-bikeapelago;Port=5432;Database=bikeapelago;Username=${DB_USER:-osm};Password=${DB_PASSWORD}
+      - ConnectionStrings__OsmDiscovery=Host=postgis-osm;Port=5432;Database=osm_discovery;Username=${OSM_DISCOVERY_USER:-osm};Password=${OSM_DISCOVERY_PASSWORD}
+    depends_on:
+      postgis-bikeapelago:
+        condition: service_healthy
+    networks:
+      - bikeapelago
+
+  bikeapelago-react:
+    <<: *frontend-prod-definition
+    container_name: bikeapelago-react-prod
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: runtime-frontend
+    ports:
+      - "8182:80"
+    depends_on:
+      - bikeapelago-api
+
+  bikeapelago-admin:
+    <<: *frontend-prod-definition
+    container_name: bikeapelago-admin-prod
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: runtime-admin-ui
+    ports:
+      - "8183:80"
+    depends_on:
+      - bikeapelago-api
