@@ -3,13 +3,19 @@
 # Usage:
 #   docker compose up                                        # Bikeapelago PostGIS database only (run API with dotnet run)
 #   docker compose --profile api up                         # + containerized .NET API
-#   docker compose --profile frontend up                    # + React frontend + admin UI
+#   docker compose --profile frontend up                    # + React dev frontend + admin dev UI
+#   docker compose --profile prod-frontend up               # + React PROD frontend + admin PROD UI (Nginx)
 #   docker compose --profile archipelago up                 # + local Archipelago server
-#   docker compose --profile api --profile frontend up      # full app stack
+#   docker compose --profile api --profile frontend up      # full app stack (dev)
 #
 # To run EVERYTHING with a single command, add this to your .env:
 #   COMPOSE_PROFILES=api,frontend,archipelago
 # Then just: docker compose up
+#
+# For OrbStack "Production" deployment (hit deployed API):
+#   1. Set API_PROXY_URL=https://your-api-domain.com/api/ in .env
+#   2. Set API_HUBS_URL=https://your-api-domain.com/hubs/ in .env
+#   3. docker compose --profile prod-frontend up -d
 #
 # Copy .env.example to .env and fill in required values before starting.
 # Note: Bikeapelago database container (postgis-bikeapelago) always starts.
@@ -28,7 +34,19 @@ x-bikeapelago-frontend-app-definition: &frontend-app-definition
   networks:
     - bikeapelago
   environment:
-    VITE_PUBLIC_API_URL: http://bikeapelago-api:8080
+    VITE_PUBLIC_API_URL: http://bikeapelago-api:5054
+
+x-bikeapelago-frontend-prod-definition: &frontend-prod-definition
+  profiles: [prod-frontend]
+  build:
+    context: ./frontend
+    dockerfile: Dockerfile
+  restart: unless-stopped
+  networks:
+    - bikeapelago
+  environment:
+    API_PROXY_URL: ${API_PROXY_URL:-http://bikeapelago-api:8080/api/}
+    API_HUBS_URL: ${API_HUBS_URL:-http://bikeapelago-api:8080/hubs/}
 
 networks:
   bikeapelago:
@@ -118,7 +136,7 @@ services:
       - ConnectionStrings__PostGis=Host=postgis-bikeapelago;Port=5432;Database=bikeapelago;Username=${DB_USER:-osm};Password=${DB_PASSWORD}
       - ConnectionStrings__OsmDiscovery=Host=postgis-osm;Port=5432;Database=osm_discovery;Username=${OSM_DISCOVERY_USER:-osm};Password=${OSM_DISCOVERY_PASSWORD}
     ports:
-      - "8080:8080"
+      - "5054:8080"
     depends_on:
       postgis-bikeapelago:
         condition: service_healthy
@@ -141,7 +159,7 @@ services:
       frontend_builder:
         condition: service_completed_successfully
     ports:
-      - "8182:5173"
+      - "18182:5173"
 
   # ──────────────────────────────────────────────────────────────────────────
   # Bikeapelago Admin UI — profile: frontend
@@ -151,12 +169,35 @@ services:
     container_name: bikeapelago-admin-dev
     command: pnpm --filter "@bikeapelago/admin-ui" run dev --host
     ports:
-      - "8183:5173"
+      - "18183:5173"
     depends_on:
       bikeapelago-api:
         condition: service_started
       frontend_builder:
         condition: service_completed_successfully
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # PRODUCTION Frontends (OrbStack/Deploy)
+  # ──────────────────────────────────────────────────────────────────────────
+  bikeapelago-react-prod:
+    <<: *frontend-prod-definition
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: runtime-frontend
+    container_name: bikeapelago-react-prod
+    ports:
+      - "8182:80"
+
+  bikeapelago-admin-prod:
+    <<: *frontend-prod-definition
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: runtime-admin-ui
+    container_name: bikeapelago-admin-prod
+    ports:
+      - "8183:80"
 
   # ──────────────────────────────────────────────────────────────────────────
   # Archipelago — profile: archipelago  (OPTIONAL)
