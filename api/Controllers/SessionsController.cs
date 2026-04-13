@@ -3,6 +3,7 @@ using System.Text.Json.Serialization;
 using Bikeapelago.Api.Models;
 using Bikeapelago.Api.Repositories;
 using Bikeapelago.Api.Services;
+using System.Security.Claims;
 
 namespace Bikeapelago.Api.Controllers;
 
@@ -49,10 +50,19 @@ public class SessionsController(
     }
 
     [HttpGet("{id}")]
+    [Microsoft.AspNetCore.Authorization.Authorize]
     public async Task<IActionResult> GetSession(Guid id)
     {
+        var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(userIdString) || !Guid.TryParse(userIdString, out var userId))
+            return Unauthorized(new { message = "Invalid token" });
+
         var session = await _sessionRepository.GetByIdAsync(id);
         if (session == null) return NotFound();
+
+        if (session.UserId != userId)
+            return Forbid();
+
         return Ok(session);
     }
 
@@ -205,12 +215,20 @@ public class SessionsController(
     }
 
     [HttpPatch("{id}")]
+    [Microsoft.AspNetCore.Authorization.Authorize]
     public async Task<IActionResult> UpdateSession(Guid id, [FromBody] UpdateSessionRequest request)
     {
         try
         {
+            var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userIdString) || !Guid.TryParse(userIdString, out var userId))
+                return Unauthorized(new { message = "Invalid token" });
+
             var session = await _sessionRepository.GetByIdAsync(id);
             if (session == null) return NotFound(new { message = "Session not found." });
+
+            if (session.UserId != userId)
+                return Forbid();
 
             bool changed = false;
             if (request.ApServerUrl != null)
@@ -239,23 +257,19 @@ public class SessionsController(
     }
 
     [HttpDelete("{id}")]
+    [Microsoft.AspNetCore.Authorization.Authorize]
     public async Task<IActionResult> DeleteSession(Guid id)
     {
         try
         {
-            var authHeader = Request.Headers["Authorization"].FirstOrDefault();
-            if (string.IsNullOrEmpty(authHeader) || !authHeader.StartsWith("Bearer "))
-                return Unauthorized(new { message = "No auth token provided" });
-
-            var token = authHeader["Bearer ".Length..].Trim();
-            var user = await _userRepository.GetCurrentUserAsync(token);
-            if (user == null)
+            var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userIdString) || !Guid.TryParse(userIdString, out var userId))
                 return Unauthorized(new { message = "Invalid token" });
 
             var session = await _sessionRepository.GetByIdAsync(id);
             if (session == null) return NotFound(new { message = "Session not found." });
 
-            if (session.UserId != user.Id)
+            if (session.UserId != userId)
                 return Forbid();
 
             var success = await _sessionRepository.DeleteAsync(id);
