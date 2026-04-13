@@ -149,6 +149,7 @@ const MapCanvas = ({ session, nodes }: MapCanvasProps) => {
       <div className="absolute bottom-24 md:bottom-7 left-6 z-10 flex flex-col gap-2">
         {userLocation && (
           <button
+            aria-label="Locate me"
             onClick={locateUser}
             className="p-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl shadow-lg shadow-blue-900/30 transition-all active:scale-95"
             title="Locate Me"
@@ -159,12 +160,14 @@ const MapCanvas = ({ session, nodes }: MapCanvasProps) => {
 
         <div className="bg-[var(--color-surface-hex)]/90 backdrop-blur-md rounded-xl border border-[var(--color-border-strong-hex)] shadow-2xl overflow-hidden flex flex-col">
            <button
+              aria-label="Zoom in"
               onClick={() => mapRef.current?.zoomIn()}
               className="p-3 hover:bg-[rgb(var(--color-surface-overlay))] text-[var(--color-text-hex)] transition-colors border-b border-[var(--color-border-hex)]"
            >
              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
            </button>
            <button
+              aria-label="Zoom out"
               onClick={() => mapRef.current?.zoomOut()}
               className="p-3 hover:bg-[rgb(var(--color-surface-overlay))] text-[var(--color-text-hex)] transition-colors"
            >

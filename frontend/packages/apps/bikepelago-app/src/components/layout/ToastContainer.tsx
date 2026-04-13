@@ -31,6 +31,7 @@ const ToastContainer = () => {
           <ToastIcon type={toast.type} />
           <span className="text-sm font-bold tracking-tight">{toast.message}</span>
           <button 
+            aria-label="Close notification"
             onClick={() => removeToast(toast.id)}
             className="ml-2 p-1 rounded-full hover:bg-white/10 transition-colors text-neutral-500 hover:text-white"
           >
