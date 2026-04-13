@@ -332,7 +332,7 @@ public class SessionsController(
     }
 
     [HttpPost("{id}/route-to-available")]
-    public async Task<IActionResult> RouteToAvailableNodes(Guid id, [FromQuery] string profile = "cycling")
+    public async Task<IActionResult> RouteToAvailableNodes(Guid id, [FromQuery] string profile = "cycling", [FromQuery] bool turnByTurn = true)
     {
         try
         {
@@ -360,6 +360,15 @@ public class SessionsController(
 
             var elevationGain = await _mapboxRoutingService.CalculateElevationGainAsync(result.Geometry);
 
+            // Reconstruct the ordered MapNode list to build the GPX
+            var orderedNodes = result.OrderedNodeIds
+                .Select(id => availableNodes.FirstOrDefault(n => n.Id == id))
+                .Where(n => n != null)
+                .Cast<MapNode>()
+                .ToList();
+
+            var gpxString = _mapboxRoutingService.GenerateGpx(result.Geometry, orderedNodes, turnByTurn);
+
             return Ok(new
             {
                 success = true,
@@ -367,7 +376,8 @@ public class SessionsController(
                 orderedNodeIds = result.OrderedNodeIds,
                 totalDistanceMeters = result.TotalDistanceMeters,
                 totalDurationSeconds = result.TotalDurationSeconds,
-                elevation = elevationGain
+                elevation = elevationGain,
+                gpxString = gpxString
             });
         }
         catch (Exception ex)

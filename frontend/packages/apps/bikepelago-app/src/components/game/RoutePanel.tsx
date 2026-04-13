@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useGameStore } from '../../store/gameStore';
-import { downloadGPXFromPolyline } from '../../lib/geoUtils';
+import { downloadGPXFromPolyline, downloadGPX, generateGPXFromNodes } from '../../lib/geoUtils';
 import { Map as MapIcon, Download, Loader2, ChevronDown, ChevronUp, UploadCloud } from 'lucide-react';
 import type { MapNode } from '../../types/game';
 
@@ -47,6 +47,8 @@ const RoutePanel = ({ sessionId }: { sessionId: string }) => {
   const fetchRoute = useGameStore(s => s.fetchRoute);
   const optimizeRouteToAvailable = useGameStore(s => s.optimizeRouteToAvailable);
 
+  const [turnByTurn, setTurnByTurn] = useState(true);
+
   const [openCategories, setOpenCategories] = useState({
     Available: true,
     Checked: false,
@@ -58,11 +60,13 @@ const RoutePanel = ({ sessionId }: { sessionId: string }) => {
   };
 
   useEffect(() => {
+    if (!turnByTurn) return;
+    
     const timeout = setTimeout(() => {
       fetchRoute();
     }, 500);
     return () => clearTimeout(timeout);
-  }, [waypoints, fetchRoute]);
+  }, [waypoints, fetchRoute, turnByTurn]);
 
   const availableNodes = nodes.filter(n => n.state === 'Available');
   const checkedNodes = nodes.filter(n => n.state === 'Checked');
@@ -81,23 +85,44 @@ const RoutePanel = ({ sessionId }: { sessionId: string }) => {
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-4 space-y-6 pb-32">
         {/* Action Buttons */}
-        <div className="space-y-3">
-          <button
-            onClick={() => optimizeRouteToAvailable(sessionId)}
-            disabled={availableNodes.length === 0 || isRouting}
-            className={`w-full font-black py-4 rounded-xl transition-all shadow-lg active:scale-[0.98] ${
-              availableNodes.length === 0 || isRouting
-              ? 'bg-[rgb(var(--color-surface-overlay))] text-[var(--color-text-subtle-hex)] cursor-not-allowed opacity-50'
-              : 'bg-[var(--color-primary-hex)] hover:bg-[var(--color-primary-hover-hex)] text-white shadow-primary/20'
-            }`}
-          >
-            {isRouting ? (
-              <span className="flex items-center justify-center gap-2">
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Optimizing...
-              </span>
-            ) : 'Route To Available'}
-          </button>
+        <div className="space-y-4">
+          <div className="flex items-center justify-between px-2">
+            <label htmlFor="turn-by-turn" className="text-xs font-bold uppercase tracking-wider text-[var(--color-text-subtle-hex)] cursor-pointer">
+              Turn-by-Turn GPS (Beta)
+            </label>
+            <button
+              id="turn-by-turn"
+              onClick={() => setTurnByTurn(!turnByTurn)}
+              className={`relative w-10 h-5 rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-hex)]/40 ${
+                turnByTurn ? 'bg-[var(--color-primary-hex)]' : 'bg-[rgb(var(--color-surface-overlay))]'
+              }`}
+            >
+              <div
+                className={`absolute top-1 left-1 w-3 h-3 rounded-full bg-white transition-transform duration-200 transform ${
+                  turnByTurn ? 'translate-x-5' : 'translate-x-0'
+                }`}
+              />
+            </button>
+          </div>
+
+          {turnByTurn && (
+            <button
+              onClick={() => optimizeRouteToAvailable(sessionId, turnByTurn)}
+              disabled={availableNodes.length === 0 || isRouting}
+              className={`w-full font-black py-4 rounded-xl transition-all shadow-lg active:scale-[0.98] ${
+                availableNodes.length === 0 || isRouting
+                ? 'bg-[rgb(var(--color-surface-overlay))] text-[var(--color-text-subtle-hex)] cursor-not-allowed opacity-50'
+                : 'bg-[var(--color-primary-hex)] hover:bg-[var(--color-primary-hover-hex)] text-white shadow-primary/20'
+              }`}
+            >
+              {isRouting ? (
+                <span className="flex items-center justify-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Optimizing...
+                </span>
+              ) : 'Route To Available'}
+            </button>
+          )}
           <button
             onClick={clearWaypoints}
             className="w-full bg-[rgb(var(--color-surface-overlay))] hover:bg-[rgb(var(--color-surface-overlay))]/[0.08] text-[var(--color-text-muted-hex)] font-bold py-3 rounded-xl transition-all border border-[var(--color-border-hex)]"
@@ -181,21 +206,43 @@ const RoutePanel = ({ sessionId }: { sessionId: string }) => {
       <div className="p-4 bg-[var(--color-surface-hex)]/90 backdrop-blur-xl border-t border-[var(--color-border-hex)] shrink-0">
         <div className="flex items-center justify-between gap-4">
           <div className="flex gap-6">
-            <div className="flex flex-col">
-              <span className="text-[10px] font-bold text-[var(--color-text-subtle-hex)] uppercase tracking-widest">Distance</span>
-              <span className="text-xl font-black text-[var(--color-text-hex)]">{routeData.distance.toFixed(2)}<span className="text-xs font-normal text-[var(--color-text-subtle-hex)] ml-1">km</span></span>
-            </div>
-            <div className="flex flex-col">
-              <span className="text-[10px] font-bold text-[var(--color-text-subtle-hex)] uppercase tracking-widest">Elev Gain</span>
-              <span className="text-xl font-black text-[var(--color-text-hex)]">{routeData.elevation.toFixed(0)}<span className="text-xs font-normal text-[var(--color-text-subtle-hex)] ml-1">m</span></span>
-            </div>
+            {turnByTurn && (
+              <>
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-bold text-[var(--color-text-subtle-hex)] uppercase tracking-widest">Distance</span>
+                  <span className="text-xl font-black text-[var(--color-text-hex)]">{routeData.distance.toFixed(2)}<span className="text-xs font-normal text-[var(--color-text-subtle-hex)] ml-1">km</span></span>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-bold text-[var(--color-text-subtle-hex)] uppercase tracking-widest">Elev Gain</span>
+                  <span className="text-xl font-black text-[var(--color-text-hex)]">{routeData.elevation.toFixed(0)}<span className="text-xs font-normal text-[var(--color-text-subtle-hex)] ml-1">m</span></span>
+                </div>
+              </>
+            )}
+            {!turnByTurn && (
+              <div className="flex flex-col">
+                <span className="text-[10px] font-bold text-[var(--color-text-subtle-hex)] uppercase tracking-widest">Targets</span>
+                <span className="text-xl font-black text-[var(--color-text-hex)]">{availableNodes.length}</span>
+              </div>
+            )}
           </div>
 
           <button
-            onClick={() => downloadGPXFromPolyline(routeData.polyline)}
-            disabled={routeData.polyline.length === 0}
+            onClick={() => {
+              if (!turnByTurn) {
+                const gpx = generateGPXFromNodes(availableNodes.map(n => ({ name: n.name, lat: n.lat!, lon: n.lon! })));
+                downloadGPX(gpx, 'bikeapelago_destinations.gpx');
+                return;
+              }
+
+              if (routeData.gpxString) {
+                downloadGPX(routeData.gpxString);
+              } else {
+                downloadGPXFromPolyline(JSON.stringify(routeData.polyline));
+              }
+            }}
+            disabled={turnByTurn ? routeData.polyline.length === 0 : availableNodes.length === 0}
             className={`flex items-center gap-2 px-6 py-3 rounded-xl font-black transition-all ${
-              routeData.polyline.length > 0
+              (turnByTurn ? routeData.polyline.length > 0 : availableNodes.length > 0)
               ? 'bg-[var(--color-primary-hex)]/20 text-[var(--color-primary-hex)] hover:bg-[var(--color-primary-hex)]/30 border border-[var(--color-primary-hex)]/30 shadow-lg'
               : 'bg-[rgb(var(--color-surface-overlay))] text-[var(--color-text-subtle-hex)] border border-[var(--color-border-hex)] cursor-not-allowed'
             }`}

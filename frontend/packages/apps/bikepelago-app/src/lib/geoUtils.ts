@@ -14,10 +14,22 @@ export function calculateDistance(lat1: number, lon1: number, lat2: number, lon2
   return R * c;
 }
 
+export function downloadGPX(gpx: string, filename = 'bikeapelago_route.gpx') {
+  const blob = new Blob([gpx], { type: 'application/gpx+xml' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
 export function downloadGPXFromPolyline(polylineString: string) {
   const coordinates = JSON.parse(polylineString) as [number, number, number?][];
   let gpx = `<?xml version="1.0" encoding="UTF-8"?>
-<gpx version="1.1" creator="Bikeapelago" xmlns="http://www.topografix.com/GPX/1/1">
+<gpx version="1.1" creator="Bikeapelago" xmlns="http://www.topografix.com/GPX/1/1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd">
   <trk>
     <name>Bikeapelago Route</name>
     <trkseg>`;
@@ -34,13 +46,33 @@ export function downloadGPXFromPolyline(polylineString: string) {
   </trk>
 </gpx>`;
 
-  const blob = new Blob([gpx], { type: 'application/gpx+xml' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'bikeapelago_route.gpx';
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  downloadGPX(gpx);
+}
+
+export function generateGPXFromNodes(nodes: { name: string, lat: number, lon: number }[]) {
+  let gpx = `<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="Bikeapelago" xmlns="http://www.topografix.com/GPX/1/1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd">
+  <rte>
+    <name>Bikeapelago Destinations</name>`;
+  
+  nodes.forEach((node) => {
+    // Basic XML escape for name
+    const escapedName = node.name
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&apos;');
+
+    gpx += `
+    <rtept lat="${node.lat}" lon="${node.lon}">
+      <name>${escapedName}</name>
+    </rtept>`;
+  });
+  
+  gpx += `
+  </rte>
+</gpx>`;
+
+  return gpx;
 }
