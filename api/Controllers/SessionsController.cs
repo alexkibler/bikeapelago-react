@@ -21,6 +21,20 @@ public class SessionsController(
     private readonly FitAnalysisService _fitAnalysisService = fitAnalysisService;
     private readonly IMapboxRoutingService _mapboxRoutingService = mapboxRoutingService;
 
+    private async Task<(User? user, IActionResult? error)> GetCurrentUserAsync()
+    {
+        var authHeader = Request.Headers["Authorization"].FirstOrDefault();
+        if (string.IsNullOrEmpty(authHeader) || !authHeader.StartsWith("Bearer "))
+            return (null, Unauthorized(new { message = "No auth token provided" }));
+
+        var token = authHeader["Bearer ".Length..].Trim();
+        var user = await _userRepository.GetCurrentUserAsync(token);
+        if (user == null)
+            return (null, Unauthorized(new { message = "Invalid token" }));
+
+        return (user, null);
+    }
+
     [HttpGet]
     public async Task<IActionResult> GetSessions()
     {
@@ -51,8 +65,15 @@ public class SessionsController(
     [HttpGet("{id}")]
     public async Task<IActionResult> GetSession(Guid id)
     {
+        var (user, authError) = await GetCurrentUserAsync();
+        if (authError != null) return authError;
+
         var session = await _sessionRepository.GetByIdAsync(id);
         if (session == null) return NotFound();
+
+        if (session.UserId != user.Id)
+            return Forbid();
+
         return Ok(session);
     }
 
@@ -180,8 +201,20 @@ public class SessionsController(
     {
         try
         {
+            var authHeader = Request.Headers["Authorization"].FirstOrDefault();
+            if (string.IsNullOrEmpty(authHeader) || !authHeader.StartsWith("Bearer "))
+                return Unauthorized(new { message = "No auth token provided" });
+
+            var token = authHeader["Bearer ".Length..].Trim();
+            var user = await _userRepository.GetCurrentUserAsync(token);
+            if (user == null)
+                return Unauthorized(new { message = "Invalid token" });
+
             var session = await _sessionRepository.GetByIdAsync(id);
             if (session == null) return NotFound(new { message = "Session not found." });
+
+            if (session.UserId != user.Id)
+                return Forbid();
 
             // Pass the path ID into the request body object
             request.SessionId = id;
@@ -209,8 +242,20 @@ public class SessionsController(
     {
         try
         {
+            var authHeader = Request.Headers["Authorization"].FirstOrDefault();
+            if (string.IsNullOrEmpty(authHeader) || !authHeader.StartsWith("Bearer "))
+                return Unauthorized(new { message = "No auth token provided" });
+
+            var token = authHeader["Bearer ".Length..].Trim();
+            var user = await _userRepository.GetCurrentUserAsync(token);
+            if (user == null)
+                return Unauthorized(new { message = "Invalid token" });
+
             var session = await _sessionRepository.GetByIdAsync(id);
             if (session == null) return NotFound(new { message = "Session not found." });
+
+            if (session.UserId != user.Id)
+                return Forbid();
 
             bool changed = false;
             if (request.ApServerUrl != null)
@@ -343,9 +388,21 @@ public class SessionsController(
     {
         try
         {
+            var authHeader = Request.Headers["Authorization"].FirstOrDefault();
+            if (string.IsNullOrEmpty(authHeader) || !authHeader.StartsWith("Bearer "))
+                return Unauthorized(new { message = "No auth token provided" });
+
+            var token = authHeader["Bearer ".Length..].Trim();
+            var user = await _userRepository.GetCurrentUserAsync(token);
+            if (user == null)
+                return Unauthorized(new { message = "Invalid token" });
+
             var session = await _sessionRepository.GetByIdAsync(id);
             if (session == null)
                 return NotFound(new { message = "Session not found" });
+
+            if (session.UserId != user.Id)
+                return Forbid();
 
             if (session.Location == null)
                 return BadRequest(new { message = "Session has no starting location" });

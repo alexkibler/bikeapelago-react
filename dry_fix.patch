@@ -1,0 +1,163 @@
+--- api/Controllers/SessionsController.cs
++++ api/Controllers/SessionsController.cs
+@@ -23,6 +23,21 @@
+     private readonly FitAnalysisService _fitAnalysisService = fitAnalysisService;
+     private readonly IMapboxRoutingService _mapboxRoutingService = mapboxRoutingService;
+
++    private async Task<(User? user, IActionResult? error)> GetCurrentUserAsync()
++    {
++        var authHeader = Request.Headers["Authorization"].FirstOrDefault();
++        if (string.IsNullOrEmpty(authHeader) || !authHeader.StartsWith("Bearer "))
++            return (null, Unauthorized(new { message = "No auth token provided" }));
++
++        var token = authHeader["Bearer ".Length..].Trim();
++        var user = await _userRepository.GetCurrentUserAsync(token);
++        if (user == null)
++            return (null, Unauthorized(new { message = "Invalid token" }));
++
++        return (user, null);
++    }
++
+     [HttpGet]
+     public async Task<IActionResult> GetSessions()
+     {
+@@ -51,14 +66,9 @@
+     [HttpGet("{id}")]
+     public async Task<IActionResult> GetSession(Guid id)
+     {
+-        var authHeader = Request.Headers["Authorization"].FirstOrDefault();
+-        if (string.IsNullOrEmpty(authHeader) || !authHeader.StartsWith("Bearer "))
+-            return Unauthorized(new { message = "No auth token provided" });
+-
+-        var token = authHeader["Bearer ".Length..].Trim();
+-        var user = await _userRepository.GetCurrentUserAsync(token);
+-        if (user == null)
+-            return Unauthorized(new { message = "Invalid token" });
++        var (user, authError) = await GetCurrentUserAsync();
++        if (authError != null) return authError;
+
+         var session = await _sessionRepository.GetByIdAsync(id);
+         if (session == null) return NotFound();
+@@ -84,13 +94,8 @@
+         {
+             if (file == null || file.Length == 0)
+                 return BadRequest(new { message = "File is required." });
+
+             if (nodeCount < 2)
+                 return BadRequest(new { message = "nodeCount must be at least 2." });
+
+-            var authHeader = Request.Headers["Authorization"].FirstOrDefault();
+-            if (string.IsNullOrEmpty(authHeader) || !authHeader.StartsWith("Bearer "))
+-                return Unauthorized(new { message = "No auth token provided" });
+-
+-            var token = authHeader["Bearer ".Length..].Trim();
+-            var user = await _userRepository.GetCurrentUserAsync(token);
+-            if (user == null)
+-                return Unauthorized(new { message = "Invalid token" });
++            var (user, authError) = await GetCurrentUserAsync();
++            if (authError != null) return authError;
+
+             List<PathPoint> pathPoints;
+             using var stream = file.OpenReadStream();
+@@ -193,14 +198,8 @@
+     {
+         try
+         {
+-            var authHeader = Request.Headers["Authorization"].FirstOrDefault();
+-            if (string.IsNullOrEmpty(authHeader) || !authHeader.StartsWith("Bearer "))
+-                return Unauthorized(new { message = "No auth token provided" });
+-
+-            var token = authHeader["Bearer ".Length..].Trim();
+-            var user = await _userRepository.GetCurrentUserAsync(token);
+-            if (user == null)
+-                return Unauthorized(new { message = "Invalid token" });
++            var (user, authError) = await GetCurrentUserAsync();
++            if (authError != null) return authError;
+
+             var session = await _sessionRepository.GetByIdAsync(id);
+             if (session == null) return NotFound(new { message = "Session not found." });
+@@ -234,14 +233,8 @@
+     {
+         try
+         {
+-            var authHeader = Request.Headers["Authorization"].FirstOrDefault();
+-            if (string.IsNullOrEmpty(authHeader) || !authHeader.StartsWith("Bearer "))
+-                return Unauthorized(new { message = "No auth token provided" });
+-
+-            var token = authHeader["Bearer ".Length..].Trim();
+-            var user = await _userRepository.GetCurrentUserAsync(token);
+-            if (user == null)
+-                return Unauthorized(new { message = "Invalid token" });
++            var (user, authError) = await GetCurrentUserAsync();
++            if (authError != null) return authError;
+
+             var session = await _sessionRepository.GetByIdAsync(id);
+             if (session == null) return NotFound(new { message = "Session not found." });
+@@ -274,14 +267,8 @@
+     {
+         try
+         {
+-            var authHeader = Request.Headers["Authorization"].FirstOrDefault();
+-            if (string.IsNullOrEmpty(authHeader) || !authHeader.StartsWith("Bearer "))
+-                return Unauthorized(new { message = "No auth token provided" });
+-
+-            var token = authHeader["Bearer ".Length..].Trim();
+-            var user = await _userRepository.GetCurrentUserAsync(token);
+-            if (user == null)
+-                return Unauthorized(new { message = "Invalid token" });
++            var (user, authError) = await GetCurrentUserAsync();
++            if (authError != null) return authError;
+
+             var session = await _sessionRepository.GetByIdAsync(id);
+             if (session == null) return NotFound(new { message = "Session not found." });
+@@ -306,14 +293,8 @@
+     {
+         try
+         {
+-            var authHeader = Request.Headers["Authorization"].FirstOrDefault();
+-            if (string.IsNullOrEmpty(authHeader) || !authHeader.StartsWith("Bearer "))
+-                return Unauthorized(new { message = "No auth token provided" });
+-
+-            var token = authHeader["Bearer ".Length..].Trim();
+-            var user = await _userRepository.GetCurrentUserAsync(token);
+-            if (user == null)
+-                return Unauthorized(new { message = "Invalid token" });
++            var (user, authError) = await GetCurrentUserAsync();
++            if (authError != null) return authError;
+
+             await _sessionRepository.DeleteAllByUserIdAsync(user.Id);
+             return NoContent();
+@@ -334,14 +315,8 @@
+                 return NotFound("Session not found");
+
+             // User check
+-            var authHeader = Request.Headers["Authorization"].FirstOrDefault();
+-            if (string.IsNullOrEmpty(authHeader) || !authHeader.StartsWith("Bearer "))
+-                return Unauthorized(new { message = "No auth token provided" });
+-
+-            var token = authHeader["Bearer ".Length..].Trim();
+-            var user = await _userRepository.GetCurrentUserAsync(token);
+-            if (user == null)
+-                return Unauthorized(new { message = "Invalid token" });
++            var (user, authError) = await GetCurrentUserAsync();
++            if (authError != null) return authError;
+
+             if (session.UserId != user.Id && user.UserName != "testuser")
+             {
+@@ -380,14 +355,8 @@
+     {
+         try
+         {
+-            var authHeader = Request.Headers["Authorization"].FirstOrDefault();
+-            if (string.IsNullOrEmpty(authHeader) || !authHeader.StartsWith("Bearer "))
+-                return Unauthorized(new { message = "No auth token provided" });
+-
+-            var token = authHeader["Bearer ".Length..].Trim();
+-            var user = await _userRepository.GetCurrentUserAsync(token);
+-            if (user == null)
+-                return Unauthorized(new { message = "Invalid token" });
++            var (user, authError) = await GetCurrentUserAsync();
++            if (authError != null) return authError;
+
+             var session = await _sessionRepository.GetByIdAsync(id);
+             if (session == null)
