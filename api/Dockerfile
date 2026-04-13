@@ -2,10 +2,10 @@
 FROM node:25.9.0-slim AS frontend-build
 WORKDIR /src/frontend
 
-# Install pnpm using corepack
+# Install pnpm
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
-RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN npm install -g pnpm
 
 # Copy frontend source and workspace configuration
 COPY frontend/package.json frontend/pnpm-lock.yaml frontend/pnpm-workspace.yaml ./
