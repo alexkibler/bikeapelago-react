@@ -1,3 +1,6 @@
 ## 2024-06-25 - Expensive JSON Parsing in Render Loop
 **Learning:** Found synchronous `JSON.parse` operations running on potentially large spatial data (polylines) directly inside the React component render loop in `GameView.tsx`. This causes the main thread to block and results in laggy UI interactions whenever the component re-renders (e.g., state updates not related to the polyline).
 **Action:** Always extract and memoize `JSON.parse` and array `.map()` transformations of large datasets using `useMemo` so they only recalculate when the source data actually changes.
+## 2025-04-13 - Avoid Unnecessary JSON.parse on Coordinates
+**Learning:** The GPX generation utility was stringifying and parsing coordinate arrays redundantly, causing synchronous blocking operations on the main thread for potentially large routes. TypeScript types were also failing because it was already receiving an array but expecting a string.
+**Action:** When working with coordinate data, ensure functions expect arrays rather than JSON strings, to prevent main-thread blocking operations like `JSON.parse` during runtime. Also ensure type guard filter callbacks are properly annotated (e.g., `(n): n is MapNode => Boolean(n)`) when mapping arrays.

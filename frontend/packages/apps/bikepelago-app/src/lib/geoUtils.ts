@@ -14,8 +14,15 @@ export function calculateDistance(lat1: number, lon1: number, lat2: number, lon2
   return R * c;
 }
 
-export function downloadGPXFromPolyline(polylineString: string) {
-  const coordinates = JSON.parse(polylineString) as [number, number, number?][];
+/**
+ * Generates and downloads a GPX file from an array of coordinates.
+ *
+ * ⚡ Bolt Performance Optimization:
+ * Changed signature to accept the coordinate array directly instead of a JSON string.
+ * This avoids a redundant and synchronously blocking JSON.parse() operation on
+ * potentially large polyline arrays, improving responsiveness on the main thread.
+ */
+export function downloadGPXFromPolyline(coordinates: [number, number, number?][]) {
   let gpx = `<?xml version="1.0" encoding="UTF-8"?>
 <gpx version="1.1" creator="Bikeapelago" xmlns="http://www.topografix.com/GPX/1/1">
   <trk>

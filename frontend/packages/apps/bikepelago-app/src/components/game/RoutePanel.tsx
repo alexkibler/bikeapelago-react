@@ -11,7 +11,7 @@ const NodeListItem = ({ node, onClick }: { node: MapNode, onClick: () => void })
       className="w-full flex items-center gap-3 px-4 py-3 hover:bg-[rgb(var(--color-surface-overlay))] transition-colors text-left border-b border-[var(--color-border-hex)] last:border-0 group"
     >
       <span className="text-[10px] font-mono text-[var(--color-text-subtle-hex)] w-12 group-hover:text-[var(--color-primary-hex)] transition-colors">
-        #{node.ap_location_id || node.id.substring(0, 4)}
+        #{node.apLocationId || node.id.substring(0, 4)}
       </span>
       <span className="text-sm text-[var(--color-text-muted-hex)] font-medium flex-1 truncate">
         {node.name}

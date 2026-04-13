@@ -149,7 +149,7 @@ export const useGameStore = create<GameState>((set, get) => ({
         const allNodesMap = new Map(nodes.map(n => [n.id, n]));
         const orderedPoints: [number, number][] = data.orderedNodeIds
           .map((id: string) => allNodesMap.get(id))
-          .filter(Boolean)
+          .filter((n): n is MapNode => Boolean(n))
           .map((n: MapNode) => [n.lat, n.lon] as [number, number]);
 
         const newWaypoints: [number, number][] = userLocation
