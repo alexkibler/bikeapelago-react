@@ -1,31 +1,6 @@
 import { useState } from 'react';
 import { getToken } from '../store/authStore';
-
-export interface PathPoint {
-  lat: number;
-  lon: number;
-  alt?: number;
-}
-
-export interface RideStats {
-  distanceMeters: number;
-  elevationGainMeters: number;
-  durationSeconds: number;
-  avgSpeedKph?: number;
-}
-
-export interface NewlyCheckedNode {
-  id: string;
-  apLocationId?: number;
-  lat: number;
-  lon: number;
-}
-
-export interface FitAnalysisResult {
-  path: PathPoint[];
-  stats: RideStats;
-  newlyCheckedNodes: NewlyCheckedNode[];
-}
+import type { FitAnalysisResult } from '../types/game';
 
 export function useFitAnalyzer(sessionId: string, onAnalysisComplete: (result: FitAnalysisResult | null) => void) {
   const [loading, setLoading] = useState(false);
@@ -75,7 +50,7 @@ export function useFitAnalyzer(sessionId: string, onAnalysisComplete: (result: F
         let msg = `Backend error ${res.status}`;
         try {
           msg = await res.text();
-        } catch (e) { } // ignore JSON error if not json
+        } catch { /* ignore JSON error if not json */ }
         throw new Error(msg);
       }
 
@@ -108,7 +83,7 @@ export function useFitAnalyzer(sessionId: string, onAnalysisComplete: (result: F
 
       if (!res.ok) {
         let msg = `Backend error ${res.status}`;
-        try { msg = await res.text(); } catch (e) { }
+        try { msg = await res.text(); } catch { /* ignore */ }
         throw new Error(msg);
       }
 

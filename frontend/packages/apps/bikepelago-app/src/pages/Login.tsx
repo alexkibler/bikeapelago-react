@@ -12,7 +12,7 @@ const Login = () => {
   const { login, isValid } = useAuthStore();
 
   const location = useLocation();
-  const registerMessage = (location.state as any)?.message as string | undefined;
+  const registerMessage = (location.state as Record<string, unknown> | null)?.message as string | undefined;
 
   // If already authenticated, go home
   useEffect(() => {

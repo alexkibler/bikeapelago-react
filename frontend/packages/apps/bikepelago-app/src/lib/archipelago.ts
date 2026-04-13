@@ -1,5 +1,5 @@
 import * as signalR from '@microsoft/signalr';
-import { useArchipelagoStore } from '../store/archipelagoStore';
+import { useArchipelagoStore, type ArchipelagoStatus } from '../store/archipelagoStore';
 
 class ArchipelagoClient {
   private connection: signalR.HubConnection | null = null;
@@ -24,7 +24,7 @@ class ArchipelagoClient {
 
         conn.on('OnStatusUpdate', (update: { status: string; error?: string }) => {
           console.log('ArchipelagoHub Status Update:', update);
-          useArchipelagoStore.getState().setStatus(update.status as any);
+          useArchipelagoStore.getState().setStatus(update.status as ArchipelagoStatus);
           if (update.error) useArchipelagoStore.getState().setError(update.error);
         });
 
@@ -44,7 +44,7 @@ class ArchipelagoClient {
         conn.on('OnChatMessage', (message: { text: string; type: string; timestamp: string }) => {
           useArchipelagoStore.getState().addMessage({
             text: message.text,
-            //@ts-ignore
+            // @ts-expect-error message.type exists but type is string not ChatMessageType
             type: message.type,
           });
         });
@@ -80,10 +80,11 @@ class ArchipelagoClient {
       
       // Tell the backend to connect to actual Archipelago
       await conn.invoke('ConnectToArchipelago', sessionId, url, slotName, password || null);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('SignalR Hub Connection Failed:', err);
       useArchipelagoStore.getState().setStatus('error');
-      useArchipelagoStore.getState().setError(err.message || 'SignalR error');
+      const errorMessage = err instanceof Error ? err.message : 'SignalR error';
+      useArchipelagoStore.getState().setError(errorMessage);
     }
   }
 

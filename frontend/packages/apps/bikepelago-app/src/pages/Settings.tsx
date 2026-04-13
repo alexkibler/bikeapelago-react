@@ -48,7 +48,7 @@ const Settings = () => {
             updateUser(updatedUser);
             setUsernameSuccess(true);
             setTimeout(() => setUsernameSuccess(false), 3000);
-        } catch (err) {
+        } catch {
             toast.error('Failed to update username. It might be taken.');
         } finally {
             setIsUpdatingUsername(false);
@@ -82,7 +82,7 @@ const Settings = () => {
             setNewPassword('');
             setConfirmPassword('');
             setTimeout(() => setPasswordSuccess(false), 3000);
-        } catch (err) {
+        } catch {
             setPasswordError('Failed to update password.');
         } finally {
             setIsUpdatingPassword(false);
@@ -100,7 +100,7 @@ const Settings = () => {
             await deleteAllSessions();
             setDeleteStep(0);
             toast.success('All sessions deleted successfully.');
-        } catch (err) {
+        } catch {
             toast.error('Failed to delete sessions.');
             setDeleteStep(0);
         } finally {
