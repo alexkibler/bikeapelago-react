@@ -9,7 +9,7 @@ import NewGame from './pages/NewGame';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Settings from './pages/Settings';
-import { getToken, useAuthStore } from './store/authStore';
+import { useAuthStore } from './store/authStore';
 import { DataFetchProvider } from '@bikeapelago/shared-data-fetching';
 import './App.css';
 
@@ -19,7 +19,7 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
 }
 
 function App() {
-  const token = getToken();
+  const token = useAuthStore(s => s.token)
 
   return (
     <Router>
