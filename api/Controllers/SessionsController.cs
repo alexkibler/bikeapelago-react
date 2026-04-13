@@ -23,25 +23,15 @@ public class SessionsController(
     private readonly IMapboxRoutingService _mapboxRoutingService = mapboxRoutingService;
 
     [HttpGet]
+    [Microsoft.AspNetCore.Authorization.Authorize]
     public async Task<IActionResult> GetSessions()
     {
         try {
-            var authHeader = Request.Headers["Authorization"].FirstOrDefault();
-            Console.WriteLine($"DEBUG: Authorization Header: {authHeader}");
-            if (string.IsNullOrEmpty(authHeader) || !authHeader.StartsWith("Bearer "))
-                return Unauthorized(new { message = "No auth token provided" });
-
-            var token = authHeader["Bearer ".Length..].Trim();
-            Console.WriteLine($"DEBUG: Extracted Token: '{token}'");
-
-            var user = await _userRepository.GetCurrentUserAsync(token);
-            if (user == null)
-            {
-                Console.WriteLine("DEBUG: User resolution failed");
+            var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userIdString) || !Guid.TryParse(userIdString, out var userId))
                 return Unauthorized(new { message = "Invalid token" });
-            }
 
-            var sessions = await _sessionRepository.GetByUserIdAsync(user.Id);
+            var sessions = await _sessionRepository.GetByUserIdAsync(userId);
             return Ok(sessions);
         } catch (Exception ex) {
             Console.WriteLine($"DEBUG: Exception in GetSessions: {ex}");
@@ -92,13 +82,8 @@ public class SessionsController(
             if (nodeCount < 2)
                 return BadRequest(new { message = "nodeCount must be at least 2." });
 
-            var authHeader = Request.Headers["Authorization"].FirstOrDefault();
-            if (string.IsNullOrEmpty(authHeader) || !authHeader.StartsWith("Bearer "))
-                return Unauthorized(new { message = "No auth token provided" });
-
-            var token = authHeader["Bearer ".Length..].Trim();
-            var user = await _userRepository.GetCurrentUserAsync(token);
-            if (user == null)
+            var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userIdString) || !Guid.TryParse(userIdString, out var userId))
                 return Unauthorized(new { message = "Invalid token" });
 
             List<PathPoint> pathPoints;
@@ -145,7 +130,7 @@ public class SessionsController(
 
             var session = new GameSession
             {
-                UserId = user.Id,
+                UserId = userId,
                 Mode = "singleplayer",
                 Status = SessionStatus.SetupInProgress,
                 Location = new NetTopologySuite.Geometries.Point(metrics.CenterLon, metrics.CenterLat) { SRID = 4326 },
@@ -283,20 +268,16 @@ public class SessionsController(
     }
 
     [HttpDelete("all")]
+    [Microsoft.AspNetCore.Authorization.Authorize]
     public async Task<IActionResult> DeleteAllSessions()
     {
         try
         {
-            var authHeader = Request.Headers["Authorization"].FirstOrDefault();
-            if (string.IsNullOrEmpty(authHeader) || !authHeader.StartsWith("Bearer "))
-                return Unauthorized(new { message = "No auth token provided" });
-
-            var token = authHeader["Bearer ".Length..].Trim();
-            var user = await _userRepository.GetCurrentUserAsync(token);
-            if (user == null)
+            var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userIdString) || !Guid.TryParse(userIdString, out var userId))
                 return Unauthorized(new { message = "Invalid token" });
 
-            await _sessionRepository.DeleteAllByUserIdAsync(user.Id);
+            await _sessionRepository.DeleteAllByUserIdAsync(userId);
             return NoContent();
         }
         catch (Exception ex)
@@ -307,6 +288,7 @@ public class SessionsController(
 
     [HttpPost("{id}/analyze")]
     [Consumes("multipart/form-data")]
+    [Microsoft.AspNetCore.Authorization.Authorize]
     public async Task<IActionResult> AnalyzeFitFile(Guid id, IFormFile file)
     {
         try
@@ -319,16 +301,13 @@ public class SessionsController(
                 return NotFound("Session not found");
 
             // User check
-            var authHeader = Request.Headers["Authorization"].FirstOrDefault();
-            if (string.IsNullOrEmpty(authHeader) || !authHeader.StartsWith("Bearer "))
-                return Unauthorized(new { message = "No auth token provided" });
-
-            var token = authHeader["Bearer ".Length..].Trim();
-            var user = await _userRepository.GetCurrentUserAsync(token);
-            if (user == null)
+            var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userIdString) || !Guid.TryParse(userIdString, out var userId))
                 return Unauthorized(new { message = "Invalid token" });
 
-            if (session.UserId != user.Id && user.UserName != "testuser")
+            var userName = User.FindFirstValue(ClaimTypes.Name);
+
+            if (session.UserId != userId && userName != "testuser")
             {
                 return Forbid();
             }

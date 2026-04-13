@@ -3,6 +3,7 @@ using Bikeapelago.Api.Models;
 using Bikeapelago.Api.Repositories;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Identity;
+using System.Security.Claims;
 
 namespace Bikeapelago.Api.Controllers;
 
@@ -53,15 +54,14 @@ public class AuthController : ControllerBase
     }
 
     [HttpPatch("/api/users/{id}")]
+    [Microsoft.AspNetCore.Authorization.Authorize]
     public async Task<IActionResult> UpdateUser(Guid id, [FromBody] UpdateUserRequest request)
     {
-        var authHeader = Request.Headers["Authorization"].FirstOrDefault();
-        if (string.IsNullOrEmpty(authHeader) || !authHeader.StartsWith("Bearer "))
-            return Unauthorized(new { message = "No auth token provided" });
+        var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(userIdString) || !Guid.TryParse(userIdString, out var userId))
+            return Unauthorized(new { message = "Invalid token" });
 
-        var token = authHeader["Bearer ".Length..].Trim();
-        var currentUser = await _userRepository.GetCurrentUserAsync(token);
-        if (currentUser == null || currentUser.Id != id)
+        if (userId != id)
             return Unauthorized(new { message = "Unauthorized to update this user." });
 
         var user = await _userRepository.GetByIdAsync(id);
