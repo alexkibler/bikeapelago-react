@@ -22,9 +22,11 @@ jobs:
             file: api/Dockerfile
           - name: admin-ui
             context: ./frontend
+            file: frontend/Dockerfile
             target: runtime-admin-ui
           - name: frontend
             context: ./frontend
+            file: frontend/Dockerfile
             target: runtime-frontend
 
     steps:
