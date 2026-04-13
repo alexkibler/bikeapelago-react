@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useGameStore } from '../../store/gameStore';
 import { downloadGPXFromPolyline } from '../../lib/geoUtils';
 import { Map as MapIcon, Download, Loader2, ChevronDown, ChevronUp, UploadCloud } from 'lucide-react';

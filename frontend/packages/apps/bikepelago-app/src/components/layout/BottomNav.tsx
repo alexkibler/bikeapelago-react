@@ -1,4 +1,3 @@
-import React from 'react';
 import { useLocation, Link } from 'react-router-dom';
 import { Home, MessageSquare, Package, Map } from 'lucide-react';
 import { useGameStore } from '../../store/gameStore';

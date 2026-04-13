@@ -157,6 +157,9 @@ importers:
       '@airbreather/archipelago.js':
         specifier: ^2.0.5-airbreather.6
         version: 2.0.5-airbreather.6
+      '@bikeapelago/shared-data-fetching':
+        specifier: workspace:^
+        version: link:../../shared/data-fetching
       '@microsoft/signalr':
         specifier: ^10.0.0
         version: 10.0.0
@@ -283,6 +286,19 @@ importers:
         version: 4.1.4(@types/node@24.12.2)(@vitest/ui@4.1.4)(jsdom@29.0.2)(vite@8.0.8(@types/node@24.12.2)(jiti@1.21.7))
 
   packages/shared/configs: {}
+
+  packages/shared/data-fetching:
+    dependencies:
+      '@tanstack/react-query':
+        specifier: ^5.97.0
+        version: 5.97.0(react@19.2.5)
+      path-to-regexp:
+        specifier: 8.4.2
+        version: 8.4.2
+    devDependencies:
+      '@bikeapelago/shared-configs':
+        specifier: workspace:^
+        version: link:../configs
 
 packages:
 
@@ -1964,6 +1980,9 @@ packages:
 
   path-parse@1.0.7:
     resolution: {integrity: sha512-LDJzPVEEEPR+y48z93A0Ed0yXb8pAByGWo/k5YYdYgpY2/2EsOsksJrq7lOHxryrVOn1ejG6oAp8ahvOIQD8sw==}
+
+  path-to-regexp@8.4.2:
+    resolution: {integrity: sha512-qRcuIdP69NPm4qbACK+aDogI5CBDMi1jKe0ry5rSQJz8JVLsC7jV8XpiJjGRLLol3N+R5ihGYcrPLTno6pAdBA==}
 
   pathe@2.0.3:
     resolution: {integrity: sha512-WUjGcAqP1gQacoQe+OBJsFA7Ld4DyXuUIjZ5cc75cLHvJ7dtNsTugphxIADwspS+AraAUePCKrSVtPLFj/F88w==}
@@ -4313,6 +4332,8 @@ snapshots:
   path-key@3.1.1: {}
 
   path-parse@1.0.7: {}
+
+  path-to-regexp@8.4.2: {}
 
   pathe@2.0.3: {}
 
