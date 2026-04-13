@@ -50,7 +50,7 @@ export async function apiFetch<T>(
 
   try {
     return await response.json() as Promise<T>;
-  } catch (err) {
+  } catch {
     throw new Error('Failed to parse server response');
   }
 }
