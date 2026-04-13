@@ -63,3 +63,4 @@ test-valhalla.sh
 frontend/packages/apps/bikepelago-app/lint_output.txt
 *.gpx
 playwright-report/
+\n# Archipelago data\n*.apworld

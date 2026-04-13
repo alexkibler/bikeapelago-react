@@ -159,7 +159,7 @@ All services run via `docker-compose.yml` in the repo root:
 
 | Service | Port | Notes |
 |---|---|---|
-| `bikeapelago-api` | 8080 | .NET API |
+| `bikeapelago-api` | 5054 | .NET API |
 | `bikeapelago-react` | 8182 | Nginx + React SPA |
 | `postgis` | 5432 | Shared PostGIS instance (two DBs: `bikeapelago`, `osm_discovery`) |
 | `osm-importer` | — | Runs once and exits |

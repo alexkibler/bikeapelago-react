@@ -178,22 +178,22 @@ docker build -f frontend/Dockerfile \
 
 **Run against production API:**
 ```bash
-docker run -d --name frontend-test -p 8080:80 \
+docker run -d --name frontend-test -p 8182:80 \
   -e API_PROXY_URL=https://bikeapelago.alexkibler.com/api/ \
   -e API_HUBS_URL=https://bikeapelago.alexkibler.com/hubs/ \
   bikeapelago-frontend:latest
 ```
 
-Then open `http://localhost:8080` and test:
+Then open `http://localhost:8182` and test:
 - Frontend loads ✓
 - Login works (API calls to production) ✓
 - Game page functions (WebSocket connections work) ✓
 
 **Run against local API (if available):**
 ```bash
-docker run -d --name frontend-test -p 8080:80 \
-  -e API_PROXY_URL=http://host.docker.internal:8080/api/ \
-  -e API_HUBS_URL=http://host.docker.internal:8080/hubs/ \
+docker run -d --name frontend-test -p 8182:80 \
+  -e API_PROXY_URL=http://host.docker.internal:5054/api/ \
+  -e API_HUBS_URL=http://host.docker.internal:5054/hubs/ \
   bikeapelago-frontend:latest
 ```
 
