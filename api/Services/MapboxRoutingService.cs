@@ -15,19 +15,91 @@ public class MapboxRoutingService(HttpClient httpClient, ILogger<MapboxRoutingSe
     private const double MaxDistanceMeters = 20;
     private const string MapboxMatchingUrl = "https://api.mapbox.com/matching/v5/mapbox";
     private const string MapboxOptimizationUrl = "https://api.mapbox.com/optimized-trips/v1/mapbox";
+    private const string OsrmBaseUrl = "http://router.project-osrm.org";
     private const int MaxCoordinates = 12;
+    private static readonly int[] RetryDelaysMs = [1000, 2000, 4000];
 
     public async Task<List<ValidateResult>> ValidateNodesAsync(ValidateRequest request)
     {
-        _logger.LogInformation("Validating {Count} nodes via Mapbox for profile {Profile}", request.Points.Length, request.Profile);
+        _logger.LogInformation("Validating {Count} nodes for profile {Profile}", request.Points.Length, request.Profile);
 
+        var osrmResults = await RetryAsync(() => TryOsrmValidateAsync(request), "OSRM validation");
+        if (osrmResults != null)
+            return osrmResults;
+
+        _logger.LogInformation("OSRM validation exhausted retries, falling back to Mapbox");
+        var mapboxResults = await RetryAsync(() => TryMapboxValidateAsync(request), "Mapbox validation");
+        return mapboxResults ?? await MapboxValidateNodesAsync(request);
+    }
+
+    private async Task<List<ValidateResult>?> TryOsrmValidateAsync(ValidateRequest request)
+    {
+        var profile = MapToOsrmProfile(request.Profile);
+        var results = new List<ValidateResult>();
+
+        try
+        {
+            foreach (var point in request.Points)
+            {
+                var url = $"{OsrmBaseUrl}/nearest/v1/{profile}/{point.Lon},{point.Lat}?number=1";
+                var response = await _httpClient.GetAsync(url);
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    _logger.LogWarning("OSRM nearest returned {StatusCode} for point {Lat},{Lon}", response.StatusCode, point.Lat, point.Lon);
+                    return null;
+                }
+
+                var json = await response.Content.ReadAsStringAsync();
+                using var doc = JsonDocument.Parse(json);
+                var root = doc.RootElement;
+
+                if (!root.TryGetProperty("code", out var codeEl) || codeEl.GetString() != "Ok")
+                {
+                    _logger.LogWarning("OSRM nearest returned non-Ok code for point {Lat},{Lon}", point.Lat, point.Lon);
+                    return null;
+                }
+
+                if (root.TryGetProperty("waypoints", out var waypoints) && waypoints.GetArrayLength() > 0)
+                {
+                    var wp = waypoints[0];
+                    var location = wp.GetProperty("location");
+                    var snappedLon = location[0].GetDouble();
+                    var snappedLat = location[1].GetDouble();
+                    var distance = wp.GetProperty("distance").GetDouble();
+                    var roadName = wp.TryGetProperty("name", out var nameEl) ? nameEl.GetString() ?? "" : "";
+
+                    results.Add(new ValidateResult(
+                        Original: point,
+                        Snapped: new DiscoveryPoint(snappedLon, snappedLat),
+                        DistanceMeters: distance,
+                        IsValid: distance <= MaxDistanceMeters,
+                        RoadName: roadName
+                    ));
+                }
+                else
+                {
+                    results.Add(new ValidateResult(Original: point, IsValid: false, Error: "No nearest road found via OSRM"));
+                }
+            }
+
+            return results;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "OSRM validation failed");
+            return null;
+        }
+    }
+
+    private async Task<List<ValidateResult>> MapboxValidateNodesAsync(ValidateRequest request)
+    {
         var results = new List<ValidateResult>();
 
         foreach (var point in request.Points)
         {
             try
             {
-                // Use Mapbox Match Service to snap point to nearest road
                 var profile = request.Profile.ToLower() switch
                 {
                     "foot" or "walk" => "walking",
@@ -35,7 +107,6 @@ public class MapboxRoutingService(HttpClient httpClient, ILogger<MapboxRoutingSe
                     _ => "cycling"
                 };
 
-                // Build Mapbox coordinates query: lon,lat (not lat,lon!)
                 var coordinatesQuery = $"{point.Lon},{point.Lat}";
                 var url = $"{MapboxMatchingUrl}/{profile}/{coordinatesQuery}?access_token={Uri.EscapeDataString(_mapboxApiKey)}&geometries=geojson";
 
@@ -47,22 +118,17 @@ public class MapboxRoutingService(HttpClient httpClient, ILogger<MapboxRoutingSe
                     using var doc = JsonDocument.Parse(json);
                     var root = doc.RootElement;
 
-                    // Check if there are matches
                     if (root.TryGetProperty("matchings", out var matchings) && matchings.GetArrayLength() > 0)
                     {
-                        // Get the best match (index 0)
                         var match = matchings[0];
 
                         if (match.TryGetProperty("geometry", out var geometry) &&
                             geometry.TryGetProperty("coordinates", out var coordinates) &&
                             coordinates.GetArrayLength() > 0)
                         {
-                            // Get snapped coordinates (first coordinate pair)
                             var snappedCoord = coordinates[0];
                             var snappedLon = snappedCoord[0].GetDouble();
                             var snappedLat = snappedCoord[1].GetDouble();
-
-                            // Calculate distance between original and snapped point
                             var distanceMeters = GeoDistanceMeters(point.Lat, point.Lon, snappedLat, snappedLon);
 
                             results.Add(new ValidateResult(
@@ -98,6 +164,19 @@ public class MapboxRoutingService(HttpClient httpClient, ILogger<MapboxRoutingSe
         }
 
         return results;
+    }
+
+    private async Task<List<ValidateResult>?> TryMapboxValidateAsync(ValidateRequest request)
+    {
+        try
+        {
+            return await MapboxValidateNodesAsync(request);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Mapbox validation attempt failed");
+            return null;
+        }
     }
 
     /// <summary>
@@ -217,8 +296,13 @@ public class MapboxRoutingService(HttpClient httpClient, ILogger<MapboxRoutingSe
                 };
                 coordinates.AddRange(chunks[i].Select(n => new MapboxCoordinate(n.Location!.X, n.Location.Y)));
 
-                // Call Mapbox Optimization API
-                var response = await OptimizeRouteAsync(coordinates, profile);
+                // Try OSRM first with retry, fall back to Mapbox with retry
+                var response = await RetryAsync(() => TryOsrmOptimizeAsync(coordinates, profile), $"OSRM optimization chunk {i + 1}");
+                if (response == null)
+                {
+                    _logger.LogInformation("OSRM optimization exhausted retries for chunk {ChunkNum}, falling back to Mapbox", i + 1);
+                    response = await RetryAsync(() => TryMapboxOptimizeAsync(coordinates, profile), $"Mapbox optimization chunk {i + 1}");
+                }
 
                 if (response?.Code != "Ok" || response.Trips.Count == 0)
                 {
@@ -270,6 +354,82 @@ public class MapboxRoutingService(HttpClient httpClient, ILogger<MapboxRoutingSe
         {
             _logger.LogError(ex, "Error routing to multiple nodes");
             return new OptimizedRouteResult { Success = false, Error = ex.Message };
+        }
+    }
+
+    private async Task<T?> RetryAsync<T>(Func<Task<T?>> operation, string operationName) where T : class
+    {
+        var result = await operation();
+        if (result != null) return result;
+
+        foreach (var delayMs in RetryDelaysMs)
+        {
+            _logger.LogInformation("{Operation} failed, retrying in {Delay}ms", operationName, delayMs);
+            await Task.Delay(delayMs);
+            result = await operation();
+            if (result != null) return result;
+        }
+
+        _logger.LogWarning("{Operation} failed after all retries", operationName);
+        return null;
+    }
+
+    private async Task<MapboxOptimizationResponse?> TryMapboxOptimizeAsync(List<MapboxCoordinate> coordinates, string profile)
+    {
+        try
+        {
+            var result = await OptimizeRouteAsync(coordinates, profile);
+            return result?.Code == "Ok" && result.Trips.Count > 0 ? result : null;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Mapbox optimization attempt failed");
+            return null;
+        }
+    }
+
+    private static string MapToOsrmProfile(string profile) => profile.ToLower() switch
+    {
+        "foot" or "walk" => "walking",
+        "car" => "driving",
+        _ => "cycling"
+    };
+
+    private async Task<MapboxOptimizationResponse?> TryOsrmOptimizeAsync(List<MapboxCoordinate> coordinates, string profile)
+    {
+        try
+        {
+            var osrmProfile = MapToOsrmProfile(profile);
+            var coordinatesString = string.Join(";", coordinates.Select(c => $"{c.Longitude},{c.Latitude}"));
+            var url = $"{OsrmBaseUrl}/trip/v1/{osrmProfile}/{coordinatesString}?source=first&destination=last&roundtrip=false&geometries=geojson";
+
+            _logger.LogInformation("Trying OSRM trip API with {Count} coordinates for profile {Profile}", coordinates.Count, osrmProfile);
+
+            var response = await _httpClient.GetAsync(url);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogWarning("OSRM trip API returned {StatusCode}", response.StatusCode);
+                return null;
+            }
+
+            var json = await response.Content.ReadAsStringAsync();
+            var opts = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+            var result = JsonSerializer.Deserialize<MapboxOptimizationResponse>(json, opts);
+
+            if (result?.Code != "Ok" || result.Trips.Count == 0)
+            {
+                _logger.LogWarning("OSRM trip API returned code {Code}: {Message}", result?.Code, result?.Message);
+                return null;
+            }
+
+            _logger.LogInformation("OSRM trip success: {TripCount} trips, {WaypointCount} waypoints", result.Trips.Count, result.Waypoints.Count);
+            return result;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "OSRM trip API call failed");
+            return null;
         }
     }
 
