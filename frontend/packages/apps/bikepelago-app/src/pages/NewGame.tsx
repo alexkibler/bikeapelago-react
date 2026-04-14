@@ -4,14 +4,16 @@ import { Globe, User, Lock, Server, ArrowRight, Info } from 'lucide-react';
 
 const NewGame = () => {
   const navigate = useNavigate();
-  const [gameMode, setGameMode] = useState<'archipelago' | 'singleplayer'>('archipelago');
+  const [gameMode, setGameMode] = useState<'archipelago' | 'singleplayer'>(
+    'archipelago',
+  );
   const [sessionName, setSessionName] = useState('');
   const [serverUrl, setServerUrl] = useState('archipelago.gg:');
   const [slotName, setSlotName] = useState('');
   const [password, setPassword] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (gameMode === 'archipelago' && !slotName) {
       setErrorMsg('Slot name is required for Archipelago connection.');
@@ -26,104 +28,119 @@ const NewGame = () => {
       params.set('serverUrl', serverUrl);
       params.set('slotName', slotName);
     }
-    
+
     navigate(`/setup-session?${params.toString()}`);
   };
 
-
   return (
-    <div className="max-w-2xl mx-auto py-12 px-6">
-      <div className="bg-[var(--color-surface-hex)] border border-[var(--color-border-hex)] rounded-3xl p-8 md:p-12 shadow-2xl relative overflow-hidden">
+    <div className='max-w-2xl mx-auto py-12 px-6'>
+      <div className='bg-[var(--color-surface-hex)] border border-[var(--color-border-hex)] rounded-3xl p-8 md:p-12 shadow-2xl relative overflow-hidden'>
         {/* Glow effect */}
-        <div className="absolute -top-24 -right-24 w-48 h-48 bg-orange-600/20 blur-[80px] rounded-full"></div>
-        
-        <header className="relative mb-10">
-          <h1 className="text-[var(--color-text-hex)] text-3xl font-black mb-2 tracking-tight">Create New Game</h1>
-          <p className="text-[var(--color-text-muted-hex)]">Configure your session parameters to get started.</p>
+        <div className='absolute -top-24 -right-24 w-48 h-48 bg-orange-600/20 blur-[80px] rounded-full'></div>
+
+        <header className='relative mb-10'>
+          <h1 className='text-[var(--color-text-hex)] text-3xl font-black mb-2 tracking-tight'>
+            Create New Game
+          </h1>
+          <p className='text-[var(--color-text-muted-hex)]'>
+            Configure your session parameters to get started.
+          </p>
         </header>
 
-        <form onSubmit={handleSubmit} className="space-y-8 relative">
-          <div className="space-y-2">
-            <label className="text-xs font-black uppercase tracking-widest text-[var(--color-text-subtle-hex)] ml-1">Session Name</label>
-            <div className="relative group">
+        <form onSubmit={handleSubmit} className='space-y-8 relative'>
+          <div className='space-y-2'>
+            <label className='text-xs font-black uppercase tracking-widest text-[var(--color-text-subtle-hex)] ml-1'>
+              Session Name
+            </label>
+            <div className='relative group'>
               <input
-                type="text"
+                type='text'
                 value={sessionName}
                 onChange={(e) => setSessionName(e.target.value)}
-                placeholder="My Awesome Adventure"
-                className="w-full bg-[var(--color-surface-alt-hex)] border border-[var(--color-border-hex)] rounded-xl py-4 px-6 text-[var(--color-text-hex)] focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all placeholder:text-[var(--color-text-subtle-hex)]"
+                placeholder='My Awesome Adventure'
+                className='w-full bg-[var(--color-surface-alt-hex)] border border-[var(--color-border-hex)] rounded-xl py-4 px-6 text-[var(--color-text-hex)] focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all placeholder:text-[var(--color-text-subtle-hex)]'
               />
             </div>
           </div>
 
           {/* Game Mode Selection */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className='grid grid-cols-2 gap-4'>
             <button
-              type="button"
+              type='button'
               onClick={() => setGameMode('archipelago')}
               className={`p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-3 ${
-                gameMode === 'archipelago' 
-                ? 'border-orange-500 bg-orange-500/5 text-[var(--color-text-hex)]' 
-                : 'border-[var(--color-border-hex)] bg-[var(--color-surface-alt-hex)] text-[var(--color-text-muted-hex)] hover:border-[var(--color-border-strong-hex)]'
+                gameMode === 'archipelago'
+                  ? 'border-orange-500 bg-orange-500/5 text-[var(--color-text-hex)]'
+                  : 'border-[var(--color-border-hex)] bg-[var(--color-surface-alt-hex)] text-[var(--color-text-muted-hex)] hover:border-[var(--color-border-strong-hex)]'
               }`}
             >
-              <Globe className={`w-8 h-8 ${gameMode === 'archipelago' ? 'text-orange-500' : ''}`} />
-              <span className="font-bold text-sm">Archipelago</span>
+              <Globe
+                className={`w-8 h-8 ${gameMode === 'archipelago' ? 'text-orange-500' : ''}`}
+              />
+              <span className='font-bold text-sm'>Archipelago</span>
             </button>
             <button
-              type="button"
+              type='button'
               onClick={() => setGameMode('singleplayer')}
               className={`p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-3 ${
-                gameMode === 'singleplayer' 
-                ? 'border-orange-500 bg-orange-500/5 text-[var(--color-text-hex)]' 
-                : 'border-[var(--color-border-hex)] bg-[var(--color-surface-alt-hex)] text-[var(--color-text-muted-hex)] hover:border-[var(--color-border-strong-hex)]'
+                gameMode === 'singleplayer'
+                  ? 'border-orange-500 bg-orange-500/5 text-[var(--color-text-hex)]'
+                  : 'border-[var(--color-border-hex)] bg-[var(--color-surface-alt-hex)] text-[var(--color-text-muted-hex)] hover:border-[var(--color-border-strong-hex)]'
               }`}
             >
-              <User className={`w-8 h-8 ${gameMode === 'singleplayer' ? 'text-orange-500' : ''}`} />
-              <span className="font-bold text-sm">Single Player</span>
+              <User
+                className={`w-8 h-8 ${gameMode === 'singleplayer' ? 'text-orange-500' : ''}`}
+              />
+              <span className='font-bold text-sm'>Single Player</span>
             </button>
           </div>
 
           {gameMode === 'archipelago' && (
-            <div className="space-y-6 animate-in fade-in slide-in-from-top-4 duration-500">
-              <div className="space-y-2">
-                <label className="text-xs font-black uppercase tracking-widest text-[var(--color-text-subtle-hex)] ml-1">Server URL</label>
-                <div className="relative group">
-                  <Server className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[var(--color-text-subtle-hex)] group-focus-within:text-orange-500 transition-colors" />
+            <div className='space-y-6 animate-in fade-in slide-in-from-top-4 duration-500'>
+              <div className='space-y-2'>
+                <label className='text-xs font-black uppercase tracking-widest text-[var(--color-text-subtle-hex)] ml-1'>
+                  Server URL
+                </label>
+                <div className='relative group'>
+                  <Server className='absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[var(--color-text-subtle-hex)] group-focus-within:text-orange-500 transition-colors' />
                   <input
-                    type="text"
+                    type='text'
                     value={serverUrl}
                     onChange={(e) => setServerUrl(e.target.value)}
-                    placeholder="archipelago.gg:12345"
-                    className="w-full bg-[var(--color-surface-alt-hex)] border border-[var(--color-border-hex)] rounded-xl py-4 pl-12 pr-4 text-[var(--color-text-hex)] focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all placeholder:text-[var(--color-text-subtle-hex)]"
+                    placeholder='archipelago.gg:12345'
+                    className='w-full bg-[var(--color-surface-alt-hex)] border border-[var(--color-border-hex)] rounded-xl py-4 pl-12 pr-4 text-[var(--color-text-hex)] focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all placeholder:text-[var(--color-text-subtle-hex)]'
                   />
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <label className="text-xs font-black uppercase tracking-widest text-[var(--color-text-subtle-hex)] ml-1">Slot Name</label>
-                <div className="relative group">
-                  <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[var(--color-text-subtle-hex)] group-focus-within:text-orange-500 transition-colors" />
+              <div className='space-y-2'>
+                <label className='text-xs font-black uppercase tracking-widest text-[var(--color-text-subtle-hex)] ml-1'>
+                  Slot Name
+                </label>
+                <div className='relative group'>
+                  <User className='absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[var(--color-text-subtle-hex)] group-focus-within:text-orange-500 transition-colors' />
                   <input
-                    type="text"
+                    type='text'
                     value={slotName}
                     onChange={(e) => setSlotName(e.target.value)}
-                    placeholder="Enter your slot name"
-                    className="w-full bg-[var(--color-surface-alt-hex)] border border-[var(--color-border-hex)] rounded-xl py-4 pl-12 pr-4 text-[var(--color-text-hex)] focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all placeholder:text-[var(--color-text-subtle-hex)]"
+                    placeholder='Enter your slot name'
+                    className='w-full bg-[var(--color-surface-alt-hex)] border border-[var(--color-border-hex)] rounded-xl py-4 pl-12 pr-4 text-[var(--color-text-hex)] focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all placeholder:text-[var(--color-text-subtle-hex)]'
                   />
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <label className="text-xs font-black uppercase tracking-widest text-[var(--color-text-subtle-hex)] ml-1">Password (Optional)</label>
-                <div className="relative group">
-                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[var(--color-text-subtle-hex)] group-focus-within:text-orange-500 transition-colors" />
+              <div className='space-y-2'>
+                <label className='text-xs font-black uppercase tracking-widest text-[var(--color-text-subtle-hex)] ml-1'>
+                  Password (Optional)
+                </label>
+                <div className='relative group'>
+                  <Lock className='absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[var(--color-text-subtle-hex)] group-focus-within:text-orange-500 transition-colors' />
                   <input
-                    type="password"
+                    type='password'
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
-                    className="w-full bg-[var(--color-surface-alt-hex)] border border-[var(--color-border-hex)] rounded-xl py-4 pl-12 pr-4 text-[var(--color-text-hex)] focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all placeholder:text-[var(--color-text-subtle-hex)]"
+                    placeholder='••••••••'
+                    className='w-full bg-[var(--color-surface-alt-hex)] border border-[var(--color-border-hex)] rounded-xl py-4 pl-12 pr-4 text-[var(--color-text-hex)] focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all placeholder:text-[var(--color-text-subtle-hex)]'
                   />
                 </div>
               </div>
@@ -131,26 +148,30 @@ const NewGame = () => {
           )}
 
           {gameMode === 'singleplayer' && (
-            <div className="p-6 rounded-2xl bg-orange-500/5 border border-orange-500/20 flex gap-4 animate-in fade-in slide-in-from-top-4 duration-500">
-              <Info className="w-6 h-6 text-orange-500 shrink-0" />
-              <p className="text-sm text-[var(--color-text-muted-hex)] leading-relaxed">
-                In Single Player mode, you'll still be able to use the map and routing tools, but your progress won't be synced with a multiworld server.
+            <div className='p-6 rounded-2xl bg-orange-500/5 border border-orange-500/20 flex gap-4 animate-in fade-in slide-in-from-top-4 duration-500'>
+              <Info className='w-6 h-6 text-orange-500 shrink-0' />
+              <p className='text-sm text-[var(--color-text-muted-hex)] leading-relaxed'>
+                In Single Player mode, you'll still be able to use the map and
+                routing tools, but your progress won't be synced with a
+                multiworld server.
               </p>
             </div>
           )}
 
-          <div className="pt-4">
+          <div className='pt-4'>
             <button
-              type="submit"
-              className="w-full btn btn-orange btn-lg h-16 rounded-2xl font-black uppercase tracking-widest text-sm flex items-center justify-center gap-3 disabled:opacity-50 disabled:bg-neutral-800 group shadow-xl shadow-orange-600/10"
+              type='submit'
+              className='w-full btn btn-orange btn-lg h-16 rounded-2xl font-black uppercase tracking-widest text-sm flex items-center justify-center gap-3 disabled:opacity-50 disabled:bg-neutral-800 group shadow-xl shadow-orange-600/10'
             >
-              {gameMode === 'archipelago' ? 'Connect & Play' : 'Start Single Player'}
-              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+              {gameMode === 'archipelago'
+                ? 'Connect & Play'
+                : 'Start Single Player'}
+              <ArrowRight className='w-5 h-5 group-hover:translate-x-1 transition-transform' />
             </button>
           </div>
 
           {errorMsg && (
-            <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm font-medium animate-in shake duration-300">
+            <div className='p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm font-medium animate-in shake duration-300'>
               {errorMsg}
             </div>
           )}

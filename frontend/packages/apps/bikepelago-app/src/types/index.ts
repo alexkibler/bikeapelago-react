@@ -1,3 +1,1 @@
-export type {
-  GameSession
-} from './apiResponses';
+export type { GameSession } from './apiResponses';

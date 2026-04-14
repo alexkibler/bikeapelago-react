@@ -1,4 +1,4 @@
 export {
   DataFetchProvider,
-  useDataFetchProviderCtx
+  useDataFetchProviderCtx,
 } from './DataFetchProvider';

@@ -6,4 +6,4 @@ export type TDataFetchProviderContext = {
 export type DataFetchProviderProps = {
   token?: string | null;
   handleUnauthorized: () => void;
-}
+};

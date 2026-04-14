@@ -2,7 +2,7 @@ import { getToken } from '../store/authStore';
 
 const getHeaders = () => ({
   'Content-Type': 'application/json',
-  ...(getToken() ? { 'Authorization': `Bearer ${getToken()}` } : {})
+  ...(getToken() ? { Authorization: `Bearer ${getToken()}` } : {}),
 });
 
 export const apiClient = {
@@ -17,9 +17,9 @@ export const apiClient = {
       method: 'PATCH',
       headers: getHeaders(),
       body: JSON.stringify(body),
-      signal
+      signal,
     });
     if (!res.ok) throw new Error(`${res.status}: ${res.statusText}`);
     return res.json();
-  }
+  },
 };

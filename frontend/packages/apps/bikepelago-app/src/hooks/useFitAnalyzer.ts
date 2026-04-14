@@ -2,7 +2,10 @@ import { useState } from 'react';
 import { getToken } from '../store/authStore';
 import type { FitAnalysisResult } from '../types/game';
 
-export function useFitAnalyzer(sessionId: string, onAnalysisComplete: (result: FitAnalysisResult | null) => void) {
+export function useFitAnalyzer(
+  sessionId: string,
+  onAnalysisComplete: (result: FitAnalysisResult | null) => void,
+) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -14,7 +17,10 @@ export function useFitAnalyzer(sessionId: string, onAnalysisComplete: (result: F
     setError(null);
     onAnalysisComplete(null);
 
-    console.log('[useFitAnalyzer] Sending analysis to backend for:', selectedFile.name);
+    console.log(
+      '[useFitAnalyzer] Sending analysis to backend for:',
+      selectedFile.name,
+    );
 
     if ((window as unknown as { PLAYWRIGHT_TEST?: boolean }).PLAYWRIGHT_TEST) {
       console.log('[useFitAnalyzer] Mocking analysis for E2E test');
@@ -24,9 +30,11 @@ export function useFitAnalyzer(sessionId: string, onAnalysisComplete: (result: F
           distanceMeters: 5000,
           durationSeconds: 1200,
           elevationGainMeters: 100,
-          avgSpeedKph: 15
+          avgSpeedKph: 15,
         },
-        newlyCheckedNodes: [{ id: 'mock_node_1', apLocationId: 1001, lat: 40.7128, lon: -74.006 }]
+        newlyCheckedNodes: [
+          { id: 'mock_node_1', apLocationId: 1001, lat: 40.7128, lon: -74.006 },
+        ],
       });
       setLoading(false);
       return;
@@ -43,38 +51,49 @@ export function useFitAnalyzer(sessionId: string, onAnalysisComplete: (result: F
       const res = await fetch(`/api/sessions/${sessionId}/analyze`, {
         method: 'POST',
         headers,
-        body: formData
+        body: formData,
       });
 
       if (!res.ok) {
         let msg = `Backend error ${res.status}`;
         try {
           msg = await res.text();
-        } catch { /* ignore JSON error if not json */ }
+        } catch {
+          /* ignore JSON error if not json */
+        }
         throw new Error(msg);
       }
 
-      const result = await res.json() as FitAnalysisResult;
+      const result = (await res.json()) as FitAnalysisResult;
       // Convert camelCase response to what frontend expects, the models we added returning camelCase JSON automatically
       onAnalysisComplete(result);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'An error occurred during analysis');
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'An error occurred during analysis',
+      );
     } finally {
       setLoading(false);
     }
   };
 
-  const confirmValidation = async (analysisResult: FitAnalysisResult | null): Promise<boolean> => {
-    if (!analysisResult || analysisResult.newlyCheckedNodes.length === 0) return false;
+  const confirmValidation = async (
+    analysisResult: FitAnalysisResult | null,
+  ): Promise<boolean> => {
+    if (!analysisResult || analysisResult.newlyCheckedNodes.length === 0)
+      return false;
 
     setLoading(true);
     try {
       const token = getToken();
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
       if (token) headers['Authorization'] = `Bearer ${token}`;
 
-      const nodeIds = analysisResult.newlyCheckedNodes.map(n => n.id);
-      
+      const nodeIds = analysisResult.newlyCheckedNodes.map((n) => n.id);
+
       const res = await fetch(`/api/sessions/${sessionId}/nodes/check`, {
         method: 'POST',
         headers,
@@ -83,11 +102,17 @@ export function useFitAnalyzer(sessionId: string, onAnalysisComplete: (result: F
 
       if (!res.ok) {
         let msg = `Backend error ${res.status}`;
-        try { msg = await res.text(); } catch { /* ignore */ }
+        try {
+          msg = await res.text();
+        } catch {
+          /* ignore */
+        }
         throw new Error(msg);
       }
 
-      setSuccess(`Checks sent to Archipelago for ${nodeIds.length} location(s)! They will update once confirmed.`);
+      setSuccess(
+        `Checks sent to Archipelago for ${nodeIds.length} location(s)! They will update once confirmed.`,
+      );
       onAnalysisComplete(null);
       return true;
     } catch (err: unknown) {
@@ -98,5 +123,13 @@ export function useFitAnalyzer(sessionId: string, onAnalysisComplete: (result: F
     }
   };
 
-  return { analyzeFile, confirmValidation, loading, error, setError, success, setSuccess };
+  return {
+    analyzeFile,
+    confirmValidation,
+    loading,
+    error,
+    setError,
+    success,
+    setSuccess,
+  };
 }

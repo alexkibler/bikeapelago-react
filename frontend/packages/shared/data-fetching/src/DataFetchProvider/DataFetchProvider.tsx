@@ -1,16 +1,21 @@
-import type { PropsWithChildren } from "react";
-import { createContext, useContext, useMemo } from "react";
-import type { TDataFetchProviderContext, DataFetchProviderProps } from './types';
-import {
-  QueryClient,
-  QueryClientProvider,
-} from '@tanstack/react-query'
+import type { PropsWithChildren } from 'react';
+import { createContext, useContext, useMemo } from 'react';
+import type {
+  TDataFetchProviderContext,
+  DataFetchProviderProps,
+} from './types';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
-const DataFetchProviderContext = createContext<TDataFetchProviderContext | undefined>(
-  undefined,
-);
+const DataFetchProviderContext = createContext<
+  TDataFetchProviderContext | undefined
+>(undefined);
 
-export function DataFetchProvider({ children, handleUnauthorized, token }: PropsWithChildren<DataFetchProviderProps>) {
+export function DataFetchProvider({
+  children,
+  handleUnauthorized,
+  token,
+}: PropsWithChildren<DataFetchProviderProps>) {
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- change client wholesale when token changes
   const queryClient = useMemo(() => new QueryClient(), [token]);
 
   const value = useMemo(
@@ -33,9 +38,10 @@ export function DataFetchProvider({ children, handleUnauthorized, token }: Props
 export function useDataFetchProviderCtx(): TDataFetchProviderContext {
   const context = useContext(DataFetchProviderContext);
   if (!context) {
-    throw new Error("useDataFetchProviderCtx must be used within a DataFetchProvider");
+    throw new Error(
+      'useDataFetchProviderCtx must be used within a DataFetchProvider',
+    );
   }
 
   return context;
 }
-

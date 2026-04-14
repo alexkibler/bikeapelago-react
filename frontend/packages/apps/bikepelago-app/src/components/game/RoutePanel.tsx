@@ -229,7 +229,7 @@ const RoutePanel = ({ sessionId }: { sessionId: string }) => {
           <button
             onClick={() => {
               if (!turnByTurn) {
-                const gpx = generateGPXFromNodes(availableNodes.map(n => ({ name: n.name, lat: n.lat!, lon: n.lon! })));
+                const gpx = generateGPXFromNodes(availableNodes.map(n => ({ name: n.name, lat: n.lat, lon: n.lon })));
                 downloadGPX(gpx, 'bikeapelago_destinations.gpx');
                 return;
               }

@@ -9,10 +9,13 @@ export function useSessions() {
       const token = getToken();
       const res = await fetch(`/api/sessions/${id}`, {
         method: 'DELETE',
-        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       if (!res.ok) {
-        if (res.status === 401) { handleUnauthorized(); return; }
+        if (res.status === 401) {
+          handleUnauthorized();
+          return;
+        }
         const errText = await res.text();
         throw new Error(`HTTP ${res.status} - ${errText}`);
       }
@@ -27,10 +30,13 @@ export function useSessions() {
       const token = getToken();
       const res = await fetch('/api/sessions/all', {
         method: 'DELETE',
-        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       if (!res.ok) {
-        if (res.status === 401) { handleUnauthorized(); return; }
+        if (res.status === 401) {
+          handleUnauthorized();
+          return;
+        }
         const errText = await res.text();
         throw new Error(`HTTP ${res.status} - ${errText}`);
       }
@@ -45,6 +51,6 @@ export function useSessions() {
     loading: sessionsQuery.isLoading,
     error: sessionsQuery.error?.message,
     deleteSession,
-    deleteAllSessions
+    deleteAllSessions,
   };
 }

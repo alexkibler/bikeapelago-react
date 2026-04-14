@@ -1,5 +1,8 @@
 import * as signalR from '@microsoft/signalr';
-import { useArchipelagoStore, type ArchipelagoStatus } from '../store/archipelagoStore';
+import {
+  useArchipelagoStore,
+  type ArchipelagoStatus,
+} from '../store/archipelagoStore';
 
 class ArchipelagoClient {
   private connection: signalR.HubConnection | null = null;
@@ -7,7 +10,10 @@ class ArchipelagoClient {
   private currentSessionId: string | null = null;
 
   private async getOrCreateConnection(): Promise<signalR.HubConnection> {
-    if (this.connection && this.connection.state === signalR.HubConnectionState.Connected) {
+    if (
+      this.connection &&
+      this.connection.state === signalR.HubConnectionState.Connected
+    ) {
       return this.connection;
     }
 
@@ -22,11 +28,17 @@ class ArchipelagoClient {
           .withAutomaticReconnect()
           .build();
 
-        conn.on('OnStatusUpdate', (update: { status: string; error?: string }) => {
-          console.log('ArchipelagoHub Status Update:', update);
-          useArchipelagoStore.getState().setStatus(update.status as ArchipelagoStatus);
-          if (update.error) useArchipelagoStore.getState().setError(update.error);
-        });
+        conn.on(
+          'OnStatusUpdate',
+          (update: { status: string; error?: string }) => {
+            console.log('ArchipelagoHub Status Update:', update);
+            useArchipelagoStore
+              .getState()
+              .setStatus(update.status as ArchipelagoStatus);
+            if (update.error)
+              useArchipelagoStore.getState().setError(update.error);
+          },
+        );
 
         conn.on('OnLocationsUpdate', (update: { locationIds: number[] }) => {
           const store = useArchipelagoStore.getState();
@@ -36,22 +48,30 @@ class ArchipelagoClient {
           store.setCheckedLocations(merged);
         });
 
-        conn.on('OnItemsUpdate', (update: { items: { id: number; name: string }[] }) => {
-          const store = useArchipelagoStore.getState();
-          store.setReceivedItems(update.items);
-        });
+        conn.on(
+          'OnItemsUpdate',
+          (update: { items: { id: number; name: string }[] }) => {
+            const store = useArchipelagoStore.getState();
+            store.setReceivedItems(update.items);
+          },
+        );
 
-        conn.on('OnChatMessage', (message: { text: string; type: string; timestamp: string }) => {
-          useArchipelagoStore.getState().addMessage({
-            text: message.text,
-            // @ts-expect-error message.type exists but type is string not ChatMessageType
-            type: message.type,
-          });
-        });
-        
+        conn.on(
+          'OnChatMessage',
+          (message: { text: string; type: string; timestamp: string }) => {
+            useArchipelagoStore.getState().addMessage({
+              text: message.text,
+              // @ts-expect-error message.type exists but type is string not ChatMessageType
+              type: message.type,
+            });
+          },
+        );
+
         conn.on('OnSyncRequired', async () => {
           console.log('[ArchipelagoClient] Sync required, triggering refresh');
-          const { triggerSync } = (await import('../store/gameStore')).useGameStore.getState();
+          const { triggerSync } = (
+            await import('../store/gameStore')
+          ).useGameStore.getState();
           triggerSync();
         });
 
@@ -66,20 +86,35 @@ class ArchipelagoClient {
     return this.startingPromise;
   }
 
-  async connect(sessionId: string, url: string, slotName: string, password?: string) {
-    if (this.connection?.state === signalR.HubConnectionState.Connected && this.currentSessionId === sessionId && useArchipelagoStore.getState().status === 'connected') {
-        return; // Already connecting/connected to this session
+  async connect(
+    sessionId: string,
+    url: string,
+    slotName: string,
+    password?: string,
+  ) {
+    if (
+      this.connection?.state === signalR.HubConnectionState.Connected &&
+      this.currentSessionId === sessionId &&
+      useArchipelagoStore.getState().status === 'connected'
+    ) {
+      return; // Already connecting/connected to this session
     }
 
     try {
       const conn = await this.getOrCreateConnection();
       this.currentSessionId = sessionId;
-      
+
       // Join the session group in SignalR
       await conn.invoke('JoinSession', sessionId);
-      
+
       // Tell the backend to connect to actual Archipelago
-      await conn.invoke('ConnectToArchipelago', sessionId, url, slotName, password || null);
+      await conn.invoke(
+        'ConnectToArchipelago',
+        sessionId,
+        url,
+        slotName,
+        password || null,
+      );
     } catch (err: unknown) {
       console.error('SignalR Hub Connection Failed:', err);
       useArchipelagoStore.getState().setStatus('error');

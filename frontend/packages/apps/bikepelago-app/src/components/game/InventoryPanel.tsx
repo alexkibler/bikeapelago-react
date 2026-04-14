@@ -7,7 +7,7 @@ const InventoryPanel = () => {
   const { receivedItems } = useArchipelagoStore();
 
   // Any item that doesn't correspond to a node is an inventory item
-  const nodeLocationIds = new Set(nodes.map(n => n.ap_location_id || n.apLocationId));
+  const nodeLocationIds = new Set(nodes.map(n => 'ap_location_id' in n ? n.ap_location_id : n.apLocationId));
   const inventoryItems = receivedItems.filter(item => !nodeLocationIds.has(item.id));
 
   // Count specific items by name

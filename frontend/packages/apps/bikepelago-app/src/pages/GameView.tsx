@@ -19,22 +19,25 @@ const GameView = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const toast = useToast();
-  
-  const activePanel = useGameStore(s => s.activePanel);
-  const nodes = useGameStore(s => s.nodes);
-  const setNodes = useGameStore(s => s.setNodes);
-  const syncVersion = useGameStore(s => s.syncVersion);
+
+  const activePanel = useGameStore((s) => s.activePanel);
+  const nodes = useGameStore((s) => s.nodes);
+  const setNodes = useGameStore((s) => s.setNodes);
+  const syncVersion = useGameStore((s) => s.syncVersion);
 
   const [session, setSession] = useState<GameSession | null>(null);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState('');
   const [showReconnect, setShowReconnect] = useState(false);
-  const [pendingConnection, setPendingConnection] = useState<{ url: string; slot: string } | null>(null);
+  const [pendingConnection, setPendingConnection] = useState<{
+    url: string;
+    slot: string;
+  } | null>(null);
 
-  const checkedLocationIds = useArchipelagoStore(s => s.checkedLocationIds);
-  const apStatus = useArchipelagoStore(s => s.status);
-  const apError = useArchipelagoStore(s => s.error);
-  const setReceivedItems = useArchipelagoStore(s => s.setReceivedItems);
+  const checkedLocationIds = useArchipelagoStore((s) => s.checkedLocationIds);
+  const apStatus = useArchipelagoStore((s) => s.status);
+  const apError = useArchipelagoStore((s) => s.error);
+  const setReceivedItems = useArchipelagoStore((s) => s.setReceivedItems);
 
   // Show reconnect dialog on connection failure; hide it if we successfully connect
   useEffect(() => {
@@ -55,8 +58,8 @@ const GameView = () => {
           `/api/sessions/${session.id}`,
           {
             ap_server_url: pendingConnection.url,
-            ap_slot_name: pendingConnection.slot
-          }
+            ap_slot_name: pendingConnection.slot,
+          },
         );
         setSession(updated);
         toast.success('Connection settings saved');
@@ -70,39 +73,54 @@ const GameView = () => {
 
     updateSessionDB();
   }, [apStatus, pendingConnection, session, toast, setPendingConnection]);
-  
+
   // Activate Geolocation tracking
   useGeolocation();
 
-  const fetchData = useCallback(async (signal: AbortSignal) => {
-    if (!id) return;
+  const fetchData = useCallback(
+    async (signal: AbortSignal) => {
+      if (!id) return;
 
-    try {
-      const sessionData = await apiClient.get<GameSession>(`/api/sessions/${id}`, signal);
-      setSession(sessionData);
+      try {
+        const sessionData = await apiClient.get<GameSession>(
+          `/api/sessions/${id}`,
+          signal,
+        );
+        setSession(sessionData);
 
-      const nodesData = await apiClient.get<MapNode[]>(`/api/sessions/${id}/nodes`, signal);
-      setNodes(nodesData);
+        const nodesData = await apiClient.get<MapNode[]>(
+          `/api/sessions/${id}/nodes`,
+          signal,
+        );
+        setNodes(nodesData);
 
-      if (sessionData.received_item_ids) {
-        setReceivedItems(sessionData.received_item_ids.map((itemId: number) => ({ id: itemId, name: `Item ${itemId}` })));
+        if (sessionData.received_item_ids) {
+          setReceivedItems(
+            sessionData.received_item_ids.map((itemId: number) => ({
+              id: itemId,
+              name: `Item ${itemId}`,
+            })),
+          );
+        }
+      } catch (err) {
+        if (err instanceof Error && err.name === 'AbortError') return;
+        const message =
+          err instanceof Error ? err.message : 'An unknown error occurred';
+        setErrorMsg(message);
+        toast.error(message);
+      } finally {
+        if (!signal.aborted) {
+          setLoading(false);
+        }
       }
-    } catch (err) {
-      if (err instanceof Error && err.name === 'AbortError') return;
-      const message = err instanceof Error ? err.message : 'An unknown error occurred';
-      setErrorMsg(message);
-      toast.error(message);
-    } finally {
-      if (!signal.aborted) {
-        setLoading(false);
-      }
-    }
-  }, [id, setNodes, setReceivedItems, toast]);
+    },
+    [id, setNodes, setReceivedItems, toast],
+  );
 
   // Effect for fetching data (depends on id and syncVersion)
   useEffect(() => {
     const controller = new AbortController();
-    
+
     if (id) {
       fetchData(controller.signal);
     }
@@ -132,7 +150,7 @@ const GameView = () => {
     const checkedIdsSet = new Set(checkedLocationIds);
     let hasChanges = false;
 
-    const updatedNodes = nodes.map(node => {
+    const updatedNodes = nodes.map((node) => {
       if (checkedIdsSet.has(node.apLocationId) && node.state !== 'Checked') {
         hasChanges = true;
         return { ...node, state: 'Checked' as const };
@@ -147,17 +165,24 @@ const GameView = () => {
 
   if (loading) {
     return (
-      <div className="h-full flex items-center justify-center bg-[var(--color-surface-alt-hex)]">
-        <Loader2 className="w-8 h-8 animate-spin text-[var(--color-primary-hex)]" />
+      <div className='h-full flex items-center justify-center bg-[var(--color-surface-alt-hex)]'>
+        <Loader2 className='w-8 h-8 animate-spin text-[var(--color-primary-hex)]' />
       </div>
     );
   }
 
   if (errorMsg || !session) {
     return (
-      <div className="h-full flex flex-col items-center justify-center space-y-4 bg-[var(--color-surface-alt-hex)]">
-        <p className="text-[var(--color-error-hex)] font-bold">{errorMsg || 'Session not found'}</p>
-        <button onClick={() => navigate('/')} className="btn-orange px-6 py-2 rounded-lg font-bold">Back to Sessions</button>
+      <div className='h-full flex flex-col items-center justify-center space-y-4 bg-[var(--color-surface-alt-hex)]'>
+        <p className='text-[var(--color-error-hex)] font-bold'>
+          {errorMsg || 'Session not found'}
+        </p>
+        <button
+          onClick={() => navigate('/')}
+          className='btn-orange px-6 py-2 rounded-lg font-bold'
+        >
+          Back to Sessions
+        </button>
       </div>
     );
   }
@@ -170,15 +195,15 @@ const GameView = () => {
       setPendingConnection({ url, slot });
       archipelago.connect(id!, url, slot, password);
     },
-    onCancel: () => setShowReconnect(false)
+    onCancel: () => setShowReconnect(false),
   };
 
   return (
-    <div className="relative w-full h-full flex flex-col bg-[var(--color-surface-alt-hex)]">
+    <div className='relative w-full h-full flex flex-col bg-[var(--color-surface-alt-hex)]'>
       {showReconnect && <ArchipelagoReconnectDialog {...reconnectProps} />}
       <GameStatsBar session={session} nodes={nodes} />
 
-      <div className="flex-1 w-full relative flex overflow-hidden pb-20 md:pb-0">
+      <div className='flex-1 w-full relative flex overflow-hidden pb-20 md:pb-0'>
         <MapCanvas session={session} nodes={nodes} />
         {activePanel && <SidePanelCoordinator panel={activePanel} />}
       </div>
