@@ -100,7 +100,7 @@ const MapCanvas = ({ session, nodes }: MapCanvasProps) => {
           <Marker 
             key={node.id} 
             position={[node.lat, node.lon]} 
-            icon={getMarkerIcon(node.state as NodeState)} 
+            icon={getMarkerIcon(node.state)} 
             title={node.name}
           />
         ))}

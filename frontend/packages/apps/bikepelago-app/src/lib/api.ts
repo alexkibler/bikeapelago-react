@@ -12,15 +12,15 @@ export const ENDPOINTS = {
     LOGIN: `${API_BASE}/auth/login`,
     REGISTER: `${API_BASE}/auth/register`,
     ME: `${API_BASE}/auth/me`,
-  }
+  },
 };
 
 export async function apiFetch<T>(
-  endpoint: string, 
-  options: RequestInit = {}
+  endpoint: string,
+  options: RequestInit = {},
 ): Promise<T> {
   const token = getToken();
-  
+
   const headers = new Headers(options.headers);
   headers.set('Content-Type', 'application/json');
   if (token) {
@@ -49,7 +49,7 @@ export async function apiFetch<T>(
   }
 
   try {
-    return await response.json() as Promise<T>;
+    return (await response.json()) as Promise<T>;
   } catch {
     throw new Error('Failed to parse server response');
   }

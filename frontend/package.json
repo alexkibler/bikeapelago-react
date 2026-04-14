@@ -7,6 +7,7 @@
   "main": "index.js",
   "scripts": {
     "build": "pnpm -r --if-present run build",
+    "lint": "pnpm -r --if-present run lint",
     "format": "pnpm format:base --write",
     "format:check": "pnpm format:base",
     "format:base": "prettier packages/{apps,shared}/*/src/**/*.{tsx,ts,js,jsx} --no-error-on-unmatched-pattern",

@@ -28,7 +28,11 @@ export function useGeolocation() {
       maximumAge: 0,
     };
 
-    watchId.current = navigator.geolocation.watchPosition(handleSuccess, handleError, options);
+    watchId.current = navigator.geolocation.watchPosition(
+      handleSuccess,
+      handleError,
+      options,
+    );
 
     return () => {
       if (watchId.current !== null) {

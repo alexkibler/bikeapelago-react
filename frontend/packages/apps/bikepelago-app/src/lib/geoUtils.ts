@@ -2,14 +2,21 @@
  * Calculate the distance between two points on Earth using the Haversine formula.
  * Returns distance in kilometers.
  */
-export function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+export function calculateDistance(
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number,
+): number {
   const R = 6371; // Earth radius in km
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLon = (lon2 - lon1) * Math.PI / 180;
-  const a = 
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
-    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;
 }
@@ -33,14 +40,14 @@ export function downloadGPXFromPolyline(polylineString: string) {
   <trk>
     <name>Bikeapelago Route</name>
     <trkseg>`;
-  
+
   coordinates.forEach((coord) => {
     gpx += `
       <trkpt lat="${coord[1]}" lon="${coord[0]}">
         <ele>${coord[2] || 0}</ele>
       </trkpt>`;
   });
-  
+
   gpx += `
     </trkseg>
   </trk>
@@ -49,12 +56,14 @@ export function downloadGPXFromPolyline(polylineString: string) {
   downloadGPX(gpx);
 }
 
-export function generateGPXFromNodes(nodes: { name: string, lat: number, lon: number }[]) {
+export function generateGPXFromNodes(
+  nodes: { name: string; lat: number; lon: number }[],
+) {
   let gpx = `<?xml version="1.0" encoding="UTF-8"?>
 <gpx version="1.1" creator="Bikeapelago" xmlns="http://www.topografix.com/GPX/1/1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd">
   <rte>
     <name>Bikeapelago Destinations</name>`;
-  
+
   nodes.forEach((node) => {
     // Basic XML escape for name
     const escapedName = node.name
@@ -69,7 +78,7 @@ export function generateGPXFromNodes(nodes: { name: string, lat: number, lon: nu
       <name>${escapedName}</name>
     </rtept>`;
   });
-  
+
   gpx += `
   </rte>
 </gpx>`;
