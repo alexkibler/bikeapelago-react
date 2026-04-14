@@ -126,6 +126,91 @@ public class SessionsControllerTests
         Assert.IsType<NoContentResult>(result);
     }
 
+    // ── RouteToAvailableNodes – error paths ────────────────────────────────────
+
+    [Fact]
+    public async Task RouteToAvailableNodes_SessionNotFound_ReturnsNotFound()
+    {
+        var sessionId = Guid.NewGuid();
+        _sessionRepoMock.Setup(r => r.GetByIdAsync(sessionId)).ReturnsAsync((GameSession?)null);
+
+        var result = await _controller.RouteToAvailableNodes(sessionId);
+
+        Assert.IsType<NotFoundObjectResult>(result);
+    }
+
+    [Fact]
+    public async Task RouteToAvailableNodes_SessionHasNoLocation_ReturnsBadRequest()
+    {
+        var sessionId = Guid.NewGuid();
+        _sessionRepoMock.Setup(r => r.GetByIdAsync(sessionId))
+            .ReturnsAsync(new GameSession { Id = sessionId, UserId = _userId, Location = null });
+
+        var result = await _controller.RouteToAvailableNodes(sessionId);
+
+        Assert.IsType<BadRequestObjectResult>(result);
+    }
+
+    [Fact]
+    public async Task RouteToAvailableNodes_NoAvailableNodes_ReturnsBadRequest()
+    {
+        var sessionId = Guid.NewGuid();
+        _sessionRepoMock.Setup(r => r.GetByIdAsync(sessionId))
+            .ReturnsAsync(new GameSession
+            {
+                Id = sessionId,
+                UserId = _userId,
+                Location = new Point(-79.9959, 40.4406) { SRID = 4326 }
+            });
+        _nodeRepoMock.Setup(r => r.GetBySessionIdAsync(sessionId))
+            .ReturnsAsync(new List<MapNode>
+            {
+                new MapNode { State = "Hidden" },
+                new MapNode { State = "Checked" }
+            });
+
+        var result = await _controller.RouteToAvailableNodes(sessionId);
+
+        Assert.IsType<BadRequestObjectResult>(result);
+    }
+
+    [Fact]
+    public async Task RouteToAvailableNodes_RoutingServiceFails_ReturnsBadRequest()
+    {
+        var sessionId = Guid.NewGuid();
+        _sessionRepoMock.Setup(r => r.GetByIdAsync(sessionId))
+            .ReturnsAsync(new GameSession
+            {
+                Id = sessionId,
+                UserId = _userId,
+                Location = new Point(-79.9959, 40.4406) { SRID = 4326 }
+            });
+        _nodeRepoMock.Setup(r => r.GetBySessionIdAsync(sessionId))
+            .ReturnsAsync(new List<MapNode>
+            {
+                new MapNode
+                {
+                    Id = Guid.NewGuid(),
+                    State = "Available",
+                    Location = new Point(-79.9959, 40.4406) { SRID = 4326 }
+                }
+            });
+        _mapboxMock
+            .Setup(m => m.RouteToMultipleNodesAsync(
+                It.IsAny<Point>(), It.IsAny<List<MapNode>>(), It.IsAny<string>()))
+            .ReturnsAsync(new OptimizedRouteResult
+            {
+                Success = false,
+                Error = "OSRM and Mapbox both unavailable"
+            });
+
+        var result = await _controller.RouteToAvailableNodes(sessionId);
+
+        Assert.IsType<BadRequestObjectResult>(result);
+    }
+
+    // ── RouteToAvailableNodes – snapping persistence ───────────────────────────
+
     [Fact]
     public async Task RouteToAvailableNodes_WithSnappedLocations_PersistsSnappedPositionsToRepository()
     {

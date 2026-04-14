@@ -9,12 +9,13 @@ namespace Bikeapelago.Api.Tests.Unit;
 
 public class FitAnalysisServiceTests
 {
+    // Reference location used across multiple tests (center of Pittsburgh)
+    private const double lat = 40.4406;
+    private const double lon = -79.9959;
+
     [Fact]
     public void FindReachedNodes_CorrectlyIdentifiesNearNodes()
     {
-        // Center of Pittsburgh
-        double lat = 40.4406;
-        double lon = -79.9959;
 
         var path = new List<PathPoint>
         {
@@ -79,6 +80,80 @@ public class FitAnalysisServiceTests
 
         // Without snapping the node would have been missed entirely
         Assert.Empty(reachedWithOriginal);
+    }
+
+    [Fact]
+    public void FindReachedNodes_EmptyPath_ReturnsEmpty()
+    {
+        var nodes = new List<MapNode>
+        {
+            new MapNode { Id = Guid.NewGuid(), Lat = lat, Lon = lon }
+        };
+
+        var reached = FitAnalysisService.FindReachedNodes(new List<PathPoint>(), nodes);
+
+        Assert.Empty(reached);
+    }
+
+    [Fact]
+    public void FindReachedNodes_EmptyNodeList_ReturnsEmpty()
+    {
+        var path = new List<PathPoint> { new PathPoint { Lat = lat, Lon = lon } };
+
+        var reached = FitAnalysisService.FindReachedNodes(path, new List<MapNode>());
+
+        Assert.Empty(reached);
+    }
+
+    [Fact]
+    public void FindReachedNodes_NodeExactlyAt30m_IsReached()
+    {
+        // 30 m north ≈ 0.000270 degrees latitude
+        var node = new MapNode { Id = Guid.NewGuid(), Lat = lat + 0.000270, Lon = lon };
+        var path = new List<PathPoint> { new PathPoint { Lat = lat, Lon = lon } };
+
+        var reached = FitAnalysisService.FindReachedNodes(path, new[] { node });
+
+        Assert.Single(reached);
+    }
+
+    [Fact]
+    public void FindReachedNodes_NodeJustBeyond30m_IsNotReached()
+    {
+        // 35 m north ≈ 0.000315 degrees latitude — clearly outside 30 m threshold
+        var node = new MapNode { Id = Guid.NewGuid(), Lat = lat + 0.000315, Lon = lon };
+        var path = new List<PathPoint> { new PathPoint { Lat = lat, Lon = lon } };
+
+        var reached = FitAnalysisService.FindReachedNodes(path, new[] { node });
+
+        Assert.Empty(reached);
+    }
+
+    [Fact]
+    public void FindReachedNodes_NodeOutsideBoundingBox_IsSkipped()
+    {
+        // The bounding box pre-filter rejects nodes more than 0.01° away (~1.1 km)
+        // without even running Haversine. This node is 2.2 km away — definitely skipped.
+        var farNode = new MapNode { Id = Guid.NewGuid(), Lat = lat + 0.02, Lon = lon };
+        var path = new List<PathPoint> { new PathPoint { Lat = lat, Lon = lon } };
+
+        var reached = FitAnalysisService.FindReachedNodes(path, new[] { farNode });
+
+        Assert.Empty(reached);
+    }
+
+    [Fact]
+    public void FindReachedNodes_NodeWithNullLocation_IsSkipped()
+    {
+        // A MapNode whose Lat/Lon are null must be silently skipped, not throw
+        var nullNode  = new MapNode { Id = Guid.NewGuid(), Name = "NoLoc" }; // no Lat/Lon set
+        var validNode = new MapNode { Id = Guid.NewGuid(), Lat = lat + 0.0001, Lon = lon };
+        var path = new List<PathPoint> { new PathPoint { Lat = lat, Lon = lon } };
+
+        var reached = FitAnalysisService.FindReachedNodes(path, new[] { nullNode, validNode });
+
+        Assert.Single(reached);
+        Assert.Equal(validNode.Id, reached[0].Id);
     }
 
     [Fact]
