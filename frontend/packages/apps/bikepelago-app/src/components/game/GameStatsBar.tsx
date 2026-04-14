@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useArchipelagoStore } from '../../store/archipelagoStore';
 import type { GameSession, MapNode } from '../../types/game';
 

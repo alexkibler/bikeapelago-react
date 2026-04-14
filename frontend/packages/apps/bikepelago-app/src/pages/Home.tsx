@@ -12,7 +12,7 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import { useSessions } from '../hooks/useSessions';
-import type { GameSession } from '../types/apiResponses';
+import type { GameSession } from '../types/game';
 import { useAuthStore } from '../store/authStore';
 import { toast } from '../store/toastStore';
 
@@ -94,22 +94,26 @@ const Home = () => {
   const [sessionToDelete, setSessionToDelete] = useState<GameSession | null>(
     null,
   );
-  const [isDeleting, setIsDeleting] = useState(false);
 
   const isAp = (session: GameSession) => !!session.ap_server_url;
 
-  const handleDelete = async () => {
+  const handleDelete = () => {
     if (!sessionToDelete) return;
-    setIsDeleting(true);
-    try {
-      await deleteSession(sessionToDelete.id);
-      setSessionToDelete(null);
-      toast.success('Session deleted successfully.');
-    } catch {
-      toast.error('Failed to delete session. Please try again.');
-    } finally {
-      setIsDeleting(false);
-    }
+
+    deleteSession.mutate(
+      {
+        id: sessionToDelete.id,
+      },
+      {
+        onSuccess: () => {
+          setSessionToDelete(null);
+          toast.success('Session deleted successfully.');
+        },
+        onError: () => {
+          toast.error('Failed to delete session. Please try again.');
+        },
+      },
+    );
   };
 
   return (
@@ -131,7 +135,7 @@ const Home = () => {
           session={sessionToDelete}
           onConfirm={handleDelete}
           onCancel={() => setSessionToDelete(null)}
-          isDeleting={isDeleting}
+          isDeleting={deleteSession.isPending}
         />
       )}
 
@@ -149,7 +153,7 @@ const Home = () => {
       {/* Sessions Grid */}
       {!loading && !error && (
         <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'>
-          {sessions.map((session) => (
+          {sessions?.map((session) => (
             <div
               key={session.id}
               className='group relative overflow-hidden bg-[var(--color-surface-hex)] border border-[var(--color-border-hex)] rounded-2xl p-6 hover:border-orange-500/50 transition-all duration-500 hover:shadow-2xl hover:shadow-orange-500/10 flex flex-col min-h-[260px]'
@@ -222,7 +226,7 @@ const Home = () => {
             </div>
           ))}
 
-          {sessions.length === 0 && (
+          {sessions?.length === 0 && (
             <p className='col-span-full text-center text-neutral-500 py-10'>
               No sessions yet. Start a new one!
             </p>
