@@ -87,6 +87,7 @@ const ChatPanel = () => {
         <form onSubmit={handleSendMessage} className="relative flex gap-2">
           <input
             type="text"
+            aria-label="Chat message"
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             disabled={status !== 'connected'}
@@ -95,6 +96,7 @@ const ChatPanel = () => {
           />
           <button
             type="submit"
+            aria-label="Send message"
             disabled={status !== 'connected' || !inputValue.trim()}
             className="w-10 h-10 bg-[var(--color-primary-hex)] hover:bg-[var(--color-primary-hover-hex)] disabled:opacity-30 disabled:bg-[var(--color-surface-alt-hex)] rounded-xl flex items-center justify-center transition-all shadow-lg active:scale-95"
           >
