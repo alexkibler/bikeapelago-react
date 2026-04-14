@@ -152,6 +152,15 @@ public class OptimizedRouteResult
     public List<Guid> OrderedNodeIds { get; set; } = new();
 
     /// <summary>
+    /// Snapped road-network locations for each node, keyed by node ID.
+    /// When the routing engine moved a node to the nearest road, the snapped
+    /// [lon, lat] is stored here. Nodes that were already on the road will
+    /// still appear here with their matched location.
+    /// </summary>
+    [JsonPropertyName("snapped_locations")]
+    public Dictionary<Guid, List<double>> SnappedLocations { get; set; } = new();
+
+    /// <summary>
     /// Total distance in meters for the complete route.
     /// </summary>
     [JsonPropertyName("total_distance_meters")]

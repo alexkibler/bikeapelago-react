@@ -367,7 +367,29 @@ public class SessionsController(
                 .Cast<MapNode>()
                 .ToList();
 
-            var gpxString = _mapboxRoutingService.GenerateGpx(result.Geometry, orderedNodes, turnByTurn);
+            // Persist snapped locations so FIT file processing uses the correct road positions
+            if (result.SnappedLocations.Count > 0)
+            {
+                var nodesToUpdate = new List<MapNode>();
+                foreach (var node in orderedNodes)
+                {
+                    if (result.SnappedLocations.TryGetValue(node.Id, out var snapped) && snapped.Count >= 2)
+                    {
+                        node.Location = new NetTopologySuite.Geometries.Point(snapped[0], snapped[1]) { SRID = 4326 };
+                        nodesToUpdate.Add(node);
+                    }
+                }
+                if (nodesToUpdate.Count > 0)
+                    await _nodeRepository.UpdateRangeAsync(nodesToUpdate);
+            }
+
+            var gpxString = _mapboxRoutingService.GenerateGpx(result.Geometry, orderedNodes, turnByTurn, result.SnappedLocations);
+
+            // Build a serializable snapped locations map: { "nodeId": { lat, lon } }
+            var snappedNodeLocations = result.SnappedLocations
+                .ToDictionary(
+                    kvp => kvp.Key.ToString(),
+                    kvp => new { lon = kvp.Value[0], lat = kvp.Value[1] });
 
             return Ok(new
             {
@@ -377,7 +399,8 @@ public class SessionsController(
                 totalDistanceMeters = result.TotalDistanceMeters,
                 totalDurationSeconds = result.TotalDurationSeconds,
                 elevation = elevationGain,
-                gpxString = gpxString
+                gpxString = gpxString,
+                snappedNodeLocations
             });
         }
         catch (Exception ex)
