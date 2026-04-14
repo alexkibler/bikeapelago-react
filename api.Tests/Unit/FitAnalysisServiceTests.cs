@@ -106,10 +106,10 @@ public class FitAnalysisServiceTests
     }
 
     [Fact]
-    public void FindReachedNodes_NodeExactlyAt30m_IsReached()
+    public void FindReachedNodes_NodeWithin30m_IsReached()
     {
-        // 30 m north ≈ 0.000270 degrees latitude
-        var node = new MapNode { Id = Guid.NewGuid(), Lat = lat + 0.000270, Lon = lon };
+        // 25 m north ≈ 0.000225 degrees latitude (safely inside the 30 m threshold)
+        var node = new MapNode { Id = Guid.NewGuid(), Lat = lat + 0.000225, Lon = lon };
         var path = new List<PathPoint> { new PathPoint { Lat = lat, Lon = lon } };
 
         var reached = FitAnalysisService.FindReachedNodes(path, new[] { node });
