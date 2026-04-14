@@ -13,7 +13,7 @@ const NewGame = () => {
   const [password, setPassword] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (gameMode === 'archipelago' && !slotName) {
       setErrorMsg('Slot name is required for Archipelago connection.');
