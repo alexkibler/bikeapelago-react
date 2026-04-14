@@ -7,6 +7,7 @@ using Bikeapelago.Api.Controllers;
 using Bikeapelago.Api.Repositories;
 using Bikeapelago.Api.Services;
 using Bikeapelago.Api.Models;
+using NetTopologySuite.Geometries;
 
 namespace Bikeapelago.Api.Tests.Unit;
 
@@ -123,6 +124,132 @@ public class SessionsControllerTests
 
         // Assert
         Assert.IsType<NoContentResult>(result);
+    }
+
+    [Fact]
+    public async Task RouteToAvailableNodes_WithSnappedLocations_PersistsSnappedPositionsToRepository()
+    {
+        // Arrange
+        var sessionId = Guid.NewGuid();
+        var nodeId = Guid.NewGuid();
+
+        const double originalLat = 40.4400;
+        const double originalLon = -79.9950;
+        const double snappedLat = 40.4405; // routing engine moved the node ~55m north onto the road
+        const double snappedLon = -79.9952;
+
+        var session = new GameSession
+        {
+            Id = sessionId,
+            UserId = _userId,
+            Location = new Point(originalLon, originalLat) { SRID = 4326 }
+        };
+
+        var node = new MapNode
+        {
+            Id = nodeId,
+            SessionId = sessionId,
+            Name = "Off-road Node",
+            State = "Available",
+            Location = new Point(originalLon, originalLat) { SRID = 4326 }
+        };
+
+        _sessionRepoMock.Setup(r => r.GetByIdAsync(sessionId)).ReturnsAsync(session);
+        _nodeRepoMock.Setup(r => r.GetBySessionIdAsync(sessionId)).ReturnsAsync(new List<MapNode> { node });
+        _nodeRepoMock.Setup(r => r.UpdateRangeAsync(It.IsAny<IEnumerable<MapNode>>())).Returns(Task.CompletedTask);
+
+        _mapboxMock
+            .Setup(m => m.RouteToMultipleNodesAsync(
+                It.IsAny<Point>(), It.IsAny<List<MapNode>>(), It.IsAny<string>()))
+            .ReturnsAsync(new OptimizedRouteResult
+            {
+                Success = true,
+                Geometry = new List<List<double>> { new() { snappedLon, snappedLat } },
+                OrderedNodeIds = new List<Guid> { nodeId },
+                SnappedLocations = new Dictionary<Guid, List<double>>
+                {
+                    [nodeId] = new() { snappedLon, snappedLat } // routing engine snapped [lon, lat]
+                },
+                TotalDistanceMeters = 1000,
+                TotalDurationSeconds = 300
+            });
+
+        _mapboxMock.Setup(m => m.CalculateElevationGainAsync(It.IsAny<List<List<double>>>())).ReturnsAsync(50.0);
+        _mapboxMock.Setup(m => m.GenerateGpx(
+            It.IsAny<List<List<double>>>(), It.IsAny<List<MapNode>>(),
+            It.IsAny<bool>(), It.IsAny<Dictionary<Guid, List<double>>?>())).Returns("<gpx/>");
+
+        // Act
+        var result = await _controller.RouteToAvailableNodes(sessionId);
+
+        // Assert – the response is successful
+        Assert.IsType<OkObjectResult>(result);
+
+        // Assert – UpdateRangeAsync was called with the node moved to the snapped position
+        _nodeRepoMock.Verify(
+            r => r.UpdateRangeAsync(It.Is<IEnumerable<MapNode>>(nodes =>
+                nodes.Any(n =>
+                    n.Id == nodeId &&
+                    Math.Abs(n.Lat!.Value - snappedLat) < 1e-6 &&
+                    Math.Abs(n.Lon!.Value - snappedLon) < 1e-6))),
+            Times.Once,
+            "Node should be persisted at the snapped road position");
+    }
+
+    [Fact]
+    public async Task RouteToAvailableNodes_WithNoSnappedLocations_DoesNotCallUpdateRange()
+    {
+        // Arrange
+        var sessionId = Guid.NewGuid();
+        var nodeId = Guid.NewGuid();
+        const double lat = 40.4400;
+        const double lon = -79.9950;
+
+        var session = new GameSession
+        {
+            Id = sessionId,
+            UserId = _userId,
+            Location = new Point(lon, lat) { SRID = 4326 }
+        };
+
+        _sessionRepoMock.Setup(r => r.GetByIdAsync(sessionId)).ReturnsAsync(session);
+        _nodeRepoMock.Setup(r => r.GetBySessionIdAsync(sessionId)).ReturnsAsync(new List<MapNode>
+        {
+            new MapNode
+            {
+                Id = nodeId,
+                SessionId = sessionId,
+                Name = "On-road Node",
+                State = "Available",
+                Location = new Point(lon, lat) { SRID = 4326 }
+            }
+        });
+
+        _mapboxMock
+            .Setup(m => m.RouteToMultipleNodesAsync(
+                It.IsAny<Point>(), It.IsAny<List<MapNode>>(), It.IsAny<string>()))
+            .ReturnsAsync(new OptimizedRouteResult
+            {
+                Success = true,
+                Geometry = new List<List<double>> { new() { lon, lat } },
+                OrderedNodeIds = new List<Guid> { nodeId },
+                SnappedLocations = new Dictionary<Guid, List<double>>(), // nothing snapped
+                TotalDistanceMeters = 500,
+                TotalDurationSeconds = 120
+            });
+
+        _mapboxMock.Setup(m => m.CalculateElevationGainAsync(It.IsAny<List<List<double>>>())).ReturnsAsync(10.0);
+        _mapboxMock.Setup(m => m.GenerateGpx(
+            It.IsAny<List<List<double>>>(), It.IsAny<List<MapNode>>(),
+            It.IsAny<bool>(), It.IsAny<Dictionary<Guid, List<double>>?>())).Returns("<gpx/>");
+
+        // Act
+        var result = await _controller.RouteToAvailableNodes(sessionId);
+
+        // Assert
+        Assert.IsType<OkObjectResult>(result);
+        _nodeRepoMock.Verify(r => r.UpdateRangeAsync(It.IsAny<IEnumerable<MapNode>>()), Times.Never,
+            "UpdateRangeAsync should not be called when the routing engine did not snap any nodes");
     }
 
     [Fact]

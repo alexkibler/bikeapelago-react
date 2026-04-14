@@ -38,6 +38,50 @@ public class FitAnalysisServiceTests
     }
 
     [Fact]
+    public void FindReachedNodes_SnappedLocationOnRoute_IsReached_ButOriginalOffRoadPosition_IsNot()
+    {
+        // This test verifies that the snapped node location persisted by RouteToAvailableNodes
+        // is what determines whether a node is counted as reached during FIT file analysis.
+        //
+        // Scenario: a node's original position is 44m from the route (outside 30m threshold),
+        // so it would be missed. After routing snaps it to the nearest road and the DB is
+        // updated, the stored position is ~2m from the route and FIT analysis counts it.
+
+        double routeLat = 40.4406;
+        double routeLon = -79.9959;
+
+        // Position after snapping – just ~2m off the route point, well within 30m
+        var snappedNode = new MapNode
+        {
+            Id = Guid.NewGuid(),
+            Name = "Node (snapped position stored in DB)",
+            Lat = routeLat + 0.000015, // ~1.7m north
+            Lon = routeLon
+        };
+
+        // Same node ID/name but at the original off-road position – ~44m away, outside threshold
+        var originalNode = new MapNode
+        {
+            Id = snappedNode.Id,
+            Name = snappedNode.Name,
+            Lat = routeLat + 0.00040, // ~44m north
+            Lon = routeLon
+        };
+
+        var path = new List<PathPoint> { new PathPoint { Lat = routeLat, Lon = routeLon } };
+
+        var reachedWithSnapped  = FitAnalysisService.FindReachedNodes(path, new[] { snappedNode });
+        var reachedWithOriginal = FitAnalysisService.FindReachedNodes(path, new[] { originalNode });
+
+        // After snapping the node lands on the route – FIT analysis marks it as reached
+        Assert.Single(reachedWithSnapped);
+        Assert.Equal(snappedNode.Id, reachedWithSnapped[0].Id);
+
+        // Without snapping the node would have been missed entirely
+        Assert.Empty(reachedWithOriginal);
+    }
+
+    [Fact]
     public void FindReachedNodes_HandlesLargeDatasets()
     {
         // 7,200 points (1 per second for 2 hours)
