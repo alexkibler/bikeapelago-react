@@ -281,6 +281,7 @@ public class MapboxRoutingService(HttpClient httpClient, ILogger<MapboxRoutingSe
             // Step 3: Process each chunk, chaining them together
             var allGeometries = new List<List<double>>();
             var allNodeIds = new List<Guid>();
+            var allSnappedLocations = new Dictionary<Guid, List<double>>();
             var currentLocation = userLocation;
             double totalDistance = 0;
             double totalDuration = 0;
@@ -322,10 +323,16 @@ public class MapboxRoutingService(HttpClient httpClient, ILogger<MapboxRoutingSe
                     allGeometries.AddRange(tripCoords);
                 }
 
-                // Map waypoints back to node IDs (skip the first waypoint which is the starting location)
+                // Map waypoints back to node IDs and capture snapped locations.
+                // Waypoints are returned in input order; index 0 is the starting location.
                 for (int w = 1; w < response.Waypoints.Count && w - 1 < chunks[i].Count; w++)
                 {
-                    allNodeIds.Add(chunks[i][w - 1].Id);
+                    var node = chunks[i][w - 1];
+                    allNodeIds.Add(node.Id);
+
+                    var wp = response.Waypoints[w];
+                    if (wp.Location.Count >= 2)
+                        allSnappedLocations[node.Id] = wp.Location; // [lon, lat]
                 }
 
                 // Update current location to the last snapped waypoint
@@ -346,6 +353,7 @@ public class MapboxRoutingService(HttpClient httpClient, ILogger<MapboxRoutingSe
                 Success = true,
                 Geometry = allGeometries,
                 OrderedNodeIds = allNodeIds,
+                SnappedLocations = allSnappedLocations,
                 TotalDistanceMeters = totalDistance,
                 TotalDurationSeconds = totalDuration
             };
@@ -561,7 +569,7 @@ public class MapboxRoutingService(HttpClient httpClient, ILogger<MapboxRoutingSe
     }
 
     /// <inheritdoc />
-    public string GenerateGpx(List<List<double>> geometry, List<MapNode> orderedNodes, bool turnByTurn)
+    public string GenerateGpx(List<List<double>> geometry, List<MapNode> orderedNodes, bool turnByTurn, Dictionary<Guid, List<double>>? snappedLocations = null)
     {
         var sb = new System.Text.StringBuilder();
         sb.AppendLine("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
@@ -586,12 +594,23 @@ public class MapboxRoutingService(HttpClient httpClient, ILogger<MapboxRoutingSe
             sb.AppendLine("    <name>Bikeapelago Destinations (Straight Line)</name>");
             foreach (var node in orderedNodes)
             {
-                if (node.Location != null)
+                if (node.Location == null) continue;
+
+                double lat, lon;
+                if (snappedLocations != null && snappedLocations.TryGetValue(node.Id, out var snapped) && snapped.Count >= 2)
                 {
-                    sb.AppendLine($"    <rtept lat=\"{node.Location.Y}\" lon=\"{node.Location.X}\">");
-                    sb.AppendLine($"      <name>{System.Security.SecurityElement.Escape(node.Name)}</name>");
-                    sb.AppendLine("    </rtept>");
+                    lon = snapped[0];
+                    lat = snapped[1];
                 }
+                else
+                {
+                    lon = node.Location.X;
+                    lat = node.Location.Y;
+                }
+
+                sb.AppendLine($"    <rtept lat=\"{lat}\" lon=\"{lon}\">");
+                sb.AppendLine($"      <name>{System.Security.SecurityElement.Escape(node.Name)}</name>");
+                sb.AppendLine("    </rtept>");
             }
             sb.AppendLine("  </rte>");
         }

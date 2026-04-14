@@ -42,5 +42,6 @@ public interface IMapboxRoutingService
     /// <param name="geometry">Full route track points (lon,lat lists)</param>
     /// <param name="orderedNodes">Optimized sequence of target nodes</param>
     /// <param name="turnByTurn">If true, generates a track (<trk>); if false, generates a route (<rte>)</param>
-    string GenerateGpx(List<List<double>> geometry, List<MapNode> orderedNodes, bool turnByTurn);
+    /// <param name="snappedLocations">Optional snapped [lon,lat] per node ID from the routing engine</param>
+    string GenerateGpx(List<List<double>> geometry, List<MapNode> orderedNodes, bool turnByTurn, Dictionary<Guid, List<double>>? snappedLocations = null);
 }

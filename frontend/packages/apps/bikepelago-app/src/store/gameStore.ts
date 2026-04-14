@@ -19,6 +19,11 @@ interface DiscoveryRouteResponse {
   geometry: [number, number][];
 }
 
+interface SnappedLocation {
+  lon: number;
+  lat: number;
+}
+
 interface OptimizationResponse {
   success: boolean;
   message?: string;
@@ -27,6 +32,7 @@ interface OptimizationResponse {
   geometry: [number, number][];
   orderedNodeIds: string[];
   gpxString?: string;
+  snappedNodeLocations?: Record<string, SnappedLocation>;
 }
 
 interface GameState {
@@ -171,15 +177,29 @@ export const useGameStore = create<GameState>((set, get) => ({
 
         const allNodesMap = new Map(nodes.map((n) => [n.id, n]));
         const orderedPoints: [number, number][] = data.orderedNodeIds
-          .map((id: string) => allNodesMap.get(id))
-          .filter(Boolean)
-          .map((n: MapNode) => [n.lat, n.lon] as [number, number]);
+          .map((id: string) => {
+            const snapped = data.snappedNodeLocations?.[id];
+            if (snapped) return [snapped.lat, snapped.lon] as [number, number];
+            const node = allNodesMap.get(id);
+            return node ? ([node.lat, node.lon] as [number, number]) : null;
+          })
+          .filter((p): p is [number, number] => p !== null);
 
         const newWaypoints: [number, number][] = userLocation
           ? [userLocation, ...orderedPoints]
           : orderedPoints;
 
-        set({ waypoints: newWaypoints, isRouting: false });
+        // Apply snapped positions to the in-memory node list so markers
+        // render on the route without a refetch
+        let updatedNodes = nodes;
+        if (data.snappedNodeLocations) {
+          updatedNodes = nodes.map((n) => {
+            const snapped = data.snappedNodeLocations![n.id];
+            return snapped ? { ...n, lat: snapped.lat, lon: snapped.lon } : n;
+          });
+        }
+
+        set({ waypoints: newWaypoints, nodes: updatedNodes, isRouting: false });
       } else {
         throw new Error(data.message || 'Optimization failed');
       }
