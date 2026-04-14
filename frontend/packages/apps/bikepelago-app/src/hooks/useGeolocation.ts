@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+
 import { useGameStore } from '../store/gameStore';
 
 export function useGeolocation() {

@@ -1,6 +1,7 @@
 import { create } from 'zustand';
-import type { MapNode, FitAnalysisResult } from '../types/game';
-import { apiFetch, ENDPOINTS } from '../lib/api';
+
+import { ENDPOINTS, apiFetch } from '../lib/api';
+import type { FitAnalysisResult, MapNode } from '../types/game';
 
 export type GamePanel = 'chat' | 'upload' | 'route' | 'inventory' | null;
 

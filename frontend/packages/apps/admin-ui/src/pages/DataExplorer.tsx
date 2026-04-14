@@ -1,21 +1,23 @@
 import React, { useEffect, useState } from 'react';
+
 import axios from 'axios';
-import { useAuth } from '../context/AuthContext';
 import {
-  Search,
-  Plus,
-  Edit2,
-  Trash2,
-  MapIcon,
-  Table as TableIcon,
-  Layers,
-  X,
-  FileJson,
   ChevronDown,
   ChevronRight,
+  Edit2,
+  FileJson,
+  Layers,
+  MapIcon,
+  Plus,
+  Search,
+  Table as TableIcon,
+  Trash2,
+  X,
 } from 'lucide-react';
-import { SpatialPreview } from '../components/ui/SpatialPreview';
+
 import { GenericDataForm } from '../components/ui/GenericDataForm';
+import { SpatialPreview } from '../components/ui/SpatialPreview';
+import { useAuth } from '../context/AuthContext';
 
 interface Column {
   name: string;

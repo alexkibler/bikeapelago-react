@@ -1,6 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate, Link, useLocation } from 'react-router-dom';
-import { Bike, Lock, User, ArrowRight, Loader2 } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+
+import { ArrowRight, Bike, Loader2, Lock, User } from 'lucide-react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+
 import { useAuthStore } from '../store/authStore';
 
 const Login = () => {

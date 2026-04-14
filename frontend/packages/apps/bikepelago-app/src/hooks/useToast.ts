@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+
 import { useToastStore } from '../store/toastStore';
 
 export const useToast = () => {

@@ -1,30 +1,31 @@
-import { useState, useEffect } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
-import {
-  MapContainer,
-  TileLayer,
-  Marker,
-  Circle,
-  useMapEvents,
-  useMap,
-} from 'react-leaflet';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
-import {
-  Search,
-  Navigation,
-  Play,
-  Loader2,
-  AlertCircle,
-  HelpCircle,
-  Bike,
-  Footprints,
-} from 'lucide-react';
-import { getToken, useAuthStore } from '../store/authStore';
+import { useEffect, useState } from 'react';
 
+import L from 'leaflet';
 // Fix Leaflet marker icon issue
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
+import 'leaflet/dist/leaflet.css';
+import {
+  AlertCircle,
+  Bike,
+  Footprints,
+  HelpCircle,
+  Loader2,
+  Navigation,
+  Play,
+  Search,
+} from 'lucide-react';
+import {
+  Circle,
+  MapContainer,
+  Marker,
+  TileLayer,
+  useMap,
+  useMapEvents,
+} from 'react-leaflet';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+
+import { getToken, useAuthStore } from '../store/authStore';
 
 const DefaultIcon = L.icon({
   iconUrl: markerIcon,

@@ -1,19 +1,21 @@
 import React, { useState } from 'react';
+
 import {
-  User,
-  Lock,
-  Trash2,
   AlertTriangle,
+  ArrowLeft,
   Check,
   Loader2,
-  ShieldAlert,
+  Lock,
   Save,
-  ArrowLeft,
+  ShieldAlert,
+  Trash2,
+  User,
 } from 'lucide-react';
-import { useAuthStore, getToken } from '../store/authStore';
 import { useNavigate } from 'react-router-dom';
-import { toast } from '../store/toastStore';
+
 import { useDeleteAllSessions } from '../operations/sessions';
+import { getToken, useAuthStore } from '../store/authStore';
+import { toast } from '../store/toastStore';
 
 const Settings = () => {
   const navigate = useNavigate();

@@ -1,19 +1,20 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+
 import { Loader2 } from 'lucide-react';
-import { useGameStore } from '../store/gameStore';
-import { useArchipelagoStore } from '../store/archipelagoStore';
-import { archipelago } from '../lib/archipelago';
-import { useGeolocation } from '../hooks/useGeolocation';
-import { useSessionGet, useSessionUpdate } from '../operations/sessions';
-import { useSessionNodesGet } from '../operations/sessionNodes';
-import { useToast } from '../hooks/useToast';
+import { useNavigate, useParams } from 'react-router-dom';
 
 // Extracted Components
 import ArchipelagoReconnectDialog from '../components/game/ArchipelagoReconnectDialog';
 import GameStatsBar from '../components/game/GameStatsBar';
 import MapCanvas from '../components/game/MapCanvas';
 import SidePanelCoordinator from '../components/game/SidePanelCoordinator';
+import { useGeolocation } from '../hooks/useGeolocation';
+import { useToast } from '../hooks/useToast';
+import { archipelago } from '../lib/archipelago';
+import { useSessionNodesGet } from '../operations/sessionNodes';
+import { useSessionGet, useSessionUpdate } from '../operations/sessions';
+import { useArchipelagoStore } from '../store/archipelagoStore';
+import { useGameStore } from '../store/gameStore';
 
 const GameView = () => {
   const { id: idParam } = useParams<{ id: string }>();
