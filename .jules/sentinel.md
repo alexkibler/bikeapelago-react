@@ -7,3 +7,8 @@
 **Vulnerability:** The `GetSession` and `UpdateSession` endpoints in `api/Controllers/SessionsController.cs` retrieved and updated game sessions based solely on the provided session ID without verifying that the session belonged to the authenticated user. This allowed any authenticated user to view or modify any other user's sessions (Insecure Direct Object Reference).
 **Learning:** Even if an endpoint uses a randomized ID (like a UUID), access control checks must be explicitly enforced to ensure the resource owner matches the requester. The presence of authentication is not the same as authorization. Additionally, authentication context should always be extracted using standard framework middleware (like `[Authorize]` and `User.FindFirstValue`) rather than manually parsing HTTP headers within the controller.
 **Prevention:** Always secure user-specific endpoints with the `[Authorize]` attribute, extract the authenticated user's ID via `User.FindFirstValue(ClaimTypes.NameIdentifier)`, and verify resource ownership (e.g., `if (session.UserId != userId) return Forbid();`) before allowing read or write operations.
+
+## 2025-04-15 - [CRITICAL] Fix IDOR in Nodes API
+**Vulnerability:** IDOR in NodesController where users could fetch/check nodes for sessions they don't own, and in NodeUpdateController where they could patch arbitrary nodes.
+**Learning:** When dealing with nested or child resources (like Nodes belonging to a Session), checking ownership of the parent entity is crucial. We also must not forget [Authorize] even on nested routes.
+**Prevention:** Always trace the resource hierarchy back to the user and validate ownership before performing any read or write operations.

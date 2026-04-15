@@ -4,6 +4,7 @@ using Bikeapelago.Api.Repositories;
 using Bikeapelago.Api.Services;
 using System.Text.Json.Serialization;
 using System.Linq;
+using System.Security.Claims;
 
 namespace Bikeapelago.Api.Controllers;
 
@@ -15,8 +16,14 @@ public class NodesController(IMapNodeRepository nodeRepository, ILogger<NodesCon
     private readonly ILogger<NodesController> _logger = logger;
 
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<MapNode>>> GetSessionNodes(Guid sessionId)
+    [Microsoft.AspNetCore.Authorization.Authorize]
+    public async Task<ActionResult<IEnumerable<MapNode>>> GetSessionNodes(Guid sessionId, [FromServices] IGameSessionRepository sessionRepository)
     {
+        var session = await sessionRepository.GetByIdAsync(sessionId);
+        var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (session == null || string.IsNullOrEmpty(userIdStr) || !Guid.TryParse(userIdStr, out var userId) || session.UserId != userId)
+            return Forbid();
+
         var nodes = await _nodeRepository.GetBySessionIdAsync(sessionId);
         return Ok(nodes);
     }
@@ -28,8 +35,14 @@ public class NodesController(IMapNodeRepository nodeRepository, ILogger<NodesCon
     }
 
     [HttpPost("check")]
-    public async Task<IActionResult> CheckNodes(Guid sessionId, [FromServices] ArchipelagoService archipelagoService, [FromBody] CheckNodesRequest request)
+    [Microsoft.AspNetCore.Authorization.Authorize]
+    public async Task<IActionResult> CheckNodes(Guid sessionId, [FromServices] ArchipelagoService archipelagoService, [FromBody] CheckNodesRequest request, [FromServices] IGameSessionRepository sessionRepository)
     {
+        var session = await sessionRepository.GetByIdAsync(sessionId);
+        var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (session == null || string.IsNullOrEmpty(userIdStr) || !Guid.TryParse(userIdStr, out var userId) || session.UserId != userId)
+            return Forbid();
+
         _logger.LogInformation("Received check request for {Count} nodes in Session {SessionId}", request.NodeIds.Count, sessionId);
         var nodes = await _nodeRepository.GetBySessionIdAsync(sessionId);
         var targetNodes = nodes.Where(n => request.NodeIds.Contains(n.Id)).ToList();
@@ -138,10 +151,16 @@ public class NodeUpdateController(
     }
 
     [HttpPatch("{id}")]
+    [Microsoft.AspNetCore.Authorization.Authorize]
     public async Task<ActionResult<MapNode>> PatchNode(Guid id, [FromBody] PatchNodeRequest request)
     {
         var node = await _nodeRepository.GetByIdAsync(id);
         if (node == null) return NotFound(new { message = "Node not found." });
+
+        var session = await _sessionRepository.GetByIdAsync(node.SessionId);
+        var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (session == null || string.IsNullOrEmpty(userIdStr) || !Guid.TryParse(userIdStr, out var userId) || session.UserId != userId)
+            return Forbid();
 
         if (request.State != null)
         {
@@ -151,7 +170,6 @@ public class NodeUpdateController(
             // Trigger engine progression
             if (oldState != "Checked" && request.State == "Checked")
             {
-                var session = await _sessionRepository.GetByIdAsync(node.SessionId);
                 if (session != null)
                 {
                     var engine = _engineFactory.CreateEngine(session.Mode);
