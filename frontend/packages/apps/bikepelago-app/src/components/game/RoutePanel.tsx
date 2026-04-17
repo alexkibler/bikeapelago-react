@@ -237,7 +237,7 @@ const RoutePanel = ({ sessionId }: { sessionId: string }) => {
               if (routeData.gpxString) {
                 downloadGPX(routeData.gpxString);
               } else {
-                downloadGPXFromPolyline(JSON.stringify(routeData.polyline));
+                downloadGPXFromPolyline(routeData.polyline);
               }
             }}
             disabled={turnByTurn ? routeData.polyline.length === 0 : availableNodes.length === 0}
