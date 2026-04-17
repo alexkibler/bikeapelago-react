@@ -4,19 +4,33 @@ using Bikeapelago.Api.Repositories;
 using Bikeapelago.Api.Services;
 using System.Text.Json.Serialization;
 using System.Linq;
+using Microsoft.AspNetCore.Authorization;
+using System.Security.Claims;
 
 namespace Bikeapelago.Api.Controllers;
 
 [ApiController]
 [Route("api/sessions/{sessionId}/nodes")]
-public class NodesController(IMapNodeRepository nodeRepository, ILogger<NodesController> logger) : ControllerBase
+public class NodesController(IMapNodeRepository nodeRepository, ILogger<NodesController> logger, IGameSessionRepository sessionRepository) : ControllerBase
 {
     private readonly IMapNodeRepository _nodeRepository = nodeRepository;
     private readonly ILogger<NodesController> _logger = logger;
+    private readonly IGameSessionRepository _sessionRepository = sessionRepository;
 
     [HttpGet]
+    [Authorize]
     public async Task<ActionResult<IEnumerable<MapNode>>> GetSessionNodes(Guid sessionId)
     {
+        var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(userIdString) || !Guid.TryParse(userIdString, out var userId))
+            return Unauthorized(new { message = "Invalid token" });
+
+        var session = await _sessionRepository.GetByIdAsync(sessionId);
+        if (session == null) return NotFound(new { message = "Session not found." });
+
+        if (session.UserId != userId)
+            return Forbid();
+
         var nodes = await _nodeRepository.GetBySessionIdAsync(sessionId);
         return Ok(nodes);
     }
@@ -28,8 +42,19 @@ public class NodesController(IMapNodeRepository nodeRepository, ILogger<NodesCon
     }
 
     [HttpPost("check")]
+    [Authorize]
     public async Task<IActionResult> CheckNodes(Guid sessionId, [FromServices] ArchipelagoService archipelagoService, [FromBody] CheckNodesRequest request)
     {
+        var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(userIdString) || !Guid.TryParse(userIdString, out var userId))
+            return Unauthorized(new { message = "Invalid token" });
+
+        var session = await _sessionRepository.GetByIdAsync(sessionId);
+        if (session == null) return NotFound(new { message = "Session not found." });
+
+        if (session.UserId != userId)
+            return Forbid();
+
         _logger.LogInformation("Received check request for {Count} nodes in Session {SessionId}", request.NodeIds.Count, sessionId);
         var nodes = await _nodeRepository.GetBySessionIdAsync(sessionId);
         var targetNodes = nodes.Where(n => request.NodeIds.Contains(n.Id)).ToList();
@@ -138,10 +163,19 @@ public class NodeUpdateController(
     }
 
     [HttpPatch("{id}")]
+    [Authorize]
     public async Task<ActionResult<MapNode>> PatchNode(Guid id, [FromBody] PatchNodeRequest request)
     {
         var node = await _nodeRepository.GetByIdAsync(id);
         if (node == null) return NotFound(new { message = "Node not found." });
+
+        var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(userIdString) || !Guid.TryParse(userIdString, out var userId))
+            return Unauthorized(new { message = "Invalid token" });
+
+        var session = await _sessionRepository.GetByIdAsync(node.SessionId);
+        if (session == null || session.UserId != userId)
+            return Forbid();
 
         if (request.State != null)
         {
@@ -151,7 +185,6 @@ public class NodeUpdateController(
             // Trigger engine progression
             if (oldState != "Checked" && request.State == "Checked")
             {
-                var session = await _sessionRepository.GetByIdAsync(node.SessionId);
                 if (session != null)
                 {
                     var engine = _engineFactory.CreateEngine(session.Mode);
