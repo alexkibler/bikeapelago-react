@@ -92,6 +92,8 @@ const RoutePanel = ({ sessionId }: { sessionId: string }) => {
             </label>
             <button
               id="turn-by-turn"
+              role="switch"
+              aria-checked={turnByTurn}
               onClick={() => setTurnByTurn(!turnByTurn)}
               className={`relative w-10 h-5 rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-hex)]/40 ${
                 turnByTurn ? 'bg-[var(--color-primary-hex)]' : 'bg-[rgb(var(--color-surface-overlay))]'
