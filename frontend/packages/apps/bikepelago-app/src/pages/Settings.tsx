@@ -12,13 +12,13 @@ import {
 } from 'lucide-react';
 import { useAuthStore, getToken } from '../store/authStore';
 import { useNavigate } from 'react-router-dom';
-import { useSessions } from '../hooks/useSessions';
 import { toast } from '../store/toastStore';
+import { useDeleteAllSessions } from '../operations/sessions';
 
 const Settings = () => {
   const navigate = useNavigate();
   const { user, updateUser } = useAuthStore();
-  const { deleteAllSessions } = useSessions();
+  const deleteAllSessionsMutation = useDeleteAllSessions();
 
   // Username State
   const [newUsername, setNewUsername] = useState(user?.username || '');
@@ -34,7 +34,6 @@ const Settings = () => {
 
   // Delete Sessions State
   const [deleteStep, setDeleteStep] = useState(0); // 0: initial, 1: first confirmation, 2: final confirmation/loading
-  const [isDeletingAll, setIsDeletingAll] = useState(false);
 
   const handleUpdateUsername = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -99,23 +98,22 @@ const Settings = () => {
     }
   };
 
-  const handleDeleteAll = async () => {
+  const handleDeleteAll = () => {
     if (deleteStep < 2) {
       setDeleteStep(deleteStep + 1);
       return;
     }
 
-    setIsDeletingAll(true);
-    try {
-      await deleteAllSessions();
-      setDeleteStep(0);
-      toast.success('All sessions deleted successfully.');
-    } catch {
-      toast.error('Failed to delete sessions.');
-      setDeleteStep(0);
-    } finally {
-      setIsDeletingAll(false);
-    }
+    deleteAllSessionsMutation.mutate(undefined, {
+      onSuccess: () => {
+        setDeleteStep(0);
+        toast.success('All sessions deleted successfully.');
+      },
+      onError: () => {
+        toast.error('Failed to delete sessions.');
+        setDeleteStep(0);
+      },
+    });
   };
 
   return (
@@ -339,10 +337,10 @@ const Settings = () => {
                     </button>
                     <button
                       onClick={handleDeleteAll}
-                      disabled={isDeletingAll}
+                      disabled={deleteAllSessionsMutation.isPending}
                       className='px-4 py-2 bg-white text-red-600 rounded-lg text-xs font-black uppercase tracking-widest hover:bg-red-50 transition-colors flex items-center gap-2'
                     >
-                      {isDeletingAll ? (
+                      {deleteAllSessionsMutation.isPending ? (
                         <Loader2 className='w-4 h-4 animate-spin' />
                       ) : (
                         <ShieldAlert className='w-4 h-4' />

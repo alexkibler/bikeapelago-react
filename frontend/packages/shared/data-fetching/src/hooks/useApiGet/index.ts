@@ -4,12 +4,12 @@ import type { QueryRequestFactoryCallbackArgs, QueryRequestCallbackArgs, QueryRe
 import { compile } from 'path-to-regexp';
 
 export function useApiGet<
-  TSearchParams extends Record<string, string> | void | undefined,
-  TResponse
->(): QueryRequestCallback<TSearchParams, TResponse> {
+  TResponse,
+  TSearchParams extends Record<string, string> | void | undefined = void
+>(): QueryRequestCallback<TResponse, TSearchParams> {
   const { handleUnauthorized, token } = useDataFetchProviderCtx();
 
-  const request: QueryRequestCallback<TSearchParams, TResponse> = useCallback(async (url: string, {
+  const request: QueryRequestCallback<TResponse, TSearchParams> = useCallback(async (url: string, {
     searchParams: _searchParams,
     signal
   }: QueryRequestCallbackArgs<TSearchParams>) => {
@@ -42,22 +42,22 @@ export function useApiGet<
 
 export function useApiGetFactory<
   TPath extends string,
-  TSearchParams extends Record<string, string> | void | undefined,
-  TResponse
+  TResponse,
+  TSearchParams extends Record<string, string> | void | undefined = void
 >(path: TPath): QueryRequestFactoryCallback<
   TPath,
-  TSearchParams,
-  TResponse
+  TResponse,
+  TSearchParams
 > {
   const getRequest = useApiGet<
-    TSearchParams,
-    TResponse
+    TResponse,
+    TSearchParams
   >();
 
   const requestCallback: QueryRequestFactoryCallback<
     TPath,
-    TSearchParams,
-    TResponse
+    TResponse,
+    TSearchParams
   > = useCallback(async ({
     pathParams,
     searchParams,
