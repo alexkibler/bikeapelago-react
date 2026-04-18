@@ -4,6 +4,7 @@ using Bikeapelago.Api.Repositories;
 using Bikeapelago.Api.Services;
 using System.Text.Json.Serialization;
 using System.Linq;
+using System.Security.Claims;
 
 namespace Bikeapelago.Api.Controllers;
 
@@ -138,10 +139,19 @@ public class NodeUpdateController(
     }
 
     [HttpPatch("{id}")]
+    [Microsoft.AspNetCore.Authorization.Authorize]
     public async Task<ActionResult<MapNode>> PatchNode(Guid id, [FromBody] PatchNodeRequest request)
     {
+        var userIdString = User.FindFirstValue(System.Security.Claims.ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(userIdString) || !Guid.TryParse(userIdString, out var userId))
+            return Unauthorized(new { message = "Invalid token" });
+
         var node = await _nodeRepository.GetByIdAsync(id);
         if (node == null) return NotFound(new { message = "Node not found." });
+
+        var session = await _sessionRepository.GetByIdAsync(node.SessionId);
+        if (session == null) return NotFound(new { message = "Session not found." });
+        if (session.UserId != userId) return Forbid();
 
         if (request.State != null)
         {
@@ -151,12 +161,8 @@ public class NodeUpdateController(
             // Trigger engine progression
             if (oldState != "Checked" && request.State == "Checked")
             {
-                var session = await _sessionRepository.GetByIdAsync(node.SessionId);
-                if (session != null)
-                {
-                    var engine = _engineFactory.CreateEngine(session.Mode);
-                    await engine.UnlockNextAsync(session.Id);
-                }
+                var engine = _engineFactory.CreateEngine(session.Mode);
+                await engine.UnlockNextAsync(session.Id);
             }
         }
 
