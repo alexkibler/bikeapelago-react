@@ -20,10 +20,10 @@ describe('GameStatsBar', () => {
   };
 
   const mockNodes: MapNode[] = [
-    { id: '1', name: 'Node 1', lat: 40, lon: -70, state: 'Checked' },
-    { id: '2', name: 'Node 2', lat: 41, lon: -71, state: 'Available' },
-    { id: '3', name: 'Node 3', lat: 42, lon: -72, state: 'Hidden' },
-    { id: '4', name: 'Node 4', lat: 43, lon: -73, state: 'Hidden' },
+    { id: '1', name: 'Node 1', lat: 40, lon: -70, state: 'Checked', apLocationId: 1 },
+    { id: '2', name: 'Node 2', lat: 41, lon: -71, state: 'Available', apLocationId: 2 },
+    { id: '3', name: 'Node 3', lat: 42, lon: -72, state: 'Hidden', apLocationId: 3 },
+    { id: '4', name: 'Node 4', lat: 43, lon: -73, state: 'Hidden', apLocationId: 4 },
   ];
 
   it('renders session info and node counts', () => {
