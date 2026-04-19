@@ -1,3 +1,6 @@
 ## 2024-06-25 - Expensive JSON Parsing in Render Loop
 **Learning:** Found synchronous `JSON.parse` operations running on potentially large spatial data (polylines) directly inside the React component render loop in `GameView.tsx`. This causes the main thread to block and results in laggy UI interactions whenever the component re-renders (e.g., state updates not related to the polyline).
 **Action:** Always extract and memoize `JSON.parse` and array `.map()` transformations of large datasets using `useMemo` so they only recalculate when the source data actually changes.
+## 2024-05-14 - Unnecessary Stringification of Polyline Coordinates
+**Learning:** Polylines, which are often large arrays of coordinate pairs, were being needlessly serialized via `JSON.stringify` in component handlers only to be immediately parsed via `JSON.parse` inside utility functions like `downloadGPXFromPolyline`. This O(N) serialization/deserialization cycle causes unnecessary memory allocations and string parsing overhead on the main thread.
+**Action:** When passing complex objects (like spatial coordinate arrays) to utility functions, refactor the utility's signature to accept the object reference directly rather than forcing the caller to stringify the payload.
