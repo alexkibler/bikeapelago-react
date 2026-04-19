@@ -23,6 +23,7 @@ const NodeListItem = ({ node, onClick }: { node: MapNode, onClick: () => void })
 const CategoryHeader = ({ title, count, color, isOpen, onClick }: { title: string, count: number, color: string, isOpen: boolean, onClick: () => void }) => (
   <button
     onClick={onClick}
+    aria-expanded={isOpen}
     className="w-full flex items-center justify-between p-4 bg-[rgb(var(--color-surface-overlay))] hover:bg-[rgb(var(--color-surface-overlay))]/[0.08] transition-colors border-b border-[var(--color-border-hex)]"
   >
     <div className="flex items-center gap-3">
@@ -92,6 +93,8 @@ const RoutePanel = ({ sessionId }: { sessionId: string }) => {
             </label>
             <button
               id="turn-by-turn"
+              role="switch"
+              aria-checked={turnByTurn}
               onClick={() => setTurnByTurn(!turnByTurn)}
               className={`relative w-10 h-5 rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-hex)]/40 ${
                 turnByTurn ? 'bg-[var(--color-primary-hex)]' : 'bg-[rgb(var(--color-surface-overlay))]'
