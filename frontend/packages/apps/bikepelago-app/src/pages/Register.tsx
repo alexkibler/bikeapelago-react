@@ -1,6 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { Lock, User, ArrowRight, Loader2, Mail, UserPlus } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+
+import { ArrowRight, Loader2, Lock, Mail, User, UserPlus } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+
 import { useAuthStore } from '../store/authStore';
 
 const Register = () => {

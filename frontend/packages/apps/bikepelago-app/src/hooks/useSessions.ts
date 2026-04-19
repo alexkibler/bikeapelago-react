@@ -1,4 +1,4 @@
-import { useSessionsGet, useDeleteSession } from '../operations/sessions';
+import { useDeleteSession, useSessionsGet } from '../operations/sessions';
 
 export function useSessions() {
   const sessionsQuery = useSessionsGet();

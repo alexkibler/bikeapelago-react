@@ -1,4 +1,5 @@
 import { useState } from 'react';
+
 import { getToken } from '../store/authStore';
 import type { FitAnalysisResult } from '../types/game';
 

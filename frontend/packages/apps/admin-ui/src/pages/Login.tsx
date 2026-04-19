@@ -1,15 +1,17 @@
 import React, { useState } from 'react';
+
 import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
 import {
-  Lock,
-  User as UserIcon,
-  ShieldCheck,
-  ChevronRight,
   Activity,
+  ChevronRight,
+  Lock,
+  ShieldCheck,
   Terminal,
+  User as UserIcon,
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+
+import { useAuth } from '../context/AuthContext';
 
 export const Login: React.FC = () => {
   const [identity, setIdentity] = useState('');

@@ -1,7 +1,9 @@
-import { useState, useEffect } from 'react';
-import { User, Camera, Save, LogOut, ChevronRight, Edit3 } from 'lucide-react';
+import { useEffect, useState } from 'react';
+
+import { Camera, ChevronRight, Edit3, LogOut, Save, User } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { useAuthStore, getToken } from '../store/authStore';
+
+import { getToken, useAuthStore } from '../store/authStore';
 
 const AthleteProfile = () => {
   const navigate = useNavigate();

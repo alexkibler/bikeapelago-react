@@ -1,17 +1,19 @@
 import React, { useEffect, useState } from 'react';
+
 import axios from 'axios';
-import { useAuth } from '../context/AuthContext';
 import {
-  BarChart3,
-  Users,
   Activity,
+  BarChart3,
   Battery,
-  MapPin,
-  TrendingUp,
   ChevronRight,
-  Zap,
+  MapPin,
   Target,
+  TrendingUp,
+  Users,
+  Zap,
 } from 'lucide-react';
+
+import { useAuth } from '../context/AuthContext';
 
 export const AnalyticsDashboard: React.FC = () => {
   const { token } = useAuth();

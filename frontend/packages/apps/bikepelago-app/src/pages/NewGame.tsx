@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
+
+import { ArrowRight, Globe, Info, Lock, Server, User } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { Globe, User, Lock, Server, ArrowRight, Info } from 'lucide-react';
 
 const NewGame = () => {
   const navigate = useNavigate();

@@ -1,10 +1,12 @@
 import type { PropsWithChildren } from 'react';
 import { createContext, useContext, useMemo } from 'react';
-import type {
-  TDataFetchProviderContext,
-  DataFetchProviderProps,
-} from './types';
+
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+
+import type {
+  DataFetchProviderProps,
+  TDataFetchProviderContext,
+} from './types';
 
 const DataFetchProviderContext = createContext<
   TDataFetchProviderContext | undefined

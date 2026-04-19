@@ -1,20 +1,22 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+
 import {
-  PlayCircle,
-  User,
-  ArrowRight,
-  Plus,
-  Monitor,
-  Loader2,
-  Download,
-  Trash2,
   AlertTriangle,
+  ArrowRight,
+  Download,
+  Loader2,
+  Monitor,
+  PlayCircle,
+  Plus,
+  Trash2,
+  User,
 } from 'lucide-react';
+import { Link } from 'react-router-dom';
+
 import { useSessions } from '../hooks/useSessions';
-import type { GameSession } from '../types/game';
 import { useAuthStore } from '../store/authStore';
 import { toast } from '../store/toastStore';
+import type { GameSession } from '../types/game';
 
 const DeleteSessionDialog = ({
   session,

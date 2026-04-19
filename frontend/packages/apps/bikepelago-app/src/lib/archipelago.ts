@@ -1,7 +1,8 @@
 import * as signalR from '@microsoft/signalr';
+
 import {
-  useArchipelagoStore,
   type ArchipelagoStatus,
+  useArchipelagoStore,
 } from '../store/archipelagoStore';
 
 class ArchipelagoClient {
