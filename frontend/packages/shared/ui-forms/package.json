@@ -1,0 +1,23 @@
+{
+  "name": "@bikeapelago/shared-ui-form",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "tsc": "tsc",
+    "lint": "eslint ."
+  },
+  "devDependencies": {
+    "@bikeapelago/shared-configs": "workspace:^",
+    "@types/lodash": "^4.17.24",
+    "@types/lodash-es": "^4.17.12"
+  },
+  "dependencies": {
+    "classnames": "^2.5.1",
+    "lodash-es": "^4.18.1",
+    "react-hook-form": "^7.72.1",
+    "tailwind-merge": "^3.5.0"
+  }
+}

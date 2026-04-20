@@ -6,7 +6,7 @@ import SessionSetup from './pages/SessionSetup';
 import YamlCreator from './pages/YamlCreator';
 import AthleteProfile from './pages/AthleteProfile';
 import NewGame from './pages/NewGame';
-import Login from './pages/Login';
+import { Login } from './pages/Login';
 import Register from './pages/Register';
 import Settings from './pages/Settings';
 import { handleUnauthorized, useAuthStore } from './store/authStore';
