@@ -23,6 +23,7 @@ const NodeListItem = ({ node, onClick }: { node: MapNode, onClick: () => void })
 const CategoryHeader = ({ title, count, color, isOpen, onClick }: { title: string, count: number, color: string, isOpen: boolean, onClick: () => void }) => (
   <button
     onClick={onClick}
+    aria-expanded={isOpen}
     className="w-full flex items-center justify-between p-4 bg-[rgb(var(--color-surface-overlay))] hover:bg-[rgb(var(--color-surface-overlay))]/[0.08] transition-colors border-b border-[var(--color-border-hex)]"
   >
     <div className="flex items-center gap-3">
@@ -87,11 +88,14 @@ const RoutePanel = ({ sessionId }: { sessionId: string }) => {
         {/* Action Buttons */}
         <div className="space-y-4">
           <div className="flex items-center justify-between px-2">
-            <label htmlFor="turn-by-turn" className="text-xs font-bold uppercase tracking-wider text-[var(--color-text-subtle-hex)] cursor-pointer">
+            <span id="turn-by-turn-label" className="text-xs font-bold uppercase tracking-wider text-[var(--color-text-subtle-hex)] cursor-pointer" onClick={() => setTurnByTurn(!turnByTurn)}>
               Turn-by-Turn GPS (Beta)
-            </label>
+            </span>
             <button
-              id="turn-by-turn"
+              id="turn-by-turn-toggle"
+              role="switch"
+              aria-checked={turnByTurn}
+              aria-labelledby="turn-by-turn-label"
               onClick={() => setTurnByTurn(!turnByTurn)}
               className={`relative w-10 h-5 rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-hex)]/40 ${
                 turnByTurn ? 'bg-[var(--color-primary-hex)]' : 'bg-[rgb(var(--color-surface-overlay))]'

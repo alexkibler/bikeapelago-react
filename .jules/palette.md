@@ -1,0 +1,3 @@
+## 2026-04-22 - Adding explicit ARIA states to custom interactive UI elements
+**Learning:** This app uses custom generic elements (like spans and buttons) to implement interactive UI components such as accordions (CategoryHeader) and toggles (Turn-by-Turn GPS switch). Since these aren't native inputs, they lack built-in accessibility semantics, rendering them opaque to screen readers.
+**Action:** When working on this app's components, explicitly apply the correct ARIA attributes to custom interactive controls. For toggles, use `role="switch"`, `aria-checked`, and an appropriate label (`aria-labelledby`). For accordions/collapsible headers, ensure `aria-expanded` is present and accurate.
