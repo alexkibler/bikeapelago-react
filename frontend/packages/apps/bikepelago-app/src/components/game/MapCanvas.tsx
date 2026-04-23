@@ -7,6 +7,7 @@ import { useGameStore } from '../../store/gameStore';
 import { useDebugStore } from '../../store/debugStore';
 import { getToken } from '../../store/authStore';
 import { downloadGPX } from '../../lib/geoUtils';
+import Stat from '../layout/Stat';
 import type { GameSession, MapNode, NodeState } from '../../types/game';
 import { MapResizer, MapAutoFitter, MapEvents, MapClickConfirmDialog } from './MapControls';
 
@@ -260,14 +261,8 @@ const MapCanvas = ({ session, nodes }: MapCanvasProps) => {
       {!activePanel && (
         <div className="absolute bottom-4 left-4 right-4 md:right-4 md:left-auto md:w-80 bg-[var(--color-surface-hex)]/90 backdrop-blur-md rounded-xl p-4 border border-[var(--color-border-strong-hex)] z-5 flex justify-between items-center shadow-2xl">
             <div className="flex gap-4">
-              <div className="flex flex-col">
-                <span className="text-[10px] font-bold text-[var(--color-text-muted-hex)] tracking-wider uppercase">Distance</span>
-                <span className="text-[var(--color-text-hex)] font-bold text-lg leading-none">{routeData.distance.toFixed(2)}<span className="text-xs text-[var(--color-text-muted-hex)] font-normal ml-1">km</span></span>
-              </div>
-              <div className="flex flex-col">
-                <span className="text-[10px] font-bold text-[var(--color-text-muted-hex)] tracking-wider uppercase">Elev Gain</span>
-                <span className="text-[var(--color-text-hex)] font-bold text-lg leading-none">{routeData.elevation.toFixed(0)}<span className="text-xs text-[var(--color-text-muted-hex)] font-normal ml-1">m</span></span>
-              </div>
+              <Stat label="Distance" value={routeData.distance.toFixed(2)} unit="km" />
+              <Stat label="Elev Gain" value={routeData.elevation.toFixed(0)} unit="m" />
             </div>
             {routeData.gpxString && (
               <button onClick={() => downloadGPX(routeData.gpxString!)} className="px-3 py-2 bg-orange-600 hover:bg-orange-500 rounded-lg text-xs font-bold text-white transition-colors flex items-center gap-2">

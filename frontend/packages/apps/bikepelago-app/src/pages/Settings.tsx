@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
+import Toggle from '../components/layout/Toggle';
 import { useDeleteAllSessions } from '../operations/sessions';
 import { getToken, useAuthStore } from '../store/authStore';
 import { useDebugStore } from '../store/debugStore';
@@ -288,16 +289,10 @@ const Settings = () => {
                 Tap available nodes on the map to manually mark them as checked.
               </p>
             </div>
-            <button
-              onClick={toggleDebug}
-              className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 ${debugMode ? 'bg-yellow-500' : 'bg-[var(--color-border-strong-hex)]'}`}
-              role='switch'
-              aria-checked={debugMode}
-            >
-              <span
-                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ${debugMode ? 'translate-x-5' : 'translate-x-0'}`}
-              />
-            </button>
+            <Toggle
+              checked={debugMode}
+              onCheckedChange={toggleDebug}
+            />
           </div>
         </section>
 
