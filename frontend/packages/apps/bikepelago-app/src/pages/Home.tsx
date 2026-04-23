@@ -3,6 +3,7 @@ import { useState } from 'react';
 import {
   ArrowRight,
   Download,
+  Loader2,
   Monitor,
   PlayCircle,
   Plus,
