@@ -6,11 +6,17 @@ using NetTopologySuite.Geometries;
 
 namespace Bikeapelago.Api.Services;
 
-public class MapboxRoutingService(HttpClient httpClient, ILogger<MapboxRoutingService> logger, IConfiguration configuration, IMemoryCache memoryCache) : IMapboxRoutingService
+public class MapboxRoutingService(
+    HttpClient httpClient,
+    ILogger<MapboxRoutingService> logger,
+    IConfiguration configuration,
+    IMemoryCache memoryCache,
+    GeographicSortingService geographicSortingService) : IMapboxRoutingService
 {
     private readonly HttpClient _httpClient = httpClient;
     private readonly ILogger<MapboxRoutingService> _logger = logger;
     private readonly IMemoryCache _cache = memoryCache;
+    private readonly GeographicSortingService _geographicSortingService = geographicSortingService;
     private readonly string _mapboxApiKey = configuration["Mapbox:ApiKey"] ?? configuration["MAPBOX_API_KEY"] ?? string.Empty;
     private const double MaxDistanceMeters = 20;
     private const string MapboxMatchingUrl = "https://api.mapbox.com/matching/v5/mapbox";
@@ -271,7 +277,7 @@ public class MapboxRoutingService(HttpClient httpClient, ILogger<MapboxRoutingSe
             _logger.LogInformation("Routing to {Count} nodes from ({Lat},{Lon})", targetNodes.Count, userLocation.Y, userLocation.X);
 
             // Step 1: Sort nodes by geographic proximity using Nearest Neighbor
-            var sortedNodes = GeographicSortingService.SortByNearestNeighbor(userLocation, targetNodes);
+            var sortedNodes = _geographicSortingService.SortByNearestNeighbor(userLocation, targetNodes);
             _logger.LogInformation("Sorted {Count} nodes by nearest neighbor", sortedNodes.Count);
 
             // Step 2: Break into chunks of 11 nodes (+ 1 starting location = 12 per API call)

@@ -14,12 +14,14 @@ public class SessionsController(
     IMapNodeRepository nodeRepository,
     IUserRepository userRepository,
     FitAnalysisService fitAnalysisService,
+    IProgressionEngineFactory engineFactory,
     IMapboxRoutingService mapboxRoutingService) : ControllerBase
 {
     private readonly IGameSessionRepository _sessionRepository = sessionRepository;
     private readonly IMapNodeRepository _nodeRepository = nodeRepository;
     private readonly IUserRepository _userRepository = userRepository;
     private readonly FitAnalysisService _fitAnalysisService = fitAnalysisService;
+    private readonly IProgressionEngineFactory _engineFactory = engineFactory;
     private readonly IMapboxRoutingService _mapboxRoutingService = mapboxRoutingService;
 
     [HttpGet]
@@ -407,5 +409,51 @@ public class SessionsController(
         {
             return StatusCode(500, new { message = $"Route optimization failed: {ex.Message}" });
         }
+    }
+
+    [HttpGet("{id}/nodes")]
+    public async Task<ActionResult<IEnumerable<MapNode>>> GetSessionNodes(Guid id)
+    {
+        var nodes = await _nodeRepository.GetBySessionIdAsync(id);
+        return Ok(nodes);
+    }
+
+    public class CheckNodesRequest
+    {
+        [JsonPropertyName("nodeIds")]
+        public List<Guid> NodeIds { get; set; } = [];
+    }
+
+    [HttpPost("{id}/nodes/check")]
+    public async Task<IActionResult> CheckNodes(Guid id, [FromBody] CheckNodesRequest request)
+    {
+        var session = await _sessionRepository.GetByIdAsync(id);
+        if (session == null)
+            return NotFound(new { message = "Session not found." });
+
+        var nodes = await _nodeRepository.GetBySessionIdAsync(id);
+        var targetNodes = nodes.Where(n => request.NodeIds.Contains(n.Id)).ToList();
+
+        if (targetNodes.Count == 0)
+            return BadRequest(new { message = "No valid nodes found to check." });
+
+        // Rule: node must be Available (not Hidden or already Checked)
+        var validNodes = targetNodes.Where(n => n.State == "Available").ToList();
+        if (validNodes.Count == 0)
+            return UnprocessableEntity(new { message = "None of the submitted nodes are in an Available state." });
+
+        var engine = _engineFactory.CreateEngine(session.Mode);
+        await engine.CheckNodesAsync(id, validNodes);
+
+        return Accepted(new { message = "Check request processed." });
+    }
+
+    [HttpPost("/api/discovery/validate-nodes")]
+    public async Task<ActionResult<IEnumerable<ValidateResult>>> ValidateNodes(
+        [FromServices] IOsmDiscoveryService discoveryService,
+        [FromBody] ValidateRequest request)
+    {
+        var results = await discoveryService.ValidateNodesAsync(request);
+        return Ok(results);
     }
 }

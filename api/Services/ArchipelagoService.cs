@@ -219,7 +219,7 @@ public class ArchipelagoService(IHubContext<ArchipelagoHub> hubContext, ILogger<
         }
     }
 
-    public async Task CheckLocationsAsync(Guid sessionId, long[] locationIds)
+    public virtual async Task CheckLocationsAsync(Guid sessionId, long[] locationIds)
     {
         if (_sessions.TryGetValue(sessionId, out var session))
         {

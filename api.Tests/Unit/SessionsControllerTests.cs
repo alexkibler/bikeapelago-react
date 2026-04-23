@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using Microsoft.Extensions.Logging;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Moq;
@@ -37,7 +38,8 @@ public class SessionsControllerTests
             _sessionRepoMock.Object,
             _nodeRepoMock.Object,
             _userRepoMock.Object,
-            null!, // FitAnalysisService is not mocked easily if no interface
+            null!, // FitAnalysisService
+            Mock.Of<IProgressionEngineFactory>(),
             _mapboxMock.Object);
 
         var claims = new List<Claim>
