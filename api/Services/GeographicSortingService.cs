@@ -9,16 +9,9 @@ namespace Bikeapelago.Api.Services;
 /// <summary>
 /// Service for sorting geographic points using geographic proximity algorithms.
 /// </summary>
-public class GeographicSortingService
+public class GeographicSortingService : IGeographicSortingService
 {
-    /// <summary>
-    /// Sorts a list of MapNodes using a Greedy/Nearest Neighbor algorithm.
-    /// Starts from the user's location and always selects the nearest unvisited node.
-    /// </summary>
-    /// <param name="startingLocation">The starting point (usually user location)</param>
-    /// <param name="nodes">Unsorted list of MapNodes to visit</param>
-    /// <returns>Geographically sorted list starting from startingLocation</returns>
-    public static List<MapNode> SortByNearestNeighbor(Point startingLocation, List<MapNode> nodes)
+    public List<MapNode> SortByNearestNeighbor(Point startingLocation, List<MapNode> nodes)
     {
         if (nodes == null || nodes.Count == 0)
             return new List<MapNode>();
@@ -37,7 +30,7 @@ public class GeographicSortingService
         {
             // Find nearest unvisited node
             var nearestNode = remaining
-                .OrderBy(n => GeoDistanceMeters(currentLat, currentLon, n.Location!.Y, n.Location.X))
+                .OrderBy(n => HaversineDistance(currentLat, currentLon, n.Location!.Y, n.Location.X))
                 .First();
 
             sorted.Add(nearestNode);
@@ -51,16 +44,7 @@ public class GeographicSortingService
         return sorted;
     }
 
-    /// <summary>
-    /// Calculates the geodetic distance between two lat/lon points in meters using the Haversine formula.
-    /// Accurate for Earth's geography (WGS84 / SRID 4326).
-    /// </summary>
-    /// <param name="lat1">Starting latitude</param>
-    /// <param name="lon1">Starting longitude</param>
-    /// <param name="lat2">Ending latitude</param>
-    /// <param name="lon2">Ending longitude</param>
-    /// <returns>Distance in meters</returns>
-    private static double GeoDistanceMeters(double lat1, double lon1, double lat2, double lon2)
+    private double HaversineDistance(double lat1, double lon1, double lat2, double lon2)
     {
         const double EarthRadiusMeters = 6371000;
 

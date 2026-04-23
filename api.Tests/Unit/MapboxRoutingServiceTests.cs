@@ -25,7 +25,8 @@ public class MapboxRoutingServiceTests
             httpClient:    null!,
             logger:        Mock.Of<ILogger<MapboxRoutingService>>(),
             configuration: Mock.Of<IConfiguration>(),   // indexer returns null → key falls back to ""
-            memoryCache:   Mock.Of<IMemoryCache>());
+            memoryCache:   Mock.Of<IMemoryCache>(),
+            geographicSortingService: Mock.Of<IGeographicSortingService>());
     }
 
     private static MapNode NodeAt(Guid id, string name, double lat, double lon) => new MapNode

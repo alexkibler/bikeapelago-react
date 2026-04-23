@@ -70,24 +70,25 @@ builder.Services.AddScoped<PbfOsmDiscoveryService>(sp =>
     var path = builder.Configuration["OsmDiscovery:PbfPath"] ?? "./data/map.osm.pbf";
     return new PbfOsmDiscoveryService(logger, path);
 });
-builder.Services.AddScoped<GridCacheService>();
+builder.Services.AddScoped<IGridCacheService, GridCacheService>();
 builder.Services.AddScoped<IMapboxRoutingService, MapboxRoutingService>();
-builder.Services.AddScoped<GeographicSortingService>();
+builder.Services.AddScoped<IGeographicSortingService, GeographicSortingService>();
 builder.Services.AddScoped<PostGisOsmDiscoveryService>();
 builder.Services.AddScoped<IOsmDiscoveryService, OsmDiscoveryService>();
-builder.Services.AddScoped<NodeGenerationService>();
-builder.Services.AddScoped<FitAnalysisService>();
-builder.Services.AddScoped<SchemaDiscoveryService>();
+builder.Services.AddScoped<INodeGenerationService, NodeGenerationService>();
+builder.Services.AddScoped<IFitAnalysisService, FitAnalysisService>();
+builder.Services.AddScoped<ISchemaDiscoveryService, SchemaDiscoveryService>();
 builder.Services.AddScoped<SinglePlayerProgressionEngine>();
 builder.Services.AddScoped<ArchipelagoProgressionEngine>();
 builder.Services.AddScoped<IProgressionEngineFactory, ProgressionEngineFactory>();
-builder.Services.AddScoped<RouteInterpolationService>();
+builder.Services.AddScoped<IRouteInterpolationService, RouteInterpolationService>();
+builder.Services.AddScoped<Bikeapelago.Api.Validators.SessionValidator>();
 
 // Grid Cache Background Job Processor
 builder.Services.AddHostedService<GridCacheJobProcessor>();
 
 builder.Services.AddSignalR();
-builder.Services.AddSingleton<ArchipelagoService>();
+builder.Services.AddSingleton<IArchipelagoService, ArchipelagoService>();
 
 
 // 4. Add Identity & Authentication

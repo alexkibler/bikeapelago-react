@@ -10,6 +10,8 @@ namespace Bikeapelago.Api.Tests.Unit;
 
 public class GeographicSortingServiceTests
 {
+    private readonly GeographicSortingService _service = new();
+
     private static MapNode NodeAt(double lat, double lon, string name = "node") => new MapNode
     {
         Id = Guid.NewGuid(),
@@ -23,7 +25,7 @@ public class GeographicSortingServiceTests
     [Fact]
     public void SortByNearestNeighbor_EmptyList_ReturnsEmpty()
     {
-        var result = GeographicSortingService.SortByNearestNeighbor(
+        var result = _service.SortByNearestNeighbor(
             PointAt(40.0, -80.0), new List<MapNode>());
 
         Assert.Empty(result);
@@ -32,7 +34,7 @@ public class GeographicSortingServiceTests
     [Fact]
     public void SortByNearestNeighbor_NullList_ReturnsEmpty()
     {
-        var result = GeographicSortingService.SortByNearestNeighbor(
+        var result = _service.SortByNearestNeighbor(
             PointAt(40.0, -80.0), null!);
 
         Assert.Empty(result);
@@ -44,7 +46,7 @@ public class GeographicSortingServiceTests
         var nodes = new List<MapNode> { NodeAt(40.0, -80.0) };
 
         Assert.Throws<ArgumentException>(() =>
-            GeographicSortingService.SortByNearestNeighbor(null!, nodes));
+            _service.SortByNearestNeighbor(null!, nodes));
     }
 
     [Fact]
@@ -52,7 +54,7 @@ public class GeographicSortingServiceTests
     {
         var node = NodeAt(40.4406, -79.9959, "only");
 
-        var result = GeographicSortingService.SortByNearestNeighbor(
+        var result = _service.SortByNearestNeighbor(
             PointAt(40.0, -80.0), new List<MapNode> { node });
 
         Assert.Single(result);
@@ -66,7 +68,7 @@ public class GeographicSortingServiceTests
         var near = NodeAt(0.001, 0.0, "near");
         var far  = NodeAt(1.0,   0.0, "far");
 
-        var result = GeographicSortingService.SortByNearestNeighbor(
+        var result = _service.SortByNearestNeighbor(
             PointAt(0.0, 0.0), new List<MapNode> { far, near });
 
         Assert.Equal("near", result[0].Name);
@@ -81,7 +83,7 @@ public class GeographicSortingServiceTests
         var b = NodeAt(1.0,  0.0, "B");
         var c = NodeAt(2.0,  0.0, "C");
 
-        var result = GeographicSortingService.SortByNearestNeighbor(
+        var result = _service.SortByNearestNeighbor(
             PointAt(0.0, 0.0), new List<MapNode> { c, b, a });
 
         Assert.Equal(new[] { "A", "B", "C" }, result.Select(n => n.Name));
@@ -94,7 +96,7 @@ public class GeographicSortingServiceTests
             .Select(i => NodeAt(i * 0.1, 0.0, $"node{i}"))
             .ToList();
 
-        var result = GeographicSortingService.SortByNearestNeighbor(
+        var result = _service.SortByNearestNeighbor(
             PointAt(0.0, 0.0), nodes);
 
         Assert.Equal(20, result.Count);
@@ -113,8 +115,8 @@ public class GeographicSortingServiceTests
         var c = NodeAt(2.0,  0.0, "C");
 
         var start = PointAt(0.0, 0.0);
-        var result1 = GeographicSortingService.SortByNearestNeighbor(start, new List<MapNode> { a, b, c });
-        var result2 = GeographicSortingService.SortByNearestNeighbor(start, new List<MapNode> { c, b, a });
+        var result1 = _service.SortByNearestNeighbor(start, new List<MapNode> { a, b, c });
+        var result2 = _service.SortByNearestNeighbor(start, new List<MapNode> { c, b, a });
 
         Assert.Equal(result1.Select(n => n.Name), result2.Select(n => n.Name));
     }

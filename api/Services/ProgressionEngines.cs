@@ -10,6 +10,7 @@ namespace Bikeapelago.Api.Services;
 public interface IProgressionEngine
 {
     Task UnlockNextAsync(Guid sessionId);
+    Task CheckNodesAsync(Guid sessionId, List<MapNode> targetNodes);
 }
 
 public class SinglePlayerProgressionEngine(
@@ -40,14 +41,26 @@ public class SinglePlayerProgressionEngine(
             _logger.LogInformation("No hidden nodes left to unlock for session {SessionId}", sessionId);
         }
     }
+
+    public async Task CheckNodesAsync(Guid sessionId, List<MapNode> targetNodes)
+    {
+        var nodesToUpdate = targetNodes.Where(n => n.State != "Checked").ToList();
+        if (nodesToUpdate.Count == 0) return;
+
+        foreach (var node in nodesToUpdate)
+            node.State = "Checked";
+
+        await _nodeRepository.UpdateRangeAsync(nodesToUpdate);
+        _logger.LogInformation("Marked {Count} node(s) as Checked for singleplayer Session {SessionId}", nodesToUpdate.Count, sessionId);
+
+        for (int i = 0; i < nodesToUpdate.Count; i++)
+            await UnlockNextAsync(sessionId);
+    }
 }
 
-public class ArchipelagoProgressionEngine(
-    ArchipelagoService archipelagoService,
-    IMapNodeRepository nodeRepository,
-    ILogger<ArchipelagoProgressionEngine> logger) : IProgressionEngine
+public class ArchipelagoProgressionEngine(IArchipelagoService archipelagoService, IMapNodeRepository nodeRepository, ILogger<ArchipelagoProgressionEngine> logger) : IProgressionEngine
 {
-    private readonly ArchipelagoService _archipelagoService = archipelagoService;
+    private readonly IArchipelagoService _archipelagoService = archipelagoService;
     private readonly IMapNodeRepository _nodeRepository = nodeRepository;
     private readonly ILogger<ArchipelagoProgressionEngine> _logger = logger;
 
@@ -68,6 +81,13 @@ public class ArchipelagoProgressionEngine(
         {
             _logger.LogInformation("No checked nodes found to sync for session {SessionId}", sessionId);
         }
+    }
+
+    public async Task CheckNodesAsync(Guid sessionId, List<MapNode> targetNodes)
+    {
+        var locationIds = targetNodes.Select(n => n.ApLocationId).ToArray();
+        _logger.LogInformation("Sending {Count} location(s) to Archipelago for Session {SessionId}", locationIds.Length, sessionId);
+        await _archipelagoService.CheckLocationsAsync(sessionId, locationIds);
     }
 }
 

@@ -7,9 +7,9 @@ namespace Bikeapelago.Api.Controllers.Admin;
 [ApiController]
 [Route("api/admin/[controller]")]
 [AdminAuthorize]
-public class SchemaController(SchemaDiscoveryService schemaService) : ControllerBase
+public class SchemaController(ISchemaDiscoveryService schemaService) : ControllerBase
 {
-    private readonly SchemaDiscoveryService _schemaService = schemaService;
+    private readonly ISchemaDiscoveryService _schemaService = schemaService;
 
     [HttpGet]
     public IActionResult GetSchema()

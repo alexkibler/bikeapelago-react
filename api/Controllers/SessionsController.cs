@@ -3,6 +3,7 @@ using System.Text.Json.Serialization;
 using Bikeapelago.Api.Models;
 using Bikeapelago.Api.Repositories;
 using Bikeapelago.Api.Services;
+using Bikeapelago.Api.Validators;
 using System.Security.Claims;
 
 namespace Bikeapelago.Api.Controllers;
@@ -13,13 +14,17 @@ public class SessionsController(
     IGameSessionRepository sessionRepository,
     IMapNodeRepository nodeRepository,
     IUserRepository userRepository,
-    FitAnalysisService fitAnalysisService,
+    IFitAnalysisService fitAnalysisService,
+    IProgressionEngineFactory engineFactory,
+    SessionValidator sessionValidator,
     IMapboxRoutingService mapboxRoutingService) : ControllerBase
 {
     private readonly IGameSessionRepository _sessionRepository = sessionRepository;
     private readonly IMapNodeRepository _nodeRepository = nodeRepository;
     private readonly IUserRepository _userRepository = userRepository;
-    private readonly FitAnalysisService _fitAnalysisService = fitAnalysisService;
+    private readonly IFitAnalysisService _fitAnalysisService = fitAnalysisService;
+    private readonly IProgressionEngineFactory _engineFactory = engineFactory;
+    private readonly SessionValidator _sessionValidator = sessionValidator;
     private readonly IMapboxRoutingService _mapboxRoutingService = mapboxRoutingService;
 
     [HttpGet]
@@ -171,7 +176,7 @@ public class SessionsController(
     }
 
     [HttpPost("{id}/generate")]
-    public async Task<IActionResult> GenerateSessionNodes(Guid id, [FromBody] Bikeapelago.Api.Services.NodeGenerationRequest request, [FromServices] Bikeapelago.Api.Services.NodeGenerationService nodeGenerationService)
+    public async Task<IActionResult> GenerateSessionNodes(Guid id, [FromBody] Bikeapelago.Api.Services.NodeGenerationRequest request, [FromServices] Bikeapelago.Api.Services.INodeGenerationService nodeGenerationService)
     {
         try
         {
@@ -407,5 +412,51 @@ public class SessionsController(
         {
             return StatusCode(500, new { message = $"Route optimization failed: {ex.Message}" });
         }
+    }
+
+    [HttpGet("{id}/nodes")]
+    public async Task<ActionResult<IEnumerable<MapNode>>> GetSessionNodes(Guid id)
+    {
+        var nodes = await _nodeRepository.GetBySessionIdAsync(id);
+        return Ok(nodes);
+    }
+
+    public class CheckNodesRequest
+    {
+        [JsonPropertyName("nodeIds")]
+        public List<Guid> NodeIds { get; set; } = [];
+    }
+
+    [HttpPost("{id}/nodes/check")]
+    public async Task<IActionResult> CheckNodes(Guid id, [FromBody] CheckNodesRequest request)
+    {
+        var session = await _sessionRepository.GetByIdAsync(id);
+        if (session == null)
+            return NotFound(new { message = "Session not found." });
+
+        var nodes = await _nodeRepository.GetBySessionIdAsync(id);
+        var targetNodes = nodes.Where(n => request.NodeIds.Contains(n.Id)).ToList();
+
+        var validation = _sessionValidator.ValidateNodeCheck(targetNodes, id);
+        if (!validation.IsValid)
+        {
+            return validation.ValidNodes.Count == 0 && targetNodes.Count == 0
+                ? BadRequest(new { message = validation.Error })
+                : UnprocessableEntity(new { message = validation.Error });
+        }
+
+        var engine = _engineFactory.CreateEngine(session.Mode);
+        await engine.CheckNodesAsync(id, validation.ValidNodes);
+
+        return Accepted(new { message = "Check request processed." });
+    }
+
+    [HttpPost("/api/discovery/validate-nodes")]
+    public async Task<ActionResult<IEnumerable<ValidateResult>>> ValidateNodes(
+        [FromServices] IOsmDiscoveryService discoveryService,
+        [FromBody] ValidateRequest request)
+    {
+        var results = await discoveryService.ValidateNodesAsync(request);
+        return Ok(results);
     }
 }

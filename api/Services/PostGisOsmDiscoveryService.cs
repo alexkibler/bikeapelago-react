@@ -17,7 +17,7 @@ public class PostGisOsmDiscoveryService : IOsmDiscoveryService
     private readonly ILogger<PostGisOsmDiscoveryService> _logger;
     private readonly string _connectionString;
     private readonly IMapboxRoutingService _routingService;
-    private readonly GridCacheService _gridCache;
+    private readonly IGridCacheService _gridCache;
 
     // Highway tags that are valid for each routing mode.
     // Aligned with common routing profiles (bike, walk, car).
@@ -35,7 +35,7 @@ public class PostGisOsmDiscoveryService : IOsmDiscoveryService
         "primary", "primary_link", "service", "living_street"
     ];
 
-    public PostGisOsmDiscoveryService(ILogger<PostGisOsmDiscoveryService> logger, IConfiguration config, IMapboxRoutingService routingService, GridCacheService gridCache)
+    public PostGisOsmDiscoveryService(ILogger<PostGisOsmDiscoveryService> logger, IConfiguration config, IMapboxRoutingService routingService, IGridCacheService gridCache)
     {
         _logger = logger;
         _connectionString = config.GetConnectionString("OsmDiscovery")

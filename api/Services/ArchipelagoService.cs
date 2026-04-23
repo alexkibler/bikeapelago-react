@@ -22,7 +22,7 @@ public record ArchipelagoItem(long Id, string Name);
 public record ArchipelagoItemsUpdate(ArchipelagoItem[] Items);
 public record ArchipelagoChatMessage(string Text, string Type, DateTime Timestamp);
 
-public class ArchipelagoService(IHubContext<ArchipelagoHub> hubContext, ILogger<ArchipelagoService> logger, IServiceScopeFactory scopeFactory)
+public class ArchipelagoService(IHubContext<ArchipelagoHub> hubContext, ILogger<ArchipelagoService> logger, IServiceScopeFactory scopeFactory) : IArchipelagoService
 {
     private readonly ConcurrentDictionary<Guid, IArchipelagoSession> _sessions = new();
     private readonly IHubContext<ArchipelagoHub> _hubContext = hubContext;
