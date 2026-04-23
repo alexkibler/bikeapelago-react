@@ -127,6 +127,8 @@ services:
         condition: service_healthy
     networks:
       - bikeapelago
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   # ──────────────────────────────────────────────────────────────────────────
   # Bikeapelago React frontend — profile: frontend
