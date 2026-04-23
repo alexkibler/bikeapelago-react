@@ -44,7 +44,7 @@ const GameView = () => {
   const sessionReq = useSessionGet({ id, syncVersion });
   const sessionUpdate = useSessionUpdate({ id });
 
-  const sessionNodesReq = useSessionNodesGet({ sessionId: id });
+  const sessionNodesReq = useSessionNodesGet({ sessionId: id, syncVersion });
 
   const session = sessionReq.data;
 
