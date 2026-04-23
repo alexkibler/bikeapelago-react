@@ -86,7 +86,7 @@ public class GridCacheJobProcessor : BackgroundService
             // Use the GridCacheService to build the cache
             using (var scope = _serviceProvider.CreateScope())
             {
-                var gridCache = scope.ServiceProvider.GetRequiredService<GridCacheService>();
+                var gridCache = scope.ServiceProvider.GetRequiredService<IGridCacheService>();
                 await gridCache.BuildCacheForCellAsync(gridX, gridY, mode);
             }
         }

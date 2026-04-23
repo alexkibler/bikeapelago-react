@@ -77,7 +77,7 @@ public class SessionsController(
     public async Task<IActionResult> SetupSessionFromRoute(
         IFormFile file,
         [FromForm] int nodeCount,
-        [FromServices] RouteInterpolationService routeInterpolationService)
+        [FromServices] IRouteInterpolationService routeInterpolationService)
     {
         try
         {
