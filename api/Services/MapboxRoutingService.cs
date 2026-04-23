@@ -502,7 +502,7 @@ public class MapboxRoutingService(
                 sampledPoints.Add(geometry[i]);
             }
         }
-        
+
         // Ensure final point is capped to not lose the route destination
         if (sampledPoints[sampledPoints.Count - 1] != geometry.Last() && sampledPoints.Count < maxPoints)
         {
@@ -560,10 +560,10 @@ public class MapboxRoutingService(
                 }
 
                 _logger.LogInformation("Calculated {Gain}m elevation gain from {Count} downsampled points", Math.Round(totalGain), sampledPoints.Count);
-                
+
                 // Cache for 1 hour
                 _cache.Set(cacheKey, totalGain, TimeSpan.FromHours(1));
-                
+
                 return totalGain;
             }
         }
@@ -576,13 +576,42 @@ public class MapboxRoutingService(
     }
 
     /// <inheritdoc />
+    /// <inheritdoc />
     public string GenerateGpx(List<List<double>> geometry, List<MapNode> orderedNodes, bool turnByTurn, Dictionary<Guid, List<double>>? snappedLocations = null)
     {
+        // If we have no waypoints and no geometry, there is nothing to generate.
+        if (orderedNodes.Count == 0 && geometry.Count == 0)
+            throw new InvalidOperationException("Cannot generate GPX with no waypoints or geometry.");
+
         var sb = new System.Text.StringBuilder();
         sb.AppendLine("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
         sb.AppendLine("<gpx version=\"1.1\" creator=\"Bikeapelago\" xmlns=\"http://www.topografix.com/GPX/1/1\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:schemaLocation=\"http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd\">");
 
-        if (turnByTurn)
+        // 1. Add Waypoints (<wpt>) for Garmin landmarks/stops
+        foreach (var node in orderedNodes)
+        {
+            if (node.Location == null) continue;
+
+            double lat, lon;
+            if (snappedLocations != null && snappedLocations.TryGetValue(node.Id, out var snapped) && snapped.Count >= 2)
+            {
+                lon = snapped[0];
+                lat = snapped[1];
+            }
+            else
+            {
+                lon = node.Location.X;
+                lat = node.Location.Y;
+            }
+
+            sb.AppendLine($"  <wpt lat=\"{lat}\" lon=\"{lon}\">");
+            sb.AppendLine($"    <name>{System.Security.SecurityElement.Escape(node.Name)}</name>");
+            sb.AppendLine($"    <sym>Waypoint</sym>");
+            sb.AppendLine("  </wpt>");
+        }
+
+        // 2. Add the actual route or track geometry
+        if (turnByTurn && geometry.Count > 0)
         {
             sb.AppendLine("  <trk>");
             sb.AppendLine("    <name>Bikeapelago Route (Turn-by-Turn)</name>");
@@ -595,7 +624,7 @@ public class MapboxRoutingService(
             sb.AppendLine("    </trkseg>");
             sb.AppendLine("  </trk>");
         }
-        else
+        else if (!turnByTurn && orderedNodes.Count > 0)
         {
             sb.AppendLine("  <rte>");
             sb.AppendLine("    <name>Bikeapelago Destinations (Straight Line)</name>");

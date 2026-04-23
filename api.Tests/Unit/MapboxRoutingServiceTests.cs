@@ -54,6 +54,21 @@ public class MapboxRoutingServiceTests
         Assert.Contains("<trkpt",   gpx);
         Assert.DoesNotContain("<rte>",   gpx);
         Assert.DoesNotContain("<rtept>", gpx);
+        Assert.DoesNotContain("<wpt",   gpx); // No nodes provided, so no wpts
+    }
+
+    [Fact]
+    public void GenerateGpx_TurnByTurn_WithNodes_ProducesWaypointsAndTrack()
+    {
+        var node = NodeAt(Guid.NewGuid(), "Summit", 40.5, -79.8);
+        var geometry = new List<List<double>> { new() { -79.9, 40.4 }, new() { -79.8, 40.5 } };
+
+        var gpx = CreateService().GenerateGpx(geometry, new List<MapNode> { node }, turnByTurn: true);
+
+        // Should have both
+        Assert.Contains("<wpt", gpx);
+        Assert.Contains("<name>Summit</name>", gpx);
+        Assert.Contains("<trk>", gpx);
     }
 
     [Fact]
@@ -71,13 +86,15 @@ public class MapboxRoutingServiceTests
     // ── Route (waypoints) mode ─────────────────────────────────────────────────
 
     [Fact]
-    public void GenerateGpx_RouteMode_ProducesRouteStructure()
+    public void GenerateGpx_RouteMode_ProducesRouteStructureAndWaypoints()
     {
         var node = NodeAt(Guid.NewGuid(), "Test Point", 40.4406, -79.9959);
 
         var gpx = CreateService().GenerateGpx(
             new List<List<double>>(), new List<MapNode> { node }, turnByTurn: false);
 
+        // Route mode should now have both <wpt> (for Garmin) and <rtept> (for standard routes)
+        Assert.Contains("<wpt", gpx);
         Assert.Contains("<rte>",    gpx);
         Assert.Contains("<rtept",   gpx);
         Assert.Contains("Test Point", gpx);
@@ -111,12 +128,15 @@ public class MapboxRoutingServiceTests
             new List<List<double>>(), new List<MapNode> { node },
             turnByTurn: false, snappedLocations: snapped);
 
-        // Snapped position must appear
+        // Snapped position must appear in BOTH <wpt> and <rtept> (or <trkpt> if applicable)
         Assert.Contains("lat=\"40.55\"", gpx);
         Assert.Contains("lon=\"-80\"",   gpx);
         // Original must NOT appear
         Assert.DoesNotContain("lat=\"40.44\"",  gpx);
         Assert.DoesNotContain("lon=\"-79.99\"", gpx);
+
+        // Specifically verify the <wpt> tag uses it
+        Assert.Matches(@"<wpt lat=""40\.55"" lon=""-80"">", gpx);
     }
 
     [Fact]
@@ -169,15 +189,9 @@ public class MapboxRoutingServiceTests
     }
 
     [Fact]
-    public void GenerateGpx_RouteMode_EmptyNodeList_ProducesValidGpxFrame()
+    public void GenerateGpx_EmptyInputs_ThrowsInvalidOperationException()
     {
-        var gpx = CreateService().GenerateGpx(
-            new List<List<double>>(), new List<MapNode>(), turnByTurn: false);
-
-        Assert.StartsWith("<?xml", gpx.TrimStart());
-        Assert.Contains("<gpx",  gpx);
-        Assert.Contains("</gpx>", gpx);
-        Assert.Contains("<rte>",  gpx);
-        Assert.Contains("</rte>", gpx);
+        Assert.Throws<InvalidOperationException>(() =>
+            CreateService().GenerateGpx(new List<List<double>>(), new List<MapNode>(), turnByTurn: false));
     }
 }
