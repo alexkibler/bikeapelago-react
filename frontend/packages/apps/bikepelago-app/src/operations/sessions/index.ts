@@ -2,6 +2,7 @@ import {
   useApiGetFactory,
   useApiDeleteFactory,
   useApiPatchFactory,
+  useApiPostFactory,
   useMutation,
   useQuery,
 } from '@bikeapelago/shared-data-fetching';
@@ -10,6 +11,7 @@ import type {
 } from '../../types/game';
 import { useClearKeys } from '../util';
 import type {
+  SessionCreateDataInput,
   SessionUniqueWhere,
   SessionUpdateInput
 } from './types';
@@ -49,6 +51,22 @@ export function useSessionUpdate({ id }: SessionUniqueWhere) {
     },
   })
 }
+
+export function useCreateSession() {
+  const createSessionRequest = useApiPostFactory<'/api/sessions', SessionCreateDataInput, GameSession>('/api/sessions')
+  const clearKeys = useClearKeys();
+
+  return useMutation({
+    mutationFn: async ({ id }: SessionUniqueWhere) => await createSessionRequest({
+      body: null,
+      pathParams: { id },
+    }),
+    onSuccess: () => {
+      clearKeys([['sessions']])
+    },
+  })
+}
+
 
 export function useDeleteSession() {
   const deleteSessionRequest = useApiDeleteFactory<'/api/sessions/:id', null, unknown>('/api/sessions/:id')

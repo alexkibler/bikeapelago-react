@@ -1,17 +1,22 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
+import type { ReactElement } from 'react';
 
 import { ArrowRight, Bike, Loader2, Lock, User } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { RhfInput, useForm } from '@bikeapelago/shared-ui-form';
+import type { SubmitHandler } from '@bikeapelago/shared-ui-form';
 
-import { useAuthStore } from '../store/authStore';
+import { useAuthStore } from '../../store/authStore';
+import type { LoginForm } from './types';
+import { useLoginPost } from '../../operations/authentication';
 
-const Login = () => {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
+export function Login(): ReactElement {
+  const formMethods = useForm<LoginForm>()
   const [error, setError] = useState('');
   const navigate = useNavigate();
   const { login, isValid } = useAuthStore();
+
+  const loginRequest = useLoginPost();
 
   const location = useLocation();
   const registerMessage = (location.state as Record<string, unknown> | null)
@@ -22,44 +27,23 @@ const Login = () => {
     if (isValid) navigate('/');
   }, [isValid, navigate]);
 
-  const performLogin = async (identity: string, pass: string) => {
-    setLoading(true);
-    setError('');
-
-    try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ identity, password: pass }),
-      });
-      if (!res.ok) {
-        const errData = (await res.json().catch(() => ({}))) as {
-          message?: string;
-        };
-        throw new Error(errData.message ?? 'Invalid credentials.');
+  const handleLogin: SubmitHandler<LoginForm> = (data) => {
+    loginRequest.mutate(data, {
+      onSuccess: (responseData) => {
+        login(responseData.token, responseData.record);
+        navigate('/');
+      },
+      onError: (err) => {
+        setError(err instanceof Error ? err.message : 'Invalid credentials.');
       }
-      const data = (await res.json()) as {
-        token: string;
-        record: Parameters<typeof login>[1];
-      };
-      login(data.token, data.record);
-      navigate('/');
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Invalid credentials.');
-    } finally {
-      setLoading(false);
-    }
+    })
   };
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    await performLogin(username, password);
-  };
-
-  const handleAutofill = () => {
-    setUsername('testuser');
-    setPassword('Password');
-    void performLogin('testuser', 'Password');
+  const handleAutofill = async () => {
+    await handleLogin({
+      identity: 'testuser',
+      password: 'Password',
+    })
   };
 
   return (
@@ -74,7 +58,7 @@ const Login = () => {
           </h1>
         </div>
 
-        <form onSubmit={handleLogin} className='space-y-4'>
+        <form onSubmit={formMethods.handleSubmit(handleLogin)} className='space-y-4'>
           {registerMessage && !error && (
             <div className='p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl text-emerald-500 text-sm font-bold text-center'>
               {registerMessage}
@@ -87,39 +71,33 @@ const Login = () => {
             </div>
           )}
 
-          <div className='relative group'>
-            <User className='absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-600 group-focus-within:text-orange-500 transition-colors' />
-            <input
-              type='text'
-              placeholder='Username'
-              id='login-username'
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              className='w-full bg-[var(--color-surface-alt-hex)] border border-[var(--color-border-hex)] rounded-2xl py-4 pl-12 pr-4 text-[var(--color-text-hex)] focus:outline-none focus:border-orange-500/50 transition-all placeholder:text-[var(--color-text-subtle-hex)] font-medium'
-              required
-            />
-          </div>
-
-          <div className='relative group'>
-            <Lock className='absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-600 group-focus-within:text-orange-500 transition-colors' />
-            <input
-              type='password'
-              placeholder='Password'
-              id='login-password'
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className='w-full bg-[var(--color-surface-alt-hex)] border border-[var(--color-border-hex)] rounded-2xl py-4 pl-12 pr-4 text-[var(--color-text-hex)] focus:outline-none focus:border-orange-500/50 transition-all placeholder:text-[var(--color-text-subtle-hex)] font-medium'
-              required
-            />
-          </div>
+          <RhfInput
+            leftIcon={
+              <User className='absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-600 group-focus-within:text-orange-500 transition-colors' />
+            }
+            formMethods={formMethods}
+            name="identity"
+            placeholder='Username'
+            required
+          />
+          <RhfInput
+            leftIcon={
+              <Lock className='absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-600 group-focus-within:text-orange-500 transition-colors' />
+            }
+            formMethods={formMethods}
+            name="password"
+            type="password"
+            placeholder='Password'
+            required
+          />
 
           <button
             type='submit'
-            disabled={loading}
+            disabled={loginRequest.isPending}
             id='login-submit'
             className='w-full h-16 rounded-2xl bg-[var(--color-primary-hex)] text-white font-black text-lg uppercase tracking-widest gap-3 shadow-xl shadow-orange-600/20 items-center justify-center flex hover:bg-[var(--color-primary-hover-hex)] transition-all active:scale-[0.98] disabled:opacity-50'
           >
-            {loading ? (
+            {loginRequest.isPending ? (
               <Loader2 className='w-6 h-6 animate-spin' />
             ) : (
               <>
@@ -170,5 +148,3 @@ const Login = () => {
     </div>
   );
 };
-
-export default Login;
