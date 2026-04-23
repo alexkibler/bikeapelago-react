@@ -4,10 +4,6 @@ export const API_BASE = '/api';
 
 export const ENDPOINTS = {
   SESSIONS: `${API_BASE}/sessions`,
-  DISCOVERY: {
-    ROUTE: `${API_BASE}/discovery/route`,
-    NODES: `${API_BASE}/discovery/nodes`,
-  },
   AUTH: {
     LOGIN: `${API_BASE}/auth/login`,
     REGISTER: `${API_BASE}/auth/register`,

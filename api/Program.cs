@@ -82,6 +82,7 @@ builder.Services.AddScoped<SinglePlayerProgressionEngine>();
 builder.Services.AddScoped<ArchipelagoProgressionEngine>();
 builder.Services.AddScoped<IProgressionEngineFactory, ProgressionEngineFactory>();
 builder.Services.AddScoped<IRouteInterpolationService, RouteInterpolationService>();
+builder.Services.AddScoped<IRouteBuilderService, RouteBuilderService>();
 builder.Services.AddScoped<Bikeapelago.Api.Validators.SessionValidator>();
 
 // Grid Cache Background Job Processor

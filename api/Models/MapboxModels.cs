@@ -181,3 +181,24 @@ public class RouteRequest
     [JsonPropertyName("profile")]
     public string Profile { get; set; } = "cycling";
 }
+
+/// <summary>
+/// Request body for POST /api/sessions/{id}/route.
+/// Provides an explicit starting point and a subset of node IDs to route to.
+/// If CustomOrigin is omitted the session centre is used as the origin.
+/// If NodeIds is empty all Available nodes for the session are used.
+/// </summary>
+public class RouteWaypointsRequest
+{
+    [JsonPropertyName("customOrigin")]
+    public MapboxCoordinate? CustomOrigin { get; set; }
+
+    [JsonPropertyName("nodeIds")]
+    public List<Guid> NodeIds { get; set; } = [];
+
+    [JsonPropertyName("profile")]
+    public string Profile { get; set; } = "cycling";
+
+    [JsonPropertyName("turnByTurn")]
+    public bool TurnByTurn { get; set; } = true;
+}
