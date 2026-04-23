@@ -7,7 +7,7 @@ using System.Text.Json.Serialization;
 
 namespace Bikeapelago.Api.Services;
 
-public class SchemaDiscoveryService(BikeapelagoDbContext context)
+public class SchemaDiscoveryService(BikeapelagoDbContext context) : ISchemaDiscoveryService
 {
     private readonly BikeapelagoDbContext _context = context;
 

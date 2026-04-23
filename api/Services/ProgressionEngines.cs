@@ -58,9 +58,9 @@ public class SinglePlayerProgressionEngine(
     }
 }
 
-public class ArchipelagoProgressionEngine(ArchipelagoService archipelagoService, IMapNodeRepository nodeRepository, ILogger<ArchipelagoProgressionEngine> logger) : IProgressionEngine
+public class ArchipelagoProgressionEngine(IArchipelagoService archipelagoService, IMapNodeRepository nodeRepository, ILogger<ArchipelagoProgressionEngine> logger) : IProgressionEngine
 {
-    private readonly ArchipelagoService _archipelagoService = archipelagoService;
+    private readonly IArchipelagoService _archipelagoService = archipelagoService;
     private readonly IMapNodeRepository _nodeRepository = nodeRepository;
     private readonly ILogger<ArchipelagoProgressionEngine> _logger = logger;
 

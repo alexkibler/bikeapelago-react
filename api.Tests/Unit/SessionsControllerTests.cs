@@ -8,6 +8,7 @@ using Bikeapelago.Api.Controllers;
 using Bikeapelago.Api.Repositories;
 using Bikeapelago.Api.Services;
 using Bikeapelago.Api.Models;
+using Bikeapelago.Api.Validators;
 using NetTopologySuite.Geometries;
 
 namespace Bikeapelago.Api.Tests.Unit;
@@ -30,16 +31,16 @@ public class SessionsControllerTests
 
         _userId = Guid.NewGuid();
 
-        // FitAnalysisService doesn't have an interface, so we might need to be careful or mock it if it has virtual methods,
-        // but for now we can pass null or a real instance if it has parameterless constructor.
-        // We'll pass a dummy FitAnalysisService if possible, or null.
+        // FitAnalysisService now has an interface IFitAnalysisService.
+        // We'll pass null for now as it's not used in these tests.
 
         _controller = new SessionsController(
             _sessionRepoMock.Object,
             _nodeRepoMock.Object,
             _userRepoMock.Object,
-            null!, // FitAnalysisService
+            null!, // IFitAnalysisService
             Mock.Of<IProgressionEngineFactory>(),
+            new SessionValidator(Mock.Of<ILogger<SessionValidator>>()),
             _mapboxMock.Object);
 
         var claims = new List<Claim>

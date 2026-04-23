@@ -3,6 +3,7 @@ using System.Text.Json.Serialization;
 using Bikeapelago.Api.Models;
 using Bikeapelago.Api.Repositories;
 using Bikeapelago.Api.Services;
+using Bikeapelago.Api.Validators;
 using System.Security.Claims;
 
 namespace Bikeapelago.Api.Controllers;
@@ -13,15 +14,17 @@ public class SessionsController(
     IGameSessionRepository sessionRepository,
     IMapNodeRepository nodeRepository,
     IUserRepository userRepository,
-    FitAnalysisService fitAnalysisService,
+    IFitAnalysisService fitAnalysisService,
     IProgressionEngineFactory engineFactory,
+    SessionValidator sessionValidator,
     IMapboxRoutingService mapboxRoutingService) : ControllerBase
 {
     private readonly IGameSessionRepository _sessionRepository = sessionRepository;
     private readonly IMapNodeRepository _nodeRepository = nodeRepository;
     private readonly IUserRepository _userRepository = userRepository;
-    private readonly FitAnalysisService _fitAnalysisService = fitAnalysisService;
+    private readonly IFitAnalysisService _fitAnalysisService = fitAnalysisService;
     private readonly IProgressionEngineFactory _engineFactory = engineFactory;
+    private readonly SessionValidator _sessionValidator = sessionValidator;
     private readonly IMapboxRoutingService _mapboxRoutingService = mapboxRoutingService;
 
     [HttpGet]
@@ -173,7 +176,7 @@ public class SessionsController(
     }
 
     [HttpPost("{id}/generate")]
-    public async Task<IActionResult> GenerateSessionNodes(Guid id, [FromBody] Bikeapelago.Api.Services.NodeGenerationRequest request, [FromServices] Bikeapelago.Api.Services.NodeGenerationService nodeGenerationService)
+    public async Task<IActionResult> GenerateSessionNodes(Guid id, [FromBody] Bikeapelago.Api.Services.NodeGenerationRequest request, [FromServices] Bikeapelago.Api.Services.INodeGenerationService nodeGenerationService)
     {
         try
         {
@@ -434,16 +437,16 @@ public class SessionsController(
         var nodes = await _nodeRepository.GetBySessionIdAsync(id);
         var targetNodes = nodes.Where(n => request.NodeIds.Contains(n.Id)).ToList();
 
-        if (targetNodes.Count == 0)
-            return BadRequest(new { message = "No valid nodes found to check." });
-
-        // Rule: node must be Available (not Hidden or already Checked)
-        var validNodes = targetNodes.Where(n => n.State == "Available").ToList();
-        if (validNodes.Count == 0)
-            return UnprocessableEntity(new { message = "None of the submitted nodes are in an Available state." });
+        var validation = _sessionValidator.ValidateNodeCheck(targetNodes, id);
+        if (!validation.IsValid)
+        {
+            return validation.ValidNodes.Count == 0 && targetNodes.Count == 0
+                ? BadRequest(new { message = validation.Error })
+                : UnprocessableEntity(new { message = validation.Error });
+        }
 
         var engine = _engineFactory.CreateEngine(session.Mode);
-        await engine.CheckNodesAsync(id, validNodes);
+        await engine.CheckNodesAsync(id, validation.ValidNodes);
 
         return Accepted(new { message = "Check request processed." });
     }

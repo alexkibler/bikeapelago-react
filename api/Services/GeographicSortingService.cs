@@ -9,9 +9,9 @@ namespace Bikeapelago.Api.Services;
 /// <summary>
 /// Service for sorting geographic points using geographic proximity algorithms.
 /// </summary>
-public class GeographicSortingService
+public class GeographicSortingService : IGeographicSortingService
 {
-    public virtual List<MapNode> SortByNearestNeighbor(Point startingLocation, List<MapNode> nodes)
+    public List<MapNode> SortByNearestNeighbor(Point startingLocation, List<MapNode> nodes)
     {
         if (nodes == null || nodes.Count == 0)
             return new List<MapNode>();

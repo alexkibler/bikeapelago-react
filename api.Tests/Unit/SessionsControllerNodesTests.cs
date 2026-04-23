@@ -10,6 +10,7 @@ using Bikeapelago.Api.Controllers;
 using Bikeapelago.Api.Models;
 using Bikeapelago.Api.Repositories;
 using Bikeapelago.Api.Services;
+using Bikeapelago.Api.Validators;
 
 namespace Bikeapelago.Api.Tests.Unit;
 
@@ -20,6 +21,7 @@ public class SessionsControllerNodesTests
     private readonly Mock<IProgressionEngineFactory> _engineFactory;
     private readonly Mock<IProgressionEngine> _engine;
     private readonly Mock<ILogger<SessionsController>> _logger;
+    private readonly SessionValidator _validator;
     private readonly SessionsController _controller;
     private readonly Guid _sessionId = Guid.NewGuid();
 
@@ -31,6 +33,8 @@ public class SessionsControllerNodesTests
         _engine = new Mock<IProgressionEngine>();
         _logger = new Mock<ILogger<SessionsController>>();
 
+        _validator = new SessionValidator(Mock.Of<ILogger<SessionValidator>>());
+
         _engineFactory.Setup(f => f.CreateEngine(It.IsAny<string>())).Returns(_engine.Object);
         _engine.Setup(e => e.CheckNodesAsync(It.IsAny<Guid>(), It.IsAny<List<MapNode>>()))
             .Returns(Task.CompletedTask);
@@ -39,8 +43,9 @@ public class SessionsControllerNodesTests
             _sessionRepo.Object,
             _nodeRepo.Object,
             Mock.Of<IUserRepository>(),
-            null!, // FitAnalysisService
+            null!, // IFitAnalysisService
             _engineFactory.Object,
+            _validator,
             null!); // IMapboxRoutingService
     }
 

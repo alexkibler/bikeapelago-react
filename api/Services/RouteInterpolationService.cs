@@ -5,7 +5,7 @@ using Bikeapelago.Api.Models;
 
 namespace Bikeapelago.Api.Services;
 
-public class RouteInterpolationService
+public class RouteInterpolationService : IRouteInterpolationService
 {
     private const double EarthRadiusMeters = 6371e3;
 

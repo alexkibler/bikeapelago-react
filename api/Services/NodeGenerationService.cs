@@ -30,7 +30,7 @@ public class NodeGenerationService(
     IOsmDiscoveryService osmDiscoveryService,
     IMapNodeRepository nodeRepository,
     IGameSessionRepository sessionRepository,
-    ILogger<NodeGenerationService> logger)
+    ILogger<NodeGenerationService> logger) : INodeGenerationService
 {
     private readonly IOsmDiscoveryService _osmDiscoveryService = osmDiscoveryService;
     private readonly IMapNodeRepository _nodeRepository = nodeRepository;

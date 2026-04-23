@@ -141,7 +141,7 @@ public class SinglePlayerProgressionEngineTests
 
 public class ArchipelagoProgressionEngineTests
 {
-    private readonly Mock<ArchipelagoService> _mockApService;
+    private readonly Mock<IArchipelagoService> _mockApService;
     private readonly Mock<IMapNodeRepository> _mockNodeRepo;
     private readonly Mock<ILogger<ArchipelagoProgressionEngine>> _mockLogger;
     private readonly ArchipelagoProgressionEngine _engine;
@@ -149,11 +149,7 @@ public class ArchipelagoProgressionEngineTests
 
     public ArchipelagoProgressionEngineTests()
     {
-        // ArchipelagoService has no interface, so we mock it as a concrete class
-        _mockApService = new Mock<ArchipelagoService>(
-            Mock.Of<Microsoft.AspNetCore.SignalR.IHubContext<ArchipelagoHub>>(),
-            Mock.Of<ILogger<ArchipelagoService>>(),
-            Mock.Of<Microsoft.Extensions.DependencyInjection.IServiceScopeFactory>());
+        _mockApService = new Mock<IArchipelagoService>();
 
         _mockNodeRepo = new Mock<IMapNodeRepository>();
         _mockLogger = new Mock<ILogger<ArchipelagoProgressionEngine>>();

@@ -7,7 +7,7 @@ using Bikeapelago.Api.Models;
 
 namespace Bikeapelago.Api.Services
 {
-    public class FitAnalysisService
+    public class FitAnalysisService : IFitAnalysisService
     {
         private const double SemicircleToDegree = 180.0 / 2147483648.0;
 

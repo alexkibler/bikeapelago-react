@@ -9,7 +9,7 @@ using Npgsql;
 
 namespace Bikeapelago.Api.Services;
 
-public class GridCacheService
+public class GridCacheService : IGridCacheService
 {
     private readonly ILogger<GridCacheService> _logger;
     private readonly string _connectionString;
