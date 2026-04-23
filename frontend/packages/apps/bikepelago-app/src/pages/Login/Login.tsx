@@ -1,17 +1,16 @@
 import { useEffect, useState } from 'react';
-import type { ReactElement } from 'react';
+import type { ReactElement, FormEvent } from 'react';
 
 import { ArrowRight, Bike, Loader2, Lock, User } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { RhfInput, useForm } from '@bikeapelago/shared-ui-form';
-import type { SubmitHandler } from '@bikeapelago/shared-ui-form';
 
 import { useAuthStore } from '../../store/authStore';
 import type { LoginForm } from './types';
 import { useLoginPost } from '../../operations/authentication';
 
 export function Login(): ReactElement {
-  const formMethods = useForm<LoginForm>()
+  const [identity, setIdentity] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const navigate = useNavigate();
   const { login, isValid } = useAuthStore();
@@ -27,7 +26,9 @@ export function Login(): ReactElement {
     if (isValid) navigate('/');
   }, [isValid, navigate]);
 
-  const handleLogin: SubmitHandler<LoginForm> = (data) => {
+  const handleLogin = (e: FormEvent) => {
+    e.preventDefault();
+    const data: LoginForm = { identity, password };
     loginRequest.mutate(data, {
       onSuccess: (responseData) => {
         login(responseData.token, responseData.record);
@@ -39,11 +40,9 @@ export function Login(): ReactElement {
     })
   };
 
-  const handleAutofill = async () => {
-    await handleLogin({
-      identity: 'testuser',
-      password: 'Password',
-    })
+  const handleAutofill = () => {
+    setIdentity('testuser');
+    setPassword('Password');
   };
 
   return (
@@ -58,7 +57,7 @@ export function Login(): ReactElement {
           </h1>
         </div>
 
-        <form onSubmit={formMethods.handleSubmit(handleLogin)} className='space-y-4'>
+        <form onSubmit={handleLogin} className='space-y-4'>
           {registerMessage && !error && (
             <div className='p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl text-emerald-500 text-sm font-bold text-center'>
               {registerMessage}
@@ -71,25 +70,29 @@ export function Login(): ReactElement {
             </div>
           )}
 
-          <RhfInput
-            leftIcon={
-              <User className='absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-600 group-focus-within:text-orange-500 transition-colors' />
-            }
-            formMethods={formMethods}
-            name="identity"
-            placeholder='Username'
-            required
-          />
-          <RhfInput
-            leftIcon={
-              <Lock className='absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-600 group-focus-within:text-orange-500 transition-colors' />
-            }
-            formMethods={formMethods}
-            name="password"
-            type="password"
-            placeholder='Password'
-            required
-          />
+          <div className='relative group'>
+            <User className='absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-600 group-focus-within:text-orange-500 transition-colors' />
+            <input
+              type='text'
+              value={identity}
+              onChange={(e) => setIdentity(e.target.value)}
+              placeholder='Username'
+              required
+              className='w-full bg-[var(--color-surface-alt-hex)] border border-[var(--color-border-hex)] rounded-xl pl-12 pr-4 py-3 text-[var(--color-text-hex)] font-medium focus:outline-none focus:border-orange-500 transition-colors placeholder:text-[var(--color-text-subtle-hex)]'
+            />
+          </div>
+
+          <div className='relative group'>
+            <Lock className='absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-600 group-focus-within:text-orange-500 transition-colors' />
+            <input
+              type='password'
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder='Password'
+              required
+              className='w-full bg-[var(--color-surface-alt-hex)] border border-[var(--color-border-hex)] rounded-xl pl-12 pr-4 py-3 text-[var(--color-text-hex)] font-medium focus:outline-none focus:border-orange-500 transition-colors placeholder:text-[var(--color-text-subtle-hex)]'
+            />
+          </div>
 
           <button
             type='submit'
