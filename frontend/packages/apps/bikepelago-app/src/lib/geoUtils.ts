@@ -33,8 +33,7 @@ export function downloadGPX(gpx: string, filename = 'bikeapelago_route.gpx') {
   URL.revokeObjectURL(url);
 }
 
-export function downloadGPXFromPolyline(polylineString: string) {
-  const coordinates = JSON.parse(polylineString) as [number, number, number?][];
+export function downloadGPXFromPolyline(coordinates: [number, number, number?][]) {
   let gpx = `<?xml version="1.0" encoding="UTF-8"?>
 <gpx version="1.1" creator="Bikeapelago" xmlns="http://www.topografix.com/GPX/1/1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd">
   <trk>
@@ -43,7 +42,7 @@ export function downloadGPXFromPolyline(polylineString: string) {
 
   coordinates.forEach((coord) => {
     gpx += `
-      <trkpt lat="${coord[1]}" lon="${coord[0]}">
+      <trkpt lat="${coord[0]}" lon="${coord[1]}">
         <ele>${coord[2] || 0}</ele>
       </trkpt>`;
   });
