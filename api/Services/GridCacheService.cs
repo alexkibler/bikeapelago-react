@@ -17,11 +17,68 @@ public class GridCacheService : IGridCacheService
     // Grid cell size: ~0.45 degrees = ~50km
     private const double GRID_CELL_SIZE = 0.45;
 
+    private static bool _tablesEnsured = false;
+    private static readonly System.Threading.SemaphoreSlim _lock = new(1, 1);
+
     public GridCacheService(ILogger<GridCacheService> logger, IConfiguration config)
     {
         _logger = logger;
         _connectionString = config.GetConnectionString("OsmDiscovery")
             ?? throw new InvalidOperationException("OsmDiscovery connection string is required.");
+    }
+
+    private async Task EnsureTablesCreatedAsync()
+    {
+        if (_tablesEnsured) return;
+
+        await _lock.WaitAsync();
+        try
+        {
+            if (_tablesEnsured) return;
+
+            await using var conn = new NpgsqlConnection(_connectionString);
+            await conn.OpenAsync();
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText = """
+                CREATE TABLE IF NOT EXISTS grid_cache_jobs (
+                    id SERIAL PRIMARY KEY,
+                    grid_x BIGINT NOT NULL,
+                    grid_y BIGINT NOT NULL,
+                    mode VARCHAR(32) NOT NULL,
+                    status VARCHAR(32) NOT NULL DEFAULT 'pending',
+                    data JSONB,
+                    error_message TEXT,
+                    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+                    updated_at TIMESTAMP WITH TIME ZONE,
+                    started_at TIMESTAMP WITH TIME ZONE,
+                    completed_at TIMESTAMP WITH TIME ZONE,
+                    UNIQUE (grid_x, grid_y, mode)
+                );
+
+                CREATE TABLE IF NOT EXISTS node_grid_cache (
+                    grid_x BIGINT NOT NULL,
+                    grid_y BIGINT NOT NULL,
+                    mode VARCHAR(32) NOT NULL,
+                    node_ids BIGINT[] NOT NULL,
+                    nodes GEOMETRY(Point, 4326)[] NOT NULL,
+                    node_count INTEGER NOT NULL,
+                    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                    PRIMARY KEY (grid_x, grid_y, mode)
+                );
+                """;
+            await cmd.ExecuteNonQueryAsync();
+            _tablesEnsured = true;
+            _logger.LogInformation("Grid cache tables ensured in OsmDiscovery database.");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to ensure grid cache tables");
+            throw;
+        }
+        finally
+        {
+            _lock.Release();
+        }
     }
 
     /// <summary>
@@ -63,6 +120,8 @@ public class GridCacheService : IGridCacheService
     {
         if (gridCells.Count == 0)
             return new();
+
+        await EnsureTablesCreatedAsync();
 
         await using var conn = new NpgsqlConnection(_connectionString);
         await conn.OpenAsync();
@@ -112,13 +171,15 @@ public class GridCacheService : IGridCacheService
         if (gridCells.Count == 0)
             return [];
 
+        await EnsureTablesCreatedAsync();
+
         await using var conn = new NpgsqlConnection(_connectionString);
         await conn.OpenAsync();
         await using var cmd = conn.CreateCommand();
         cmd.CommandTimeout = 10;
 
         cmd.CommandText = """
-            SELECT DISTINCT geom
+            SELECT DISTINCT ST_X(geom), ST_Y(geom)
             FROM node_grid_cache,
             LATERAL unnest(nodes) AS geom
             WHERE mode = @mode
@@ -139,9 +200,7 @@ public class GridCacheService : IGridCacheService
             await using var reader = await cmd.ExecuteReaderAsync();
             while (await reader.ReadAsync())
             {
-                var geom = reader.GetValue(0);
-                // Parse geometry: extract X,Y from geometry column
-                // For now, we'll query it differently
+                results.Add(new DiscoveryPoint(reader.GetDouble(0), reader.GetDouble(1)));
             }
         }
         catch (Exception ex)
@@ -158,6 +217,8 @@ public class GridCacheService : IGridCacheService
     public async Task<List<int>> QueueCacheJobsAsync(List<(long, long)> gridCells, string mode)
     {
         var jobIds = new List<int>();
+
+        await EnsureTablesCreatedAsync();
 
         await using var conn = new NpgsqlConnection(_connectionString);
         await conn.OpenAsync();
@@ -200,6 +261,8 @@ public class GridCacheService : IGridCacheService
     public async Task BuildCacheForCellAsync(long gridX, long gridY, string mode)
     {
         _logger.LogInformation("Building cache for grid cell ({X}, {Y}), mode: {Mode}", gridX, gridY, mode);
+
+        await EnsureTablesCreatedAsync();
 
         var jobId = -1;
         try
@@ -249,18 +312,20 @@ public class GridCacheService : IGridCacheService
             {
                 cmd.CommandTimeout = 60; // 1 minute (should be fast with just node_ids)
                 cmd.CommandText = """
-                    INSERT INTO node_grid_cache (grid_x, grid_y, mode, node_ids, node_count)
+                    INSERT INTO node_grid_cache (grid_x, grid_y, mode, node_ids, nodes, node_count)
                     SELECT
                       @grid_x as grid_x,
                       @grid_y as grid_y,
                       @mode as mode,
                       array_agg(node_id ORDER BY node_id) as node_ids,
+                      array_agg(geom ORDER BY node_id) as nodes,
                       count(*) as node_count
                     FROM planet_osm_nodes
                     WHERE ST_X(geom) BETWEEN @min_lon AND @max_lon
                     AND ST_Y(geom) BETWEEN @min_lat AND @max_lat
                     ON CONFLICT (grid_x, grid_y, mode) DO UPDATE SET
                       node_ids = EXCLUDED.node_ids,
+                      nodes = EXCLUDED.nodes,
                       node_count = EXCLUDED.node_count,
                       updated_at = NOW()
                     """;

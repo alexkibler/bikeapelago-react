@@ -2,6 +2,9 @@
 
 General instructions for AI agents working in the Bikeapelago monorepo.
 
+> [!IMPORTANT]
+> **DATABASE SAFETY**: NEVER perform database writes (DDL/DML) without explicit approval. See `GEMINI.md` for full policy.
+
 ## Project Structure
 - `api/`: .NET 10 Web API.
 - `frontend/`: React SPA with Vite & TypeScript.
