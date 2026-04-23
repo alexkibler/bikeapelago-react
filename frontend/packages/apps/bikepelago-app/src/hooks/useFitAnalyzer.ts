@@ -1,6 +1,7 @@
 import { useState } from 'react';
 
 import { getToken } from '../store/authStore';
+import { useGameStore } from '../store/gameStore';
 import type { FitAnalysisResult } from '../types/game';
 
 export function useFitAnalyzer(
@@ -79,6 +80,8 @@ export function useFitAnalyzer(
     }
   };
 
+  const triggerSync = useGameStore((s) => s.triggerSync);
+
   const confirmValidation = async (
     analysisResult: FitAnalysisResult | null,
   ): Promise<boolean> => {
@@ -112,9 +115,10 @@ export function useFitAnalyzer(
       }
 
       setSuccess(
-        `Checks sent to Archipelago for ${nodeIds.length} location(s)! They will update once confirmed.`,
+        `Checks sent for ${nodeIds.length} location(s)! Refreshing nodes...`,
       );
       onAnalysisComplete(null);
+      triggerSync();
       return true;
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to send checks');

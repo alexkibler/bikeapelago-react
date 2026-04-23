@@ -141,7 +141,7 @@ const SessionSetup = () => {
         radius: radius, // the selected radius allows the DB save to succeed cleanly now!
         center_lat: center[0],
         center_lon: center[1],
-        mode: travelMode,
+        mode: mode,
       };
 
       if (mode === 'archipelago') {
