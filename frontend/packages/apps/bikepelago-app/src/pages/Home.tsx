@@ -1,10 +1,8 @@
 import { useState } from 'react';
 
 import {
-  AlertTriangle,
   ArrowRight,
   Download,
-  Loader2,
   Monitor,
   PlayCircle,
   Plus,
@@ -13,82 +11,11 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
+import ConfirmDialog from '../components/layout/ConfirmDialog';
 import { useSessions } from '../hooks/useSessions';
 import { useAuthStore } from '../store/authStore';
 import { toast } from '../store/toastStore';
 import type { GameSession } from '../types/game';
-
-const DeleteSessionDialog = ({
-  session,
-  onConfirm,
-  onCancel,
-  isDeleting,
-}: {
-  session: GameSession;
-  onConfirm: () => void;
-  onCancel: () => void;
-  isDeleting: boolean;
-}) => {
-  return (
-    <div
-      className='fixed inset-0 z-[2000] flex items-center justify-center p-4'
-      role='dialog'
-      aria-modal='true'
-    >
-      {/* Backdrop */}
-      <div
-        className='absolute inset-0 bg-black/60 backdrop-blur-md transition-opacity duration-300'
-        onClick={!isDeleting ? onCancel : undefined}
-      />
-
-      {/* Panel */}
-      <div className='relative w-full max-w-sm bg-[var(--color-surface-hex)] border border-[var(--color-border-hex)] rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200'>
-        <div className='h-1.5 w-full bg-red-600' />
-        <div className='p-8'>
-          <div className='flex items-center justify-center w-14 h-14 rounded-full bg-red-500/10 mb-6 mx-auto'>
-            <AlertTriangle className='w-7 h-7 text-red-500' />
-          </div>
-
-          <h2 className='text-xl font-bold text-[var(--color-text-hex)] text-center mb-2'>
-            Delete Session?
-          </h2>
-          <p className='text-[var(--color-text-muted-hex)] text-center text-sm mb-8 leading-relaxed'>
-            Are you sure you want to delete{' '}
-            <span className='text-[var(--color-text-hex)] font-semibold'>
-              "{session.name || session.ap_seed_name || 'Unnamed Session'}"
-            </span>
-            ? This action is permanent and will delete all nodes and routes
-            associated with it.
-          </p>
-
-          <div className='flex gap-3'>
-            <button
-              onClick={onCancel}
-              disabled={isDeleting}
-              className='flex-1 px-4 py-3 text-xs font-black uppercase tracking-widest rounded-xl border border-[var(--color-border-hex)] text-[var(--color-text-muted-hex)] hover:bg-[var(--color-surface-alt-hex)] hover:text-[var(--color-text-hex)] transition-all disabled:opacity-50'
-            >
-              Cancel
-            </button>
-            <button
-              onClick={onConfirm}
-              disabled={isDeleting}
-              className='flex-1 px-4 py-3 text-xs font-black uppercase tracking-widest rounded-xl bg-red-600 hover:bg-red-500 text-white shadow-lg shadow-red-900/20 transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2'
-            >
-              {isDeleting ? (
-                <>
-                  <Loader2 className='w-4 h-4 animate-spin' />
-                  Deleting...
-                </>
-              ) : (
-                'Confirm Delete'
-              )}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
 
 const Home = () => {
   const { sessions, loading, error, deleteSession } = useSessions();
@@ -133,11 +60,22 @@ const Home = () => {
 
       {/* Delete Confirmation Modal */}
       {sessionToDelete && (
-        <DeleteSessionDialog
-          session={sessionToDelete}
+        <ConfirmDialog
+          title='Delete Session?'
+          message={
+            <>
+              Are you sure you want to delete{' '}
+              <span className='text-[var(--color-text-hex)] font-semibold'>
+                &ldquo;{sessionToDelete.name || sessionToDelete.ap_seed_name || 'Unnamed Session'}&rdquo;
+              </span>
+              ? This action is permanent and will delete all nodes and routes
+              associated with it.
+            </>
+          }
+          confirmLabel={deleteSession.isPending ? 'Deleting...' : 'Confirm Delete'}
           onConfirm={handleDelete}
           onCancel={() => setSessionToDelete(null)}
-          isDeleting={deleteSession.isPending}
+          isLoading={deleteSession.isPending}
         />
       )}
 

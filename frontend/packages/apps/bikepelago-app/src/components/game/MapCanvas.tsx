@@ -8,7 +8,7 @@ import { useDebugStore } from '../../store/debugStore';
 import { getToken } from '../../store/authStore';
 import { downloadGPX } from '../../lib/geoUtils';
 import type { GameSession, MapNode, NodeState } from '../../types/game';
-import { MapResizer, MapAutoFitter, MapEvents } from './MapControls';
+import { MapResizer, MapAutoFitter, MapEvents, MapClickConfirmDialog } from './MapControls';
 
 // Z-index constants
 const Z_INDEX = {
@@ -277,6 +277,8 @@ const MapCanvas = ({ session, nodes }: MapCanvasProps) => {
             )}
         </div>
       )}
+
+      <MapClickConfirmDialog />
     </div>
   );
 };

@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import { useGameStore } from '../../store/gameStore';
+import ConfirmDialog from '../layout/ConfirmDialog';
 import type { MapNode } from '../../types/game';
 
 // Map fit bounds constants
@@ -40,18 +41,45 @@ export const MapAutoFitter = ({ nodes }: { nodes: MapNode[] }) => {
   return null;
 };
 
-// Map click listener — sets the custom route origin pin when the Route panel is open.
+// Map click listener — sets the custom route origin pin.
 // Clicking the map always moves the pin (never toggles it off); click the pin marker to remove it.
+// When an active route exists, the click is held in pendingMapClick until the user confirms.
 export const MapEvents = () => {
-  const activePanel = useGameStore(s => s.activePanel);
   const setCustomOrigin = useGameStore(s => s.setCustomOrigin);
+  const setPendingMapClick = useGameStore(s => s.setPendingMapClick);
+  const routeData = useGameStore(s => s.routeData);
 
   useMapEvents({
     click(e) {
-      if (activePanel === 'route') {
+      if (routeData.polyline.length > 0) {
+        setPendingMapClick([e.latlng.lat, e.latlng.lng]);
+      } else {
         setCustomOrigin([e.latlng.lat, e.latlng.lng]);
       }
     },
   });
   return null;
+};
+
+// Renders a confirmation dialog when the user clicks the map with an active route.
+// Must be rendered outside the MapContainer so it sits above the map.
+export const MapClickConfirmDialog = () => {
+  const pendingMapClick = useGameStore(s => s.pendingMapClick);
+  const setPendingMapClick = useGameStore(s => s.setPendingMapClick);
+  const setCustomOrigin = useGameStore(s => s.setCustomOrigin);
+
+  if (!pendingMapClick) return null;
+
+  return (
+    <ConfirmDialog
+      title='Reset Route?'
+      message='Changing the start point will reset your current route.'
+      confirmLabel='Continue'
+      onConfirm={() => {
+        setCustomOrigin(pendingMapClick);
+        setPendingMapClick(null);
+      }}
+      onCancel={() => setPendingMapClick(null)}
+    />
+  );
 };

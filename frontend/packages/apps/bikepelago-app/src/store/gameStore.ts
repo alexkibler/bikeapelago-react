@@ -52,6 +52,14 @@ interface GameState {
   customOrigin: [number, number] | null;
   setCustomOrigin: (point: [number, number] | null) => void;
 
+  /**
+   * A map click that is pending confirmation (i.e. would reset an active route).
+   * Set by MapEvents when the user clicks the map with an active route; cleared
+   * on confirm or cancel.
+   */
+  pendingMapClick: [number, number] | null;
+  setPendingMapClick: (point: [number, number] | null) => void;
+
   nodes: MapNode[];
   setNodes: (nodes: MapNode[]) => void;
 
@@ -108,13 +116,27 @@ export const useGameStore = create<GameState>((set, get) => ({
       } else {
         next.add(id);
       }
-      return { selectedNodeIds: next };
+      return { 
+        selectedNodeIds: next,
+        routeData: { distance: 0, elevation: 0, polyline: [] }
+      };
     }),
-  clearSelectedNodes: () => set({ selectedNodeIds: new Set<string>() }),
+  clearSelectedNodes: () => set({ 
+    selectedNodeIds: new Set<string>(),
+    routeData: { distance: 0, elevation: 0, polyline: [] }
+  }),
 
   // ── Custom origin pin ──
   customOrigin: null,
-  setCustomOrigin: (point) => set({ customOrigin: point }),
+  setCustomOrigin: (point) =>
+    set({
+      customOrigin: point,
+      routeData: { distance: 0, elevation: 0, polyline: [] },
+    }),
+
+  // ── Pending map click (awaiting confirm-dialog before resetting route) ──
+  pendingMapClick: null,
+  setPendingMapClick: (point) => set({ pendingMapClick: point }),
 
   nodes: [],
   setNodes: (nodes) => set({ nodes }),

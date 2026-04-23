@@ -3,6 +3,7 @@ import { useGameStore } from '../../store/gameStore';
 import { downloadGPX } from '../../lib/geoUtils';
 import { Map as MapIcon, Download, Loader2, ChevronDown, ChevronUp, UploadCloud, MapPin, X } from 'lucide-react';
 import type { MapNode } from '../../types/game';
+import { useIsMobile } from '../../hooks/useIsMobile';
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
@@ -74,6 +75,7 @@ const RoutePanel = ({ sessionId }: { sessionId: string }) => {
   const setCustomOrigin   = useGameStore(s => s.setCustomOrigin);
   const userLocation      = useGameStore(s => s.userLocation);
 
+  const isMobile = useIsMobile();
   const [turnByTurn, setTurnByTurn] = useState(true);
   const [openCategories, setOpenCategories] = useState({ Available: true, Checked: false, Hidden: false });
   const toggleCategory = (cat: string) =>
@@ -113,7 +115,11 @@ const RoutePanel = ({ sessionId }: { sessionId: string }) => {
           </label>
           <button
             id="turn-by-turn"
-            onClick={() => setTurnByTurn(!turnByTurn)}
+            onClick={() => {
+              setTurnByTurn(!turnByTurn);
+              // Clear route data when parameters change
+              useGameStore.setState({ routeData: { distance: 0, elevation: 0, polyline: [] } });
+            }}
             className={`relative w-10 h-5 rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-hex)]/40 ${
               turnByTurn ? 'bg-[var(--color-primary-hex)]' : 'bg-[rgb(var(--color-surface-overlay))]'
             }`}
@@ -128,20 +134,33 @@ const RoutePanel = ({ sessionId }: { sessionId: string }) => {
 
         {/* Route / Build button */}
         <button
-          onClick={() => buildRoute(sessionId, turnByTurn)}
-          disabled={!canRoute}
+          onClick={() => {
+            if (isMobile && routeData.gpxString) {
+              downloadGPX(routeData.gpxString);
+            } else {
+              buildRoute(sessionId, turnByTurn);
+            }
+          }}
+          disabled={isMobile ? (!canRoute && !routeData.gpxString) : (!canRoute || !!routeData.gpxString)}
           className={`w-full font-black py-4 rounded-xl transition-all shadow-lg active:scale-[0.98] ${
-            !canRoute
+            (isMobile ? (!canRoute && !routeData.gpxString) : (!canRoute || !!routeData.gpxString))
               ? 'bg-[rgb(var(--color-surface-overlay))] text-[var(--color-text-subtle-hex)] cursor-not-allowed opacity-50'
-              : hasSelection
-                ? 'bg-violet-600 hover:bg-violet-500 text-white shadow-violet-900/30'
-                : 'bg-[var(--color-primary-hex)] hover:bg-[var(--color-primary-hover-hex)] text-white shadow-primary/20'
+              : (isMobile && routeData.gpxString)
+                ? 'bg-orange-600 hover:bg-orange-500 text-white shadow-orange-900/30'
+                : hasSelection
+                  ? 'bg-violet-600 hover:bg-violet-500 text-white shadow-violet-900/30'
+                  : 'bg-[var(--color-primary-hex)] hover:bg-[var(--color-primary-hover-hex)] text-white shadow-primary/20'
           }`}
         >
           {isRouting ? (
             <span className="flex items-center justify-center gap-2">
               <Loader2 className="w-4 h-4 animate-spin" />
               Optimizing…
+            </span>
+          ) : (isMobile && routeData.gpxString) ? (
+            <span className="flex items-center justify-center gap-2">
+              <Download className="w-5 h-5" />
+              Download .gpx
             </span>
           ) : hasSelection ? 'Build Route' : 'Route to Available'}
         </button>
