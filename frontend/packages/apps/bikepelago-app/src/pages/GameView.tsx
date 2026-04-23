@@ -5,6 +5,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 
 // Extracted Components
 import ArchipelagoReconnectDialog from '../components/game/ArchipelagoReconnectDialog';
+import DebugBanner from '../components/game/DebugBanner';
 import GameStatsBar from '../components/game/GameStatsBar';
 import MapCanvas from '../components/game/MapCanvas';
 import SidePanelCoordinator from '../components/game/SidePanelCoordinator';
@@ -175,6 +176,7 @@ const GameView = () => {
   return (
     <div className='relative w-full h-full flex flex-col bg-[var(--color-surface-alt-hex)]'>
       {showReconnect && <ArchipelagoReconnectDialog {...reconnectProps} />}
+      <DebugBanner />
       <GameStatsBar session={session} nodes={nodes} />
 
       <div className='flex-1 w-full relative flex overflow-hidden pb-20 md:pb-0'>

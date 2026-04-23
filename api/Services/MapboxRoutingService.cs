@@ -204,7 +204,8 @@ public class MapboxRoutingService(HttpClient httpClient, ILogger<MapboxRoutingSe
                       $"access_token={Uri.EscapeDataString(_mapboxApiKey)}&" +
                       $"geometries=geojson&" +
                       $"source=first&" +
-                      $"destination=last";
+                      $"destination=last&" +
+                      $"roundtrip=false";
 
             _logger.LogInformation("Calling Mapbox Optimization API with {Count} coordinates for profile {Profile}", coordinates.Count, profile);
 
