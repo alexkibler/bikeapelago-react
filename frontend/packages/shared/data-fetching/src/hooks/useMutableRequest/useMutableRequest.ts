@@ -38,6 +38,10 @@ function useApiMutableRequest<
       throw new Error(`Request Failed`);
     }
 
+    if (res.status === 204) {
+      return null as unknown as TResponse;
+    }
+
     const data = await res.json() as TResponse;
 
     return data
