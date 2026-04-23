@@ -18,7 +18,7 @@ public class SessionsControllerTests
     private readonly Mock<IGameSessionRepository> _sessionRepoMock;
     private readonly Mock<IMapNodeRepository> _nodeRepoMock;
     private readonly Mock<IUserRepository> _userRepoMock;
-    private readonly Mock<IMapboxRoutingService> _mapboxMock;
+    private readonly Mock<IRouteBuilderService> _routeBuilderMock;
     private readonly SessionsController _controller;
     private readonly Guid _userId;
 
@@ -27,12 +27,9 @@ public class SessionsControllerTests
         _sessionRepoMock = new Mock<IGameSessionRepository>();
         _nodeRepoMock = new Mock<IMapNodeRepository>();
         _userRepoMock = new Mock<IUserRepository>();
-        _mapboxMock = new Mock<IMapboxRoutingService>();
+        _routeBuilderMock = new Mock<IRouteBuilderService>();
 
         _userId = Guid.NewGuid();
-
-        // FitAnalysisService now has an interface IFitAnalysisService.
-        // We'll pass null for now as it's not used in these tests.
 
         _controller = new SessionsController(
             _sessionRepoMock.Object,
@@ -41,7 +38,7 @@ public class SessionsControllerTests
             null!, // IFitAnalysisService
             Mock.Of<IProgressionEngineFactory>(),
             new SessionValidator(Mock.Of<ILogger<SessionValidator>>()),
-            _mapboxMock.Object);
+            _routeBuilderMock.Object);
 
         var claims = new List<Claim>
         {
@@ -73,47 +70,77 @@ public class SessionsControllerTests
         Assert.Single(sessions);
     }
 
+    // ── RouteWaypoints (New Action) – delegation paths ──────────────────────────
+
     [Fact]
-    public async Task SetupSessionFromRoute_WithValidClaims_ReturnsOk()
+    public async Task RouteWaypoints_DelegatesToServiceAndReturnsOk()
     {
         // Arrange
-        var fileMock = new Mock<IFormFile>();
-        var content = "dummy gpx content";
-        var fileName = "test.gpx";
-        var ms = new MemoryStream();
-        var writer = new StreamWriter(ms);
-        writer.Write(content);
-        writer.Flush();
-        ms.Position = 0;
-        fileMock.Setup(_ => _.OpenReadStream()).Returns(ms);
-        fileMock.Setup(_ => _.FileName).Returns(fileName);
-        fileMock.Setup(_ => _.Length).Returns(ms.Length);
-
-        var routeInterpolationMock = new Mock<RouteInterpolationService>(); // May be hard to mock if no interface, but let's test what happens if we use Claims
-        // Actually, SetupSessionFromRoute will fail if we pass null for RouteInterpolationService, but it will fail first on manual token extraction if we don't mock it.
-        // We just want to see if it reaches the user extraction logic or if it fails on manual token extraction.
+        var sessionId = Guid.NewGuid();
+        var request = new RouteWaypointsRequest { NodeIds = [Guid.NewGuid()] };
+        
+        _routeBuilderMock.Setup(s => s.BuildRouteAsync(sessionId, request))
+            .ReturnsAsync(new RouteBuilderResult
+            {
+                Success = true,
+                TotalDistanceMeters = 1000,
+                TotalDurationSeconds = 300,
+                ElevationGain = 50,
+                GpxString = "<gpx/>",
+                Geometry = [[-79.9, 40.4]],
+                OrderedNodeIds = request.NodeIds
+            });
 
         // Act
-        // Catch any exception to verify it passed authorization and didn't return Unauthorized
-        IActionResult? result = null;
-        Exception? thrownException = null;
-        try
-        {
-            result = await _controller.SetupSessionFromRoute(fileMock.Object, 5, null!);
-        }
-        catch (Exception ex)
-        {
-            thrownException = ex;
-        }
+        var result = await _controller.RouteWaypoints(sessionId, request);
 
         // Assert
-        // The action reached execution (meaning authorization succeeded). It either threw an exception or returned an error based on mock data.
-        Assert.True(thrownException != null || result != null);
-        if (result != null)
-        {
-            Assert.IsNotType<UnauthorizedObjectResult>(result);
-            Assert.IsNotType<UnauthorizedResult>(result);
-        }
+        var okResult = Assert.IsType<OkObjectResult>(result);
+        dynamic? val = okResult.Value;
+        Assert.NotNull(val);
+        Assert.True(val?.success);
+        Assert.Equal(1000.0, (double)val?.totalDistanceMeters);
+        _routeBuilderMock.Verify(s => s.BuildRouteAsync(sessionId, request), Times.Once);
+    }
+
+    [Fact]
+    public async Task RouteWaypoints_ServiceReturnsSessionNotFound_ReturnsNotFound()
+    {
+        var sessionId = Guid.NewGuid();
+        var request = new RouteWaypointsRequest();
+        _routeBuilderMock.Setup(s => s.BuildRouteAsync(sessionId, request))
+            .ReturnsAsync(RouteBuilderResult.Fail("Session not found"));
+
+        var result = await _controller.RouteWaypoints(sessionId, request);
+
+        Assert.IsType<NotFoundObjectResult>(result);
+    }
+
+    [Fact]
+    public async Task RouteWaypoints_ServiceReturnsOtherError_ReturnsBadRequest()
+    {
+        var sessionId = Guid.NewGuid();
+        var request = new RouteWaypointsRequest();
+        _routeBuilderMock.Setup(s => s.BuildRouteAsync(sessionId, request))
+            .ReturnsAsync(RouteBuilderResult.Fail("No available nodes to route to"));
+
+        var result = await _controller.RouteWaypoints(sessionId, request);
+
+        var badRequest = Assert.IsType<BadRequestObjectResult>(result);
+        Assert.Contains("No available nodes", badRequest.Value?.ToString());
+    }
+
+    [Fact]
+    public async Task RouteWaypoints_ServiceThrows_ReturnsInternalServerError()
+    {
+        var sessionId = Guid.NewGuid();
+        _routeBuilderMock.Setup(s => s.BuildRouteAsync(sessionId, It.IsAny<RouteWaypointsRequest>()))
+            .ThrowsAsync(new Exception("Database explosion"));
+
+        var result = await _controller.RouteWaypoints(sessionId, new RouteWaypointsRequest());
+
+        var statusResult = Assert.IsType<ObjectResult>(result);
+        Assert.Equal(500, statusResult.StatusCode);
     }
 
     [Fact]
@@ -127,259 +154,5 @@ public class SessionsControllerTests
 
         // Assert
         Assert.IsType<NoContentResult>(result);
-    }
-
-    // ── RouteToAvailableNodes – error paths ────────────────────────────────────
-
-    [Fact]
-    public async Task RouteToAvailableNodes_SessionNotFound_ReturnsNotFound()
-    {
-        var sessionId = Guid.NewGuid();
-        _sessionRepoMock.Setup(r => r.GetByIdAsync(sessionId)).ReturnsAsync((GameSession?)null);
-
-        var result = await _controller.RouteToAvailableNodes(sessionId);
-
-        Assert.IsType<NotFoundObjectResult>(result);
-    }
-
-    [Fact]
-    public async Task RouteToAvailableNodes_SessionHasNoLocation_ReturnsBadRequest()
-    {
-        var sessionId = Guid.NewGuid();
-        _sessionRepoMock.Setup(r => r.GetByIdAsync(sessionId))
-            .ReturnsAsync(new GameSession { Id = sessionId, UserId = _userId, Location = null });
-
-        var result = await _controller.RouteToAvailableNodes(sessionId);
-
-        Assert.IsType<BadRequestObjectResult>(result);
-    }
-
-    [Fact]
-    public async Task RouteToAvailableNodes_NoAvailableNodes_ReturnsBadRequest()
-    {
-        var sessionId = Guid.NewGuid();
-        _sessionRepoMock.Setup(r => r.GetByIdAsync(sessionId))
-            .ReturnsAsync(new GameSession
-            {
-                Id = sessionId,
-                UserId = _userId,
-                Location = new Point(-79.9959, 40.4406) { SRID = 4326 }
-            });
-        _nodeRepoMock.Setup(r => r.GetBySessionIdAsync(sessionId))
-            .ReturnsAsync(new List<MapNode>
-            {
-                new MapNode { State = "Hidden" },
-                new MapNode { State = "Checked" }
-            });
-
-        var result = await _controller.RouteToAvailableNodes(sessionId);
-
-        Assert.IsType<BadRequestObjectResult>(result);
-    }
-
-    [Fact]
-    public async Task RouteToAvailableNodes_RoutingServiceFails_ReturnsBadRequest()
-    {
-        var sessionId = Guid.NewGuid();
-        _sessionRepoMock.Setup(r => r.GetByIdAsync(sessionId))
-            .ReturnsAsync(new GameSession
-            {
-                Id = sessionId,
-                UserId = _userId,
-                Location = new Point(-79.9959, 40.4406) { SRID = 4326 }
-            });
-        _nodeRepoMock.Setup(r => r.GetBySessionIdAsync(sessionId))
-            .ReturnsAsync(new List<MapNode>
-            {
-                new MapNode
-                {
-                    Id = Guid.NewGuid(),
-                    State = "Available",
-                    Location = new Point(-79.9959, 40.4406) { SRID = 4326 }
-                }
-            });
-        _mapboxMock
-            .Setup(m => m.RouteToMultipleNodesAsync(
-                It.IsAny<Point>(), It.IsAny<List<MapNode>>(), It.IsAny<string>()))
-            .ReturnsAsync(new OptimizedRouteResult
-            {
-                Success = false,
-                Error = "OSRM and Mapbox both unavailable"
-            });
-
-        var result = await _controller.RouteToAvailableNodes(sessionId);
-
-        Assert.IsType<BadRequestObjectResult>(result);
-    }
-
-    // ── RouteToAvailableNodes – snapping persistence ───────────────────────────
-
-    [Fact]
-    public async Task RouteToAvailableNodes_WithSnappedLocations_PersistsSnappedPositionsToRepository()
-    {
-        // Arrange
-        var sessionId = Guid.NewGuid();
-        var nodeId = Guid.NewGuid();
-
-        const double originalLat = 40.4400;
-        const double originalLon = -79.9950;
-        const double snappedLat = 40.4405; // routing engine moved the node ~55m north onto the road
-        const double snappedLon = -79.9952;
-
-        var session = new GameSession
-        {
-            Id = sessionId,
-            UserId = _userId,
-            Location = new Point(originalLon, originalLat) { SRID = 4326 }
-        };
-
-        var node = new MapNode
-        {
-            Id = nodeId,
-            SessionId = sessionId,
-            Name = "Off-road Node",
-            State = "Available",
-            Location = new Point(originalLon, originalLat) { SRID = 4326 }
-        };
-
-        _sessionRepoMock.Setup(r => r.GetByIdAsync(sessionId)).ReturnsAsync(session);
-        _nodeRepoMock.Setup(r => r.GetBySessionIdAsync(sessionId)).ReturnsAsync(new List<MapNode> { node });
-        _nodeRepoMock.Setup(r => r.UpdateRangeAsync(It.IsAny<IEnumerable<MapNode>>())).Returns(Task.CompletedTask);
-
-        _mapboxMock
-            .Setup(m => m.RouteToMultipleNodesAsync(
-                It.IsAny<Point>(), It.IsAny<List<MapNode>>(), It.IsAny<string>()))
-            .ReturnsAsync(new OptimizedRouteResult
-            {
-                Success = true,
-                Geometry = new List<List<double>> { new() { snappedLon, snappedLat } },
-                OrderedNodeIds = new List<Guid> { nodeId },
-                SnappedLocations = new Dictionary<Guid, List<double>>
-                {
-                    [nodeId] = new() { snappedLon, snappedLat } // routing engine snapped [lon, lat]
-                },
-                TotalDistanceMeters = 1000,
-                TotalDurationSeconds = 300
-            });
-
-        _mapboxMock.Setup(m => m.CalculateElevationGainAsync(It.IsAny<List<List<double>>>())).ReturnsAsync(50.0);
-        _mapboxMock.Setup(m => m.GenerateGpx(
-            It.IsAny<List<List<double>>>(), It.IsAny<List<MapNode>>(),
-            It.IsAny<bool>(), It.IsAny<Dictionary<Guid, List<double>>?>())).Returns("<gpx/>");
-
-        // Act
-        var result = await _controller.RouteToAvailableNodes(sessionId);
-
-        // Assert – the response is successful
-        Assert.IsType<OkObjectResult>(result);
-
-        // Assert – UpdateRangeAsync was called with the node moved to the snapped position
-        _nodeRepoMock.Verify(
-            r => r.UpdateRangeAsync(It.Is<IEnumerable<MapNode>>(nodes =>
-                nodes.Any(n =>
-                    n.Id == nodeId &&
-                    Math.Abs(n.Lat!.Value - snappedLat) < 1e-6 &&
-                    Math.Abs(n.Lon!.Value - snappedLon) < 1e-6))),
-            Times.Once,
-            "Node should be persisted at the snapped road position");
-    }
-
-    [Fact]
-    public async Task RouteToAvailableNodes_WithNoSnappedLocations_DoesNotCallUpdateRange()
-    {
-        // Arrange
-        var sessionId = Guid.NewGuid();
-        var nodeId = Guid.NewGuid();
-        const double lat = 40.4400;
-        const double lon = -79.9950;
-
-        var session = new GameSession
-        {
-            Id = sessionId,
-            UserId = _userId,
-            Location = new Point(lon, lat) { SRID = 4326 }
-        };
-
-        _sessionRepoMock.Setup(r => r.GetByIdAsync(sessionId)).ReturnsAsync(session);
-        _nodeRepoMock.Setup(r => r.GetBySessionIdAsync(sessionId)).ReturnsAsync(new List<MapNode>
-        {
-            new MapNode
-            {
-                Id = nodeId,
-                SessionId = sessionId,
-                Name = "On-road Node",
-                State = "Available",
-                Location = new Point(lon, lat) { SRID = 4326 }
-            }
-        });
-
-        _mapboxMock
-            .Setup(m => m.RouteToMultipleNodesAsync(
-                It.IsAny<Point>(), It.IsAny<List<MapNode>>(), It.IsAny<string>()))
-            .ReturnsAsync(new OptimizedRouteResult
-            {
-                Success = true,
-                Geometry = new List<List<double>> { new() { lon, lat } },
-                OrderedNodeIds = new List<Guid> { nodeId },
-                SnappedLocations = new Dictionary<Guid, List<double>>(), // nothing snapped
-                TotalDistanceMeters = 500,
-                TotalDurationSeconds = 120
-            });
-
-        _mapboxMock.Setup(m => m.CalculateElevationGainAsync(It.IsAny<List<List<double>>>())).ReturnsAsync(10.0);
-        _mapboxMock.Setup(m => m.GenerateGpx(
-            It.IsAny<List<List<double>>>(), It.IsAny<List<MapNode>>(),
-            It.IsAny<bool>(), It.IsAny<Dictionary<Guid, List<double>>?>())).Returns("<gpx/>");
-
-        // Act
-        var result = await _controller.RouteToAvailableNodes(sessionId);
-
-        // Assert
-        Assert.IsType<OkObjectResult>(result);
-        _nodeRepoMock.Verify(r => r.UpdateRangeAsync(It.IsAny<IEnumerable<MapNode>>()), Times.Never,
-            "UpdateRangeAsync should not be called when the routing engine did not snap any nodes");
-    }
-
-    [Fact]
-    public async Task AnalyzeFitFile_WithValidClaims_ReturnsOk()
-    {
-        // Arrange
-        var fileMock = new Mock<IFormFile>();
-        var content = "dummy gpx content";
-        var fileName = "test.fit";
-        var ms = new MemoryStream();
-        var writer = new StreamWriter(ms);
-        writer.Write(content);
-        writer.Flush();
-        ms.Position = 0;
-        fileMock.Setup(_ => _.OpenReadStream()).Returns(ms);
-        fileMock.Setup(_ => _.FileName).Returns(fileName);
-        fileMock.Setup(_ => _.Length).Returns(ms.Length);
-
-        var sessionId = Guid.NewGuid();
-        _sessionRepoMock.Setup(repo => repo.GetByIdAsync(sessionId))
-            .ReturnsAsync(new GameSession { Id = sessionId, UserId = _userId });
-
-        // Act
-        // Catch any exception to verify it passed authorization and didn't return Unauthorized
-        IActionResult? result = null;
-        Exception? thrownException = null;
-        try
-        {
-            result = await _controller.AnalyzeFitFile(sessionId, fileMock.Object);
-        }
-        catch (Exception ex)
-        {
-            thrownException = ex;
-        }
-
-        // Assert
-        // The action reached execution (meaning authorization succeeded). It either threw an exception or returned an error based on mock data.
-        Assert.True(thrownException != null || result != null);
-        if (result != null)
-        {
-            Assert.IsNotType<UnauthorizedObjectResult>(result);
-            Assert.IsNotType<UnauthorizedResult>(result);
-        }
     }
 }

@@ -23,10 +23,14 @@ const NODE_COLORS: Record<NodeState, string> = {
   Checked: '#22c55e'     // green-500
 };
 
-const getMarkerIcon = (state: NodeState, debugClickable = false) => {
+const getMarkerIcon = (state: NodeState, debugClickable = false, selected = false) => {
   const color = NODE_COLORS[state] || NODE_COLORS.Hidden;
   const cursor = debugClickable ? 'cursor:pointer;' : '';
-  const ring = debugClickable ? `box-shadow:0 0 0 3px rgba(234,179,8,0.6), 0 0 10px ${color};` : `box-shadow:0 0 10px ${color};`;
+  const ring = selected
+    ? `box-shadow:0 0 0 4px rgba(139,92,246,0.8), 0 0 12px ${color};`  // purple selection ring
+    : debugClickable
+      ? `box-shadow:0 0 0 3px rgba(234,179,8,0.6), 0 0 10px ${color};`
+      : `box-shadow:0 0 10px ${color};`;
   return L.divIcon({
     className: 'custom-div-icon',
     html: `<div style="background-color:${color}; width:20px; height:20px; border-radius:50%; border:3px solid rgba(255, 255, 255, 0.5); ${ring} ${cursor}"></div>`,
@@ -34,6 +38,23 @@ const getMarkerIcon = (state: NodeState, debugClickable = false) => {
     iconAnchor: [10, 10]
   });
 };
+
+const getCustomOriginIcon = () =>
+  L.divIcon({
+    className: 'custom-div-icon',
+    html: `
+      <div style="
+        width:26px; height:26px; border-radius:50%;
+        background:linear-gradient(135deg,#7c3aed,#4f46e5);
+        border:3px solid #fff;
+        box-shadow:0 0 0 2px #7c3aed, 0 4px 12px rgba(124,58,237,0.5);
+        display:flex; align-items:center; justify-content:center;
+        font-size:11px; font-weight:900; color:#fff; cursor:pointer;
+      ">S</div>
+    `,
+    iconSize: [26, 26],
+    iconAnchor: [13, 13],
+  });
 
 interface MapCanvasProps {
   session: GameSession;
@@ -46,6 +67,10 @@ const MapCanvas = ({ session, nodes }: MapCanvasProps) => {
   const waypoints = useGameStore(s => s.waypoints);
   const analysisResult = useGameStore(s => s.analysisResult);
   const userLocation = useGameStore(s => s.userLocation);
+  const customOrigin = useGameStore(s => s.customOrigin);
+  const setCustomOrigin = useGameStore(s => s.setCustomOrigin);
+  const selectedNodeIds = useGameStore(s => s.selectedNodeIds);
+  const toggleSelectedNode = useGameStore(s => s.toggleSelectedNode);
   const setNodes = useGameStore(s => s.setNodes);
   const debugMode = useDebugStore(s => s.debugMode);
 
@@ -126,14 +151,26 @@ const MapCanvas = ({ session, nodes }: MapCanvasProps) => {
         )}
         
         {nodes.map(node => {
-          const debugClickable = debugMode && node.state === 'Available' && pendingDebugNodeId !== node.id;
+          const isSelected = selectedNodeIds.has(node.id);
+          const inRouteMode = activePanel === 'route';
+          // Debug-clickable only when debug mode is on and NOT in route-selection mode
+          const debugClickable = debugMode && !inRouteMode && node.state === 'Available' && pendingDebugNodeId !== node.id;
+          // Available nodes are selectable when the Route panel is open
+          const routeSelectable = inRouteMode && node.state === 'Available';
+
+          const handleClick = routeSelectable
+            ? () => toggleSelectedNode(node.id)
+            : debugClickable
+              ? () => handleDebugCheck(node)
+              : undefined;
+
           return (
             <Marker
               key={node.id}
               position={[node.lat, node.lon]}
-              icon={getMarkerIcon(node.state, debugClickable)}
+              icon={getMarkerIcon(node.state, debugClickable, isSelected)}
               title={node.name}
-              eventHandlers={debugClickable ? { click: () => handleDebugCheck(node) } : undefined}
+              eventHandlers={handleClick ? { click: handleClick } : undefined}
             />
           );
         })}
@@ -158,6 +195,16 @@ const MapCanvas = ({ session, nodes }: MapCanvasProps) => {
             })}
           />
         ))}
+
+        {/* Custom origin pin — click to clear */}
+        {customOrigin && (
+          <Marker
+            position={customOrigin}
+            icon={getCustomOriginIcon()}
+            zIndexOffset={900}
+            eventHandlers={{ click: () => setCustomOrigin(null) }}
+          />
+        )}
 
         {userLocation && (
           <Marker

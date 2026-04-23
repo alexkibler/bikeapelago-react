@@ -14,12 +14,6 @@ interface RouteData {
   gpxString?: string;
 }
 
-interface DiscoveryRouteResponse {
-  distanceMeters: number;
-  elevation?: number;
-  geometry: [number, number][];
-}
-
 interface SnappedLocation {
   lon: number;
   lat: number;
@@ -42,10 +36,21 @@ interface GameState {
   togglePanel: (panel: GamePanel) => void;
 
   waypoints: [number, number][];
-  addWaypoint: (point: [number, number]) => void;
-  addWaypoints: (points: [number, number][]) => void;
   setWaypoints: (points: [number, number][]) => void;
   clearWaypoints: () => void;
+
+  /** Node IDs the user has manually selected to include in the route. */
+  selectedNodeIds: Set<string>;
+  toggleSelectedNode: (id: string) => void;
+  clearSelectedNodes: () => void;
+
+  /**
+   * User-clicked starting pin on the map.
+   * When set, used as the route origin instead of userLocation / session centre.
+   * Cleared by clicking the pin marker or pressing Clear Route.
+   */
+  customOrigin: [number, number] | null;
+  setCustomOrigin: (point: [number, number] | null) => void;
 
   nodes: MapNode[];
   setNodes: (nodes: MapNode[]) => void;
@@ -55,11 +60,12 @@ interface GameState {
 
   isRouting: boolean;
   routingError: string | null;
-  fetchRoute: () => Promise<void>;
-  optimizeRouteToAvailable: (
-    sessionId: string,
-    turnByTurn?: boolean,
-  ) => Promise<void>;
+
+  /**
+   * Build a route to the selected nodes (or all available nodes if none are selected).
+   * Uses customOrigin → userLocation → session centre as the starting point.
+   */
+  buildRoute: (sessionId: string, turnByTurn?: boolean) => Promise<void>;
 
   analysisResult: FitAnalysisResult | null;
   setAnalysisResult: (result: FitAnalysisResult | null) => void;
@@ -79,22 +85,36 @@ export const useGameStore = create<GameState>((set, get) => ({
       activePanel: state.activePanel === panel ? null : panel,
     })),
 
+  // ── Waypoints (output-only — populated by buildRoute for numbered markers) ──
   waypoints: [],
-  addWaypoint: (point) =>
-    set((state) => ({
-      waypoints: [...state.waypoints, point],
-    })),
-  addWaypoints: (points) =>
-    set((state) => ({
-      waypoints: [...state.waypoints, ...points],
-    })),
   setWaypoints: (waypoints) => set({ waypoints }),
-  clearWaypoints: () =>
+  clearWaypoints: () => {
     set({
       waypoints: [],
       routeData: { distance: 0, elevation: 0, polyline: [] },
       routingError: null,
+    });
+    get().clearSelectedNodes();
+    get().setCustomOrigin(null);
+  },
+
+  // ── Node selection ──
+  selectedNodeIds: new Set<string>(),
+  toggleSelectedNode: (id) =>
+    set((state) => {
+      const next = new Set(state.selectedNodeIds);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return { selectedNodeIds: next };
     }),
+  clearSelectedNodes: () => set({ selectedNodeIds: new Set<string>() }),
+
+  // ── Custom origin pin ──
+  customOrigin: null,
+  setCustomOrigin: (point) => set({ customOrigin: point }),
 
   nodes: [],
   setNodes: (nodes) => set({ nodes }),
@@ -108,57 +128,33 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   isRouting: false,
   routingError: null,
-  fetchRoute: async () => {
-    const { waypoints } = get();
-    if (waypoints.length < 2) {
-      set({
-        routeData: { distance: 0, elevation: 0, polyline: [] },
-        routingError: null,
-      });
-      return;
-    }
 
+  buildRoute: async (sessionId: string, turnByTurn = true) => {
+    const { selectedNodeIds, customOrigin, userLocation, nodes } = get();
     set({ isRouting: true, routingError: null });
+
     try {
-      const data = await apiFetch<DiscoveryRouteResponse>(
-        ENDPOINTS.DISCOVERY.ROUTE,
+      // Build origin: customOrigin > userLocation > omit (server falls back to session centre)
+      const origin: { lat: number; lon: number } | undefined =
+        customOrigin
+          ? { lat: customOrigin[0], lon: customOrigin[1] }
+          : userLocation
+            ? { lat: userLocation[0], lon: userLocation[1] }
+            : undefined;
+
+      // Build nodeIds: selected subset > empty (server uses all Available)
+      const nodeIds = selectedNodeIds.size > 0 ? [...selectedNodeIds] : [];
+
+      const data = await apiFetch<OptimizationResponse>(
+        `${ENDPOINTS.SESSIONS}/${sessionId}/route`,
         {
           method: 'POST',
           body: JSON.stringify({
-            waypoints: waypoints.map((wp) => ({ lat: wp[0], lon: wp[1] })),
+            customOrigin: origin,
+            nodeIds,
             profile: 'cycling',
+            turnByTurn,
           }),
-        },
-      );
-
-      // Parse geometry safely. Expecting array of [lon, lat] from Mapbox geojson
-      const polyline = (data.geometry || []).map(
-        (p: [number, number]) => [p[1], p[0]] as PolylinePoint,
-      );
-
-      set({
-        routeData: {
-          distance: data.distanceMeters / 1000,
-          elevation: data.elevation || 0,
-          polyline,
-        },
-        isRouting: false,
-      });
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Routing failed';
-      set({ routingError: message, isRouting: false });
-    }
-  },
-
-  optimizeRouteToAvailable: async (sessionId: string, turnByTurn = true) => {
-    const { nodes, userLocation } = get();
-    set({ isRouting: true, routingError: null });
-
-    try {
-      const data = await apiFetch<OptimizationResponse>(
-        `${ENDPOINTS.SESSIONS}/${sessionId}/route-to-available?profile=cycling&turnByTurn=${turnByTurn}`,
-        {
-          method: 'POST',
         },
       );
 
@@ -176,7 +172,17 @@ export const useGameStore = create<GameState>((set, get) => ({
           },
         });
 
-        const allNodesMap = new Map(nodes.map((n) => [n.id, n]));
+        // Apply snapped positions to in-memory node list so markers render on the route
+        let updatedNodes = nodes;
+        if (data.snappedNodeLocations) {
+          updatedNodes = nodes.map((n) => {
+            const snapped = data.snappedNodeLocations![n.id];
+            return snapped ? { ...n, lat: snapped.lat, lon: snapped.lon } : n;
+          });
+        }
+
+        // Populate waypoints with ordered node positions for numbered marker display
+        const allNodesMap = new Map(updatedNodes.map((n) => [n.id, n]));
         const orderedPoints: [number, number][] = data.orderedNodeIds
           .map((id: string) => {
             const snapped = data.snappedNodeLocations?.[id];
@@ -186,27 +192,18 @@ export const useGameStore = create<GameState>((set, get) => ({
           })
           .filter((p): p is [number, number] => p !== null);
 
-        const newWaypoints: [number, number][] = userLocation
-          ? [userLocation, ...orderedPoints]
-          : orderedPoints;
-
-        // Apply snapped positions to the in-memory node list so markers
-        // render on the route without a refetch
-        let updatedNodes = nodes;
-        if (data.snappedNodeLocations) {
-          updatedNodes = nodes.map((n) => {
-            const snapped = data.snappedNodeLocations![n.id];
-            return snapped ? { ...n, lat: snapped.lat, lon: snapped.lon } : n;
-          });
-        }
-
-        set({ waypoints: newWaypoints, nodes: updatedNodes, isRouting: false });
+        set({
+          waypoints: orderedPoints,
+          nodes: updatedNodes,
+          isRouting: false,
+          // Clear selection after a successful route build
+          selectedNodeIds: new Set<string>(),
+        });
       } else {
-        throw new Error(data.message || 'Optimization failed');
+        throw new Error(data.message || 'Routing failed');
       }
     } catch (err: unknown) {
-      const message =
-        err instanceof Error ? err.message : 'Optimization failed';
+      const message = err instanceof Error ? err.message : 'Routing failed';
       set({ routingError: message, isRouting: false });
     }
   },

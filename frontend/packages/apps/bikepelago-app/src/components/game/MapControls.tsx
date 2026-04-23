@@ -40,15 +40,16 @@ export const MapAutoFitter = ({ nodes }: { nodes: MapNode[] }) => {
   return null;
 };
 
-// Map click listener for routing
+// Map click listener — sets the custom route origin pin when the Route panel is open.
+// Clicking the map always moves the pin (never toggles it off); click the pin marker to remove it.
 export const MapEvents = () => {
   const activePanel = useGameStore(s => s.activePanel);
-  const addWaypoint = useGameStore(s => s.addWaypoint);
-  
+  const setCustomOrigin = useGameStore(s => s.setCustomOrigin);
+
   useMapEvents({
     click(e) {
       if (activePanel === 'route') {
-        addWaypoint([e.latlng.lat, e.latlng.lng]);
+        setCustomOrigin([e.latlng.lat, e.latlng.lng]);
       }
     },
   });

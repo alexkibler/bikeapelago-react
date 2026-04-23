@@ -17,7 +17,7 @@ public class SessionsController(
     IFitAnalysisService fitAnalysisService,
     IProgressionEngineFactory engineFactory,
     SessionValidator sessionValidator,
-    IMapboxRoutingService mapboxRoutingService) : ControllerBase
+    IRouteBuilderService routeBuilderService) : ControllerBase
 {
     private readonly IGameSessionRepository _sessionRepository = sessionRepository;
     private readonly IMapNodeRepository _nodeRepository = nodeRepository;
@@ -25,7 +25,7 @@ public class SessionsController(
     private readonly IFitAnalysisService _fitAnalysisService = fitAnalysisService;
     private readonly IProgressionEngineFactory _engineFactory = engineFactory;
     private readonly SessionValidator _sessionValidator = sessionValidator;
-    private readonly IMapboxRoutingService _mapboxRoutingService = mapboxRoutingService;
+    private readonly IRouteBuilderService _routeBuilderService = routeBuilderService;
 
     [HttpGet]
     [Microsoft.AspNetCore.Authorization.Authorize]
@@ -336,65 +336,21 @@ public class SessionsController(
         }
     }
 
-    [HttpPost("{id}/route-to-available")]
-    public async Task<IActionResult> RouteToAvailableNodes(Guid id, [FromQuery] string profile = "cycling", [FromQuery] bool turnByTurn = true)
+    [HttpPost("{id}/route")]
+    public async Task<IActionResult> RouteWaypoints(Guid id, [FromBody] RouteWaypointsRequest request)
     {
         try
         {
-            var session = await _sessionRepository.GetByIdAsync(id);
-            if (session == null)
-                return NotFound(new { message = "Session not found" });
-
-            if (session.Location == null)
-                return BadRequest(new { message = "Session has no starting location" });
-
-            var allNodes = await _nodeRepository.GetBySessionIdAsync(id);
-            var availableNodes = allNodes.Where(n => n.State == "Available").ToList();
-
-            if (availableNodes.Count == 0)
-                return BadRequest(new { message = "No available nodes to route to" });
-
-            // Call the Mapbox routing service to optimize the route
-            var result = await _mapboxRoutingService.RouteToMultipleNodesAsync(
-                session.Location,
-                availableNodes,
-                profile);
+            var result = await _routeBuilderService.BuildRouteAsync(id, request);
 
             if (!result.Success)
-                return BadRequest(new { message = result.Error });
-
-            var elevationGain = await _mapboxRoutingService.CalculateElevationGainAsync(result.Geometry);
-
-            // Reconstruct the ordered MapNode list to build the GPX
-            var orderedNodes = result.OrderedNodeIds
-                .Select(id => availableNodes.FirstOrDefault(n => n.Id == id))
-                .Where(n => n != null)
-                .Cast<MapNode>()
-                .ToList();
-
-            // Persist snapped locations so FIT file processing uses the correct road positions
-            if (result.SnappedLocations.Count > 0)
             {
-                var nodesToUpdate = new List<MapNode>();
-                foreach (var node in orderedNodes)
-                {
-                    if (result.SnappedLocations.TryGetValue(node.Id, out var snapped) && snapped.Count >= 2)
-                    {
-                        node.Location = new NetTopologySuite.Geometries.Point(snapped[0], snapped[1]) { SRID = 4326 };
-                        nodesToUpdate.Add(node);
-                    }
-                }
-                if (nodesToUpdate.Count > 0)
-                    await _nodeRepository.UpdateRangeAsync(nodesToUpdate);
+                // Distinguish 404 (session/nodes not found) from 400 (no available nodes etc.)
+                if (result.Error == "Session not found")
+                    return NotFound(new { message = result.Error });
+
+                return BadRequest(new { message = result.Error });
             }
-
-            var gpxString = _mapboxRoutingService.GenerateGpx(result.Geometry, orderedNodes, turnByTurn, result.SnappedLocations);
-
-            // Build a serializable snapped locations map: { "nodeId": { lat, lon } }
-            var snappedNodeLocations = result.SnappedLocations
-                .ToDictionary(
-                    kvp => kvp.Key.ToString(),
-                    kvp => new { lon = kvp.Value[0], lat = kvp.Value[1] });
 
             return Ok(new
             {
@@ -403,9 +359,9 @@ public class SessionsController(
                 orderedNodeIds = result.OrderedNodeIds,
                 totalDistanceMeters = result.TotalDistanceMeters,
                 totalDurationSeconds = result.TotalDurationSeconds,
-                elevation = elevationGain,
-                gpxString = gpxString,
-                snappedNodeLocations
+                elevation = result.ElevationGain,
+                gpxString = result.GpxString,
+                snappedNodeLocations = result.SnappedNodeLocations,
             });
         }
         catch (Exception ex)
