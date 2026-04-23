@@ -214,6 +214,7 @@ public class GridCacheService : IGridCacheService
                     UPDATE grid_cache_jobs
                     SET status = 'processing', started_at = NOW()
                     WHERE grid_x = @grid_x AND grid_y = @grid_y AND mode = @mode
+                    AND status = 'pending'
                     RETURNING id
                     """;
                 cmd.Parameters.AddWithValue("grid_x", gridX);
@@ -222,6 +223,12 @@ public class GridCacheService : IGridCacheService
 
                 var result = await cmd.ExecuteScalarAsync();
                 if (result != null) int.TryParse(result.ToString(), out jobId);
+            }
+            
+            if (jobId == -1)
+            {
+                _logger.LogWarning("No pending job found for grid cell ({X}, {Y}), mode: {Mode}. It may have been picked up by another worker.", gridX, gridY, mode);
+                return;
             }
 
             // Fetch highway tag filters for mode
@@ -275,11 +282,9 @@ public class GridCacheService : IGridCacheService
                 cmd.CommandText = """
                     UPDATE grid_cache_jobs
                     SET status = 'completed', completed_at = NOW()
-                    WHERE grid_x = @grid_x AND grid_y = @grid_y AND mode = @mode
+                    WHERE id = @id
                     """;
-                cmd.Parameters.AddWithValue("grid_x", gridX);
-                cmd.Parameters.AddWithValue("grid_y", gridY);
-                cmd.Parameters.AddWithValue("mode", mode);
+                cmd.Parameters.AddWithValue("id", jobId);
                 await cmd.ExecuteNonQueryAsync();
             }
 
@@ -298,12 +303,10 @@ public class GridCacheService : IGridCacheService
                 cmd.CommandText = """
                     UPDATE grid_cache_jobs
                     SET status = 'failed', completed_at = NOW(), error_message = @error
-                    WHERE grid_x = @grid_x AND grid_y = @grid_y AND mode = @mode
+                    WHERE id = @id
                     """;
                 cmd.Parameters.AddWithValue("error", ex.Message);
-                cmd.Parameters.AddWithValue("grid_x", gridX);
-                cmd.Parameters.AddWithValue("grid_y", gridY);
-                cmd.Parameters.AddWithValue("mode", mode);
+                cmd.Parameters.AddWithValue("id", jobId);
                 await cmd.ExecuteNonQueryAsync();
             }
             catch { /* Silent fail on error marking */ }
