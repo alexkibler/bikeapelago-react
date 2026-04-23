@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useGameStore } from '../../store/gameStore';
-import { downloadGPXFromPolyline, downloadGPX, generateGPXFromNodes } from '../../lib/geoUtils';
+import { downloadGPX } from '../../lib/geoUtils';
 import { Map as MapIcon, Download, Loader2, ChevronDown, ChevronUp, UploadCloud, MapPin, X } from 'lucide-react';
 import type { MapNode } from '../../types/game';
 
@@ -127,26 +127,24 @@ const RoutePanel = ({ sessionId }: { sessionId: string }) => {
         </div>
 
         {/* Route / Build button */}
-        {turnByTurn && (
-          <button
-            onClick={() => buildRoute(sessionId, turnByTurn)}
-            disabled={!canRoute}
-            className={`w-full font-black py-4 rounded-xl transition-all shadow-lg active:scale-[0.98] ${
-              !canRoute
-                ? 'bg-[rgb(var(--color-surface-overlay))] text-[var(--color-text-subtle-hex)] cursor-not-allowed opacity-50'
-                : hasSelection
-                  ? 'bg-violet-600 hover:bg-violet-500 text-white shadow-violet-900/30'
-                  : 'bg-[var(--color-primary-hex)] hover:bg-[var(--color-primary-hover-hex)] text-white shadow-primary/20'
-            }`}
-          >
-            {isRouting ? (
-              <span className="flex items-center justify-center gap-2">
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Optimizing…
-              </span>
-            ) : hasSelection ? 'Build Route' : 'Route to Available'}
-          </button>
-        )}
+        <button
+          onClick={() => buildRoute(sessionId, turnByTurn)}
+          disabled={!canRoute}
+          className={`w-full font-black py-4 rounded-xl transition-all shadow-lg active:scale-[0.98] ${
+            !canRoute
+              ? 'bg-[rgb(var(--color-surface-overlay))] text-[var(--color-text-subtle-hex)] cursor-not-allowed opacity-50'
+              : hasSelection
+                ? 'bg-violet-600 hover:bg-violet-500 text-white shadow-violet-900/30'
+                : 'bg-[var(--color-primary-hex)] hover:bg-[var(--color-primary-hover-hex)] text-white shadow-primary/20'
+          }`}
+        >
+          {isRouting ? (
+            <span className="flex items-center justify-center gap-2">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Optimizing…
+            </span>
+          ) : hasSelection ? 'Build Route' : 'Route to Available'}
+        </button>
 
         {/* Origin status row */}
         <div className="flex items-center gap-2 px-1">
@@ -285,20 +283,13 @@ const RoutePanel = ({ sessionId }: { sessionId: string }) => {
 
           <button
             onClick={() => {
-              if (!turnByTurn) {
-                const gpx = generateGPXFromNodes(availableNodes.map(n => ({ name: n.name, lat: n.lat, lon: n.lon })));
-                downloadGPX(gpx, 'bikeapelago_destinations.gpx');
-                return;
-              }
               if (routeData.gpxString) {
                 downloadGPX(routeData.gpxString);
-              } else {
-                downloadGPXFromPolyline(routeData.polyline);
               }
             }}
-            disabled={turnByTurn ? routeData.polyline.length === 0 : availableNodes.length === 0}
+            disabled={!routeData.gpxString}
             className={`flex items-center gap-2 px-6 py-3 rounded-xl font-black transition-all ${
-              (turnByTurn ? routeData.polyline.length > 0 : availableNodes.length > 0)
+              routeData.gpxString
                 ? 'bg-[var(--color-primary-hex)]/20 text-[var(--color-primary-hex)] hover:bg-[var(--color-primary-hex)]/30 border border-[var(--color-primary-hex)]/30 shadow-lg'
                 : 'bg-[rgb(var(--color-surface-overlay))] text-[var(--color-text-subtle-hex)] border border-[var(--color-border-hex)] cursor-not-allowed'
             }`}
