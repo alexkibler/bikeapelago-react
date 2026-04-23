@@ -17,6 +17,12 @@ local ways = osm2pgsql.define_way_table('planet_osm_ways_new', {
 -- No explicit way_nodes table needed - will be created post-import via spatial queries
 
 -- Check if a way is safe for cycling or walking
+local function is_private(tags)
+    local access = tags.access
+    return access == 'private' or access == 'no'
+end
+
+
 local function is_cycling_safe(tags)
     local highway = tags.highway
     if not highway then return false end
@@ -28,13 +34,16 @@ local function is_cycling_safe(tags)
     if tags.bicycle == 'no' then
         return false
     end
+    if is_private(tags) then
+        return false
+    end
 
     -- Include most other highways
     local good_highways = {
         residential = true, secondary = true, tertiary = true, primary = true,
         primary_link = true, secondary_link = true, tertiary_link = true,
         unclassified = true, living_street = true, path = true,
-        cycleway = true, footway = true, track = true, service = true
+        cycleway = true, footway = true
     }
 
     return good_highways[highway] or false
@@ -51,13 +60,16 @@ local function is_walking_safe(tags)
     if tags.foot == 'no' then
         return false
     end
+    if is_private(tags) then
+        return false
+    end
 
     -- Include most other highways
     local good_highways = {
         residential = true, secondary = true, tertiary = true, primary = true,
         primary_link = true, secondary_link = true, tertiary_link = true,
         unclassified = true, living_street = true, path = true,
-        cycleway = true, footway = true, track = true, service = true
+        cycleway = true, footway = true
     }
 
     return good_highways[highway] or false

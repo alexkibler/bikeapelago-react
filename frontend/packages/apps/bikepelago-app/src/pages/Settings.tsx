@@ -10,17 +10,20 @@ import {
   ShieldAlert,
   Trash2,
   User,
+  Bug,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 import { useDeleteAllSessions } from '../operations/sessions';
 import { getToken, useAuthStore } from '../store/authStore';
+import { useDebugStore } from '../store/debugStore';
 import { toast } from '../store/toastStore';
 
 const Settings = () => {
   const navigate = useNavigate();
   const { user, updateUser } = useAuthStore();
   const deleteAllSessionsMutation = useDeleteAllSessions();
+  const { debugMode, toggle: toggleDebug } = useDebugStore();
 
   // Username State
   const [newUsername, setNewUsername] = useState(user?.username || '');
@@ -260,6 +263,42 @@ const Settings = () => {
               )}
             </div>
           </form>
+        </section>
+
+        {/* Developer */}
+        <section className='bg-[var(--color-surface-hex)] border border-[var(--color-border-hex)] rounded-3xl p-8 backdrop-blur-sm'>
+          <div className='flex items-center gap-4 mb-8'>
+            <div className='p-3 bg-yellow-500/10 rounded-2xl text-yellow-500'>
+              <Bug className='w-6 h-6' />
+            </div>
+            <div>
+              <h2 className='text-xl font-bold text-[var(--color-text-hex)]'>
+                Developer
+              </h2>
+              <p className='text-sm text-[var(--color-text-muted-hex)]'>
+                Tools for testing. Resets when you close the tab.
+              </p>
+            </div>
+          </div>
+
+          <div className='flex items-center justify-between max-w-md'>
+            <div>
+              <p className='text-sm font-bold text-[var(--color-text-hex)]'>Debug Mode</p>
+              <p className='text-xs text-[var(--color-text-muted-hex)] mt-0.5'>
+                Tap available nodes on the map to manually mark them as checked.
+              </p>
+            </div>
+            <button
+              onClick={toggleDebug}
+              className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 ${debugMode ? 'bg-yellow-500' : 'bg-[var(--color-border-strong-hex)]'}`}
+              role='switch'
+              aria-checked={debugMode}
+            >
+              <span
+                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ${debugMode ? 'translate-x-5' : 'translate-x-0'}`}
+              />
+            </button>
+          </div>
         </section>
 
         {/* Danger Zone */}

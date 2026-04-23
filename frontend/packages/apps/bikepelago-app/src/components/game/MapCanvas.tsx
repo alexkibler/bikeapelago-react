@@ -1,9 +1,11 @@
-import { useMemo, useRef } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { MapContainer, TileLayer, Marker, ZoomControl, Polyline, Circle } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Navigation } from 'lucide-react';
 import { useGameStore } from '../../store/gameStore';
+import { useDebugStore } from '../../store/debugStore';
+import { getToken } from '../../store/authStore';
 import { downloadGPXFromPolyline } from '../../lib/geoUtils';
 import type { GameSession, MapNode, NodeState } from '../../types/game';
 import { MapResizer, MapAutoFitter, MapEvents } from './MapControls';
@@ -21,11 +23,13 @@ const NODE_COLORS: Record<NodeState, string> = {
   Checked: '#22c55e'     // green-500
 };
 
-const getMarkerIcon = (state: NodeState) => {
+const getMarkerIcon = (state: NodeState, debugClickable = false) => {
   const color = NODE_COLORS[state] || NODE_COLORS.Hidden;
-  return L.divIcon({ 
-    className: 'custom-div-icon', 
-    html: `<div style="background-color:${color}; width:20px; height:20px; border-radius:50%; border:3px solid rgba(255, 255, 255, 0.5); box-shadow:0 0 10px ${color}"></div>`,
+  const cursor = debugClickable ? 'cursor:pointer;' : '';
+  const ring = debugClickable ? `box-shadow:0 0 0 3px rgba(234,179,8,0.6), 0 0 10px ${color};` : `box-shadow:0 0 10px ${color};`;
+  return L.divIcon({
+    className: 'custom-div-icon',
+    html: `<div style="background-color:${color}; width:20px; height:20px; border-radius:50%; border:3px solid rgba(255, 255, 255, 0.5); ${ring} ${cursor}"></div>`,
     iconSize: [20, 20],
     iconAnchor: [10, 10]
   });
@@ -42,8 +46,33 @@ const MapCanvas = ({ session, nodes }: MapCanvasProps) => {
   const waypoints = useGameStore(s => s.waypoints);
   const analysisResult = useGameStore(s => s.analysisResult);
   const userLocation = useGameStore(s => s.userLocation);
-  
+  const setNodes = useGameStore(s => s.setNodes);
+  const debugMode = useDebugStore(s => s.debugMode);
+
+  const [pendingDebugNodeId, setPendingDebugNodeId] = useState<string | null>(null);
+
   const mapRef = useRef<L.Map | null>(null);
+
+  const handleDebugCheck = async (node: MapNode) => {
+    if (!debugMode || node.state !== 'Available' || pendingDebugNodeId) return;
+    setPendingDebugNodeId(node.id);
+    try {
+      const token = getToken();
+      const res = await fetch(`/api/sessions/${session.id}/nodes/check`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ nodeIds: [node.id] }),
+      });
+      if (res.ok) {
+        setNodes(nodes.map(n => n.id === node.id ? { ...n, state: 'Checked' as const } : n));
+      }
+    } finally {
+      setPendingDebugNodeId(null);
+    }
+  };
 
   const locateUser = () => {
     if (userLocation && mapRef.current) {
@@ -96,14 +125,18 @@ const MapCanvas = ({ session, nodes }: MapCanvasProps) => {
           />
         )}
         
-        {nodes.map(node => (
-          <Marker 
-            key={node.id} 
-            position={[node.lat, node.lon]} 
-            icon={getMarkerIcon(node.state)} 
-            title={node.name}
-          />
-        ))}
+        {nodes.map(node => {
+          const debugClickable = debugMode && node.state === 'Available' && pendingDebugNodeId !== node.id;
+          return (
+            <Marker
+              key={node.id}
+              position={[node.lat, node.lon]}
+              icon={getMarkerIcon(node.state, debugClickable)}
+              title={node.name}
+              eventHandlers={debugClickable ? { click: () => handleDebugCheck(node) } : undefined}
+            />
+          );
+        })}
 
         {routeData.polyline.length > 0 && (
           <Polyline positions={routeData.polyline} color="#f97316" weight={5} opacity={0.7} />

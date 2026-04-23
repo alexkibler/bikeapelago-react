@@ -1,0 +1,62 @@
+# Bikeapelago OrbStack production deployment
+#
+# Uses pre-built images from GHCR (published by CI on push to main).
+#
+# Usage:
+#   docker compose -f docker-compose.deploy.yml pull
+#   docker compose -f docker-compose.deploy.yml up -d --force-recreate
+#
+# Required .env vars:
+#   MAPBOX_API_KEY, JWT_KEY, ADMIN_EMAIL, ADMIN_PASSWORD, DB_PASSWORD, OSM_DISCOVERY_PASSWORD
+
+networks:
+  bikeapelago:
+    name: bikeapelago
+    external: true
+
+services:
+
+  bikeapelago-api:
+    image: ghcr.io/alexkibler/bikeapelago-react/api:latest
+    platform: linux/amd64
+    container_name: bikeapelago-api
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:5054
+      Mapbox__ApiKey: ${MAPBOX_API_KEY}
+      Jwt__Key: ${JWT_KEY}
+      Admin__Email: ${ADMIN_EMAIL}
+      Admin__Password: ${ADMIN_PASSWORD}
+      ConnectionStrings__PostGis: ${DEPLOY_POSTGIS_CONNSTR:-Host=postgis-bikeapelago-dev;Port=5432;Database=bikeapelago;Username=osm;Password=postgres}
+      ConnectionStrings__OsmDiscovery: ${DEPLOY_OSM_CONNSTR:-Host=postgis-osm-prod;Port=5432;Database=osm_discovery;Username=osm;Password=postgres}
+      AllowedOrigins__0: ${ALLOWED_ORIGIN_0:-https://bikeapelago.alexkibler.com}
+      AllowedOrigins__1: ${ALLOWED_ORIGIN_1:-https://admin.bikeapelago.alexkibler.com}
+    networks:
+      - bikeapelago
+
+  bikeapelago-react:
+    image: ghcr.io/alexkibler/bikeapelago-react/frontend:latest
+    platform: linux/amd64
+    container_name: bikeapelago-react
+    restart: unless-stopped
+    ports:
+      - "8192:80"
+    environment:
+      API_PROXY_URL: ${API_PROXY_URL:-http://bikeapelago-api:5054/api/}
+      API_HUBS_URL: ${API_HUBS_URL:-http://bikeapelago-api:5054/hubs/}
+    networks:
+      - bikeapelago
+
+  bikeapelago-admin:
+    image: ghcr.io/alexkibler/bikeapelago-react/admin-ui:latest
+    platform: linux/amd64
+    container_name: bikeapelago-admin
+    restart: unless-stopped
+    ports:
+      - "8183:80"
+    environment:
+      API_PROXY_URL: ${API_PROXY_URL:-http://bikeapelago-api:5054/api/}
+      API_HUBS_URL: ${API_HUBS_URL:-http://bikeapelago-api:5054/hubs/}
+    networks:
+      - bikeapelago
