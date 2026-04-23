@@ -127,8 +127,11 @@ public class ArchipelagoService(IHubContext<ArchipelagoHub> hubContext, ILogger<
             }
             catch (SocketException)
             {
-                _logger.LogInformation("Hostname 'archipelago' is not resolvable. Translating to 'localhost' for local development.");
-                connectionUrl = url.Replace("archipelago", "localhost");
+                var isDocker = Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER") == "true";
+                var replacement = isDocker ? "host.docker.internal" : "localhost";
+
+                _logger.LogInformation("Hostname 'archipelago' is not resolvable. Translating to '{Replacement}' for local development.", replacement);
+                connectionUrl = url.Replace("archipelago", replacement);
             }
             catch (Exception ex)
             {
