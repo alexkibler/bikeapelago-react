@@ -1,8 +1,10 @@
 using System.Collections.Generic;
+using Bikeapelago.Api.Models;
 
 namespace Bikeapelago.Api.Services;
 
 public interface IRouteInterpolationService
 {
-    List<Models.PathPoint> InterpolateRoute(List<Models.PathPoint> originalPath, int targetCount);
+    List<PathPoint> InterpolateRoute(List<PathPoint> originalPath, int targetCount);
+    (double CenterLat, double CenterLon, double MaxRadius) ComputeBoundingMetrics(List<PathPoint> path);
 }

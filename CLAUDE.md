@@ -7,29 +7,48 @@ General instructions for AI agents working in the Bikeapelago monorepo.
 - `frontend/`: React SPA with Vite & TypeScript.
 
 ## Build and Test Commands
-### Root
-- **Install All**: `cd frontend && npm install`
-- **Build All**: `cd api && dotnet build && cd ../frontend && npm run build`
-
 ### Backend (`api/`)
 - **Build**: `dotnet build`
 - **Run**: `dotnet run`
 - **Clean**: `dotnet clean`
 
-### Frontend (`frontend/`)
-- **Install**: `npm install`
-- **Dev**: `npm run dev`
-- **Build**: `npm run build`
-- **Lint**: `npm run lint`
-- **E2E Tests**: `npm run test:e2e`
+### Frontend (`frontend/`) — pnpm workspaces
+- **Install**: `pnpm install`
+- **Dev (game app)**: `pnpm --filter "@bikeapelago/bikeapelago-app" run dev`
+- **Dev (admin UI)**: `pnpm --filter "@bikeapelago/admin-ui" run dev`
+- **Build all**: `pnpm -r run build`
+- **Lint**: `pnpm -r run lint`
+- **E2E Tests**: `pnpm --filter "@bikeapelago/bikeapelago-app" run test:e2e`
 
 ## Deployment (OrbStack)
 
-Pull latest images from GHCR and restart containers after merging to main:
+Images are built by CI on push to main and pushed to GHCR. Pull and restart after merging:
 
 ```bash
 docker compose -f docker-compose.deploy.yml pull
 docker compose -f docker-compose.deploy.yml up -d --force-recreate
+```
+
+### Architecture
+
+- `bikeapelago-react` (port `8192:80`): nginx serving the frontend SPA. Proxies `/api` and `/hubs` to the API container over the internal Docker network.
+- `bikeapelago-api` (port `5054:5054`): .NET API only — does **not** serve the frontend.
+- `bikeapelago-admin` (port `8183:80`): nginx serving the admin UI.
+- nginx-proxy-manager routes `bikeapelago.alexkibler.com` → `host.docker.internal:8192`.
+- The API has no public-facing URL; all external traffic reaches it through the frontend nginx container.
+
+### Local Frontend Dev (hot reload against running API container)
+
+The API container exposes port 5054 to the host. Set in `frontend/packages/apps/bikepelago-app/.env`:
+
+```env
+VITE_PUBLIC_API_URL=http://localhost:5054
+```
+
+Then run:
+
+```bash
+pnpm --filter "@bikeapelago/bikeapelago-app" run dev
 ```
 
 ## Pending Cleanup

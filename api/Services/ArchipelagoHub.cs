@@ -5,9 +5,9 @@ using Microsoft.Extensions.Logging;
 
 namespace Bikeapelago.Api.Services;
 
-public class ArchipelagoHub(ArchipelagoService archipelagoService, ILogger<ArchipelagoHub> logger) : Hub
+public class ArchipelagoHub(IArchipelagoService archipelagoService, ILogger<ArchipelagoHub> logger) : Hub
 {
-    private readonly ArchipelagoService _archipelagoService = archipelagoService;
+    private readonly IArchipelagoService _archipelagoService = archipelagoService;
     private readonly ILogger<ArchipelagoHub> _logger = logger;
 
     public async Task JoinSession(string sessionId)
