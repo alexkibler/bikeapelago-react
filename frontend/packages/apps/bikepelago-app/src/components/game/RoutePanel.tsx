@@ -2,7 +2,10 @@ import { useState } from 'react';
 import { useGameStore } from '../../store/gameStore';
 import { downloadGPX } from '../../lib/geoUtils';
 import { Map as MapIcon, Download, Loader2, ChevronDown, ChevronUp, UploadCloud, MapPin, X } from 'lucide-react';
+import Toggle from '../layout/Toggle';
+import Stat from '../layout/Stat';
 import type { MapNode } from '../../types/game';
+import { useIsMobile } from '../../hooks/useIsMobile';
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
@@ -74,6 +77,7 @@ const RoutePanel = ({ sessionId }: { sessionId: string }) => {
   const setCustomOrigin   = useGameStore(s => s.setCustomOrigin);
   const userLocation      = useGameStore(s => s.userLocation);
 
+  const isMobile = useIsMobile();
   const [turnByTurn, setTurnByTurn] = useState(true);
   const [openCategories, setOpenCategories] = useState({ Available: true, Checked: false, Hidden: false });
   const toggleCategory = (cat: string) =>
@@ -107,41 +111,49 @@ const RoutePanel = ({ sessionId }: { sessionId: string }) => {
       <div className="flex-1 overflow-y-auto p-4 space-y-4 pb-32">
 
         {/* Turn-by-turn toggle */}
-        <div className="flex items-center justify-between px-2">
-          <label htmlFor="turn-by-turn" className="text-xs font-bold uppercase tracking-wider text-[var(--color-text-subtle-hex)] cursor-pointer">
-            Turn-by-Turn GPS (Beta)
-          </label>
-          <button
+        <div className="px-2">
+          <Toggle
             id="turn-by-turn"
-            onClick={() => setTurnByTurn(!turnByTurn)}
-            className={`relative w-10 h-5 rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-hex)]/40 ${
-              turnByTurn ? 'bg-[var(--color-primary-hex)]' : 'bg-[rgb(var(--color-surface-overlay))]'
-            }`}
-          >
-            <div
-              className={`absolute top-1 left-1 w-3 h-3 rounded-full bg-white transition-transform duration-200 transform ${
-                turnByTurn ? 'translate-x-5' : 'translate-x-0'
-              }`}
-            />
-          </button>
+            label="Turn-by-Turn GPS (Beta)"
+            checked={turnByTurn}
+            onCheckedChange={(checked) => {
+              setTurnByTurn(checked);
+              // Clear route data when parameters change
+              useGameStore.setState({ routeData: { distance: 0, elevation: 0, polyline: [] } });
+            }}
+            className="justify-between"
+          />
         </div>
 
         {/* Route / Build button */}
         <button
-          onClick={() => buildRoute(sessionId, turnByTurn)}
-          disabled={!canRoute}
+          onClick={() => {
+            if (isMobile && routeData.gpxString) {
+              downloadGPX(routeData.gpxString);
+            } else {
+              buildRoute(sessionId, turnByTurn);
+            }
+          }}
+          disabled={isMobile ? (!canRoute && !routeData.gpxString) : (!canRoute || !!routeData.gpxString)}
           className={`w-full font-black py-4 rounded-xl transition-all shadow-lg active:scale-[0.98] ${
-            !canRoute
+            (isMobile ? (!canRoute && !routeData.gpxString) : (!canRoute || !!routeData.gpxString))
               ? 'bg-[rgb(var(--color-surface-overlay))] text-[var(--color-text-subtle-hex)] cursor-not-allowed opacity-50'
-              : hasSelection
-                ? 'bg-violet-600 hover:bg-violet-500 text-white shadow-violet-900/30'
-                : 'bg-[var(--color-primary-hex)] hover:bg-[var(--color-primary-hover-hex)] text-white shadow-primary/20'
+              : (isMobile && routeData.gpxString)
+                ? 'bg-orange-600 hover:bg-orange-500 text-white shadow-orange-900/30'
+                : hasSelection
+                  ? 'bg-violet-600 hover:bg-violet-500 text-white shadow-violet-900/30'
+                  : 'bg-[var(--color-primary-hex)] hover:bg-[var(--color-primary-hover-hex)] text-white shadow-primary/20'
           }`}
         >
           {isRouting ? (
             <span className="flex items-center justify-center gap-2">
               <Loader2 className="w-4 h-4 animate-spin" />
               Optimizing…
+            </span>
+          ) : (isMobile && routeData.gpxString) ? (
+            <span className="flex items-center justify-center gap-2">
+              <Download className="w-5 h-5" />
+              Download .gpx
             </span>
           ) : hasSelection ? 'Build Route' : 'Route to Available'}
         </button>
@@ -263,21 +275,12 @@ const RoutePanel = ({ sessionId }: { sessionId: string }) => {
           <div className="flex gap-6">
             {turnByTurn && (
               <>
-                <div className="flex flex-col">
-                  <span className="text-[10px] font-bold text-[var(--color-text-subtle-hex)] uppercase tracking-widest">Distance</span>
-                  <span className="text-xl font-black text-[var(--color-text-hex)]">{routeData.distance.toFixed(2)}<span className="text-xs font-normal text-[var(--color-text-subtle-hex)] ml-1">km</span></span>
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-[10px] font-bold text-[var(--color-text-subtle-hex)] uppercase tracking-widest">Elev Gain</span>
-                  <span className="text-xl font-black text-[var(--color-text-hex)]">{routeData.elevation.toFixed(0)}<span className="text-xs font-normal text-[var(--color-text-subtle-hex)] ml-1">m</span></span>
-                </div>
+                <Stat label="Distance" value={routeData.distance.toFixed(2)} unit="km" />
+                <Stat label="Elev Gain" value={routeData.elevation.toFixed(0)} unit="m" />
               </>
             )}
             {!turnByTurn && (
-              <div className="flex flex-col">
-                <span className="text-[10px] font-bold text-[var(--color-text-subtle-hex)] uppercase tracking-widest">Targets</span>
-                <span className="text-xl font-black text-[var(--color-text-hex)]">{availableNodes.length}</span>
-              </div>
+              <Stat label="Targets" value={availableNodes.length} />
             )}
           </div>
 
