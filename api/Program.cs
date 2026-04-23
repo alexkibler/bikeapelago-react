@@ -231,9 +231,6 @@ app.UseCors("AllowVite");
 app.UseAuthentication();
 app.UseAuthorization();
 
-app.UseDefaultFiles();
-app.UseStaticFiles();
-
 app.MapControllers();
 app.MapReverseProxy();
 app.MapHub<ArchipelagoHub>("/hubs/archipelago");
