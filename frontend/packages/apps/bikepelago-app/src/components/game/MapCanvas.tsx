@@ -24,38 +24,77 @@ const NODE_COLORS: Record<NodeState, string> = {
   Checked: '#22c55e'     // green-500
 };
 
+// ⚡ Bolt Performance Optimization:
+// React-Leaflet heavily relies on object references. If a new L.divIcon instance is passed
+// on every render, the Marker components will unmount/remount their underlying Leaflet DOM nodes
+// causing massive lag when displaying hundreds of map nodes.
+// Caching the icons preserves referential equality and eliminates this DOM thrashing.
+const markerIconCache = new Map<string, L.DivIcon>();
 const getMarkerIcon = (state: NodeState, debugClickable = false, selected = false) => {
-  const color = NODE_COLORS[state] || NODE_COLORS.Hidden;
-  const cursor = debugClickable ? 'cursor:pointer;' : '';
-  const ring = selected
-    ? `box-shadow:0 0 0 4px rgba(139,92,246,0.8), 0 0 12px ${color};`  // purple selection ring
-    : debugClickable
-      ? `box-shadow:0 0 0 3px rgba(234,179,8,0.6), 0 0 10px ${color};`
-      : `box-shadow:0 0 10px ${color};`;
-  return L.divIcon({
-    className: 'custom-div-icon',
-    html: `<div style="background-color:${color}; width:20px; height:20px; border-radius:50%; border:3px solid rgba(255, 255, 255, 0.5); ${ring} ${cursor}"></div>`,
-    iconSize: [20, 20],
-    iconAnchor: [10, 10]
-  });
+  const cacheKey = `${state}-${debugClickable}-${selected}`;
+  let icon = markerIconCache.get(cacheKey);
+  if (!icon) {
+    const color = NODE_COLORS[state] || NODE_COLORS.Hidden;
+    const cursor = debugClickable ? 'cursor:pointer;' : '';
+    const ring = selected
+      ? `box-shadow:0 0 0 4px rgba(139,92,246,0.8), 0 0 12px ${color};`  // purple selection ring
+      : debugClickable
+        ? `box-shadow:0 0 0 3px rgba(234,179,8,0.6), 0 0 10px ${color};`
+        : `box-shadow:0 0 10px ${color};`;
+    icon = L.divIcon({
+      className: 'custom-div-icon',
+      html: `<div style="background-color:${color}; width:20px; height:20px; border-radius:50%; border:3px solid rgba(255, 255, 255, 0.5); ${ring} ${cursor}"></div>`,
+      iconSize: [20, 20],
+      iconAnchor: [10, 10]
+    });
+    markerIconCache.set(cacheKey, icon);
+  }
+  return icon;
 };
 
-const getCustomOriginIcon = () =>
-  L.divIcon({
-    className: 'custom-div-icon',
-    html: `
-      <div style="
-        width:26px; height:26px; border-radius:50%;
-        background:linear-gradient(135deg,#7c3aed,#4f46e5);
-        border:3px solid #fff;
-        box-shadow:0 0 0 2px #7c3aed, 0 4px 12px rgba(124,58,237,0.5);
-        display:flex; align-items:center; justify-content:center;
-        font-size:11px; font-weight:900; color:#fff; cursor:pointer;
-      ">S</div>
-    `,
-    iconSize: [26, 26],
-    iconAnchor: [13, 13],
-  });
+const CUSTOM_ORIGIN_ICON = L.divIcon({
+  className: 'custom-div-icon',
+  html: `
+    <div style="
+      width:26px; height:26px; border-radius:50%;
+      background:linear-gradient(135deg,#7c3aed,#4f46e5);
+      border:3px solid #fff;
+      box-shadow:0 0 0 2px #7c3aed, 0 4px 12px rgba(124,58,237,0.5);
+      display:flex; align-items:center; justify-content:center;
+      font-size:11px; font-weight:900; color:#fff; cursor:pointer;
+    ">S</div>
+  `,
+  iconSize: [26, 26],
+  iconAnchor: [13, 13],
+});
+
+const USER_LOCATION_ICON = L.divIcon({
+  className: 'relative',
+  html: `
+    <div class="relative flex items-center justify-center">
+      <div class="absolute w-8 h-8 bg-blue-500/30 rounded-full animate-ping"></div>
+      <div class="w-4 h-4 bg-blue-500 border-2 border-white rounded-full shadow-lg z-10"></div>
+    </div>
+  `,
+  iconSize: [32, 32],
+  iconAnchor: [16, 16]
+});
+
+// ⚡ Bolt Performance Optimization: Cache dynamic waypoint icons by index
+const waypointIconCache = new Map<number, L.DivIcon>();
+const getWaypointIcon = (index: number) => {
+  let icon = waypointIconCache.get(index);
+  if (!icon) {
+    icon = L.divIcon({
+      className: 'bg-white border-2 border-orange-500 rounded-full flex items-center justify-center text-[10px] font-bold text-orange-500 leading-none w-5 h-5',
+      html: `<div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">${index + 1}</div>`,
+      iconSize: [20, 20],
+      iconAnchor: [10, 10]
+    });
+    waypointIconCache.set(index, icon);
+  }
+  return icon;
+};
 
 interface MapCanvasProps {
   session: GameSession;
@@ -188,12 +227,7 @@ const MapCanvas = ({ session, nodes }: MapCanvasProps) => {
           <Marker
             key={`wp-${i}`}
             position={wp}
-            icon={L.divIcon({
-              className: 'bg-white border-2 border-orange-500 rounded-full flex items-center justify-center text-[10px] font-bold text-orange-500 leading-none w-5 h-5',
-              html: `<div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">${i + 1}</div>`,
-              iconSize: [20, 20],
-              iconAnchor: [10, 10]
-            })}
+            icon={getWaypointIcon(i)}
           />
         ))}
 
@@ -201,7 +235,7 @@ const MapCanvas = ({ session, nodes }: MapCanvasProps) => {
         {customOrigin && (
           <Marker
             position={customOrigin}
-            icon={getCustomOriginIcon()}
+            icon={CUSTOM_ORIGIN_ICON}
             zIndexOffset={900}
             eventHandlers={{ click: () => setCustomOrigin(null) }}
           />
@@ -211,17 +245,7 @@ const MapCanvas = ({ session, nodes }: MapCanvasProps) => {
           <Marker
             position={userLocation}
             zIndexOffset={Z_INDEX.USER_LOCATION}
-            icon={L.divIcon({
-              className: 'relative',
-              html: `
-                <div class="relative flex items-center justify-center">
-                  <div class="absolute w-8 h-8 bg-blue-500/30 rounded-full animate-ping"></div>
-                  <div class="w-4 h-4 bg-blue-500 border-2 border-white rounded-full shadow-lg z-10"></div>
-                </div>
-              `,
-              iconSize: [32, 32],
-              iconAnchor: [16, 16]
-            })}
+            icon={USER_LOCATION_ICON}
           />
         )}
       </MapContainer>
