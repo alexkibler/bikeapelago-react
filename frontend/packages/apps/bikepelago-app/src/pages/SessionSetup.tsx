@@ -381,12 +381,12 @@ const SessionSetup = () => {
                   <Footprints className='w-4 h-4' />
                   <span className='font-bold text-xs'>Walk</span>
                 </button>
-                </div>
-                </div>
+              </div>
+            </div>
 
-                {/* Progression Mode */}
-                {mode === 'singleplayer' && (
-                <div className='space-y-4 pt-4 border-t border-[var(--color-border-hex)]'>
+            {/* Progression Mode */}
+            {mode === 'singleplayer' && (
+              <div className='space-y-4 pt-4 border-t border-[var(--color-border-hex)]'>
                 <div className='flex justify-between items-center'>
                   <label className='text-xs font-black uppercase tracking-widest text-[var(--color-text-subtle-hex)]'>
                     Progression Mode
@@ -446,8 +446,8 @@ const SessionSetup = () => {
                     </div>
                   </button>
                 </div>
-                </div>
-                )}
+              </div>
+            )}
 
                 {/* Progress */}
             {isGenerating && (

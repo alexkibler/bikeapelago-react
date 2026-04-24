@@ -2,13 +2,13 @@ import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useGameStore } from '../../store/gameStore';
 import { useArchipelagoStore } from '../../store/archipelagoStore';
-import { Package, RefreshCw, Crosshair, Radio, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Package, RefreshCw, Crosshair, Radio, CheckCircle2 } from 'lucide-react';
 import { apiFetch, ENDPOINTS } from '../../lib/api';
 import { useToast } from '../../hooks/useToast';
 
 const InventoryPanel = () => {
   const { id: sessionId } = useParams<{ id: string }>();
-  const { nodes, selectedNodeIds, triggerSync, clearSelectedNodes } = useGameStore();
+  const { selectedNodeIds, triggerSync, clearSelectedNodes } = useGameStore();
   const { receivedItems } = useArchipelagoStore();
   const toast = useToast();
   const [isUsing, setIsUsing] = useState(false);
@@ -35,8 +35,9 @@ const InventoryPanel = () => {
       toast.success('Node relocated!');
       triggerSync();
       clearSelectedNodes();
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to use Detour');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to use Detour';
+      toast.error(message);
     } finally {
       setIsUsing(false);
     }
@@ -54,8 +55,9 @@ const InventoryPanel = () => {
       toast.success('Node completed by drone!');
       triggerSync();
       clearSelectedNodes();
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to use Drone');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to use Drone';
+      toast.error(message);
     } finally {
       setIsUsing(false);
     }
@@ -68,8 +70,9 @@ const InventoryPanel = () => {
       await apiFetch(ENDPOINTS.ITEMS.SIGNAL_AMPLIFIER(sessionId), { method: 'POST' });
       toast.success('Signal Amplifier activated for next ride!');
       triggerSync();
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to activate Signal Amplifier');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to activate Signal Amplifier';
+      toast.error(message);
     } finally {
       setIsUsing(false);
     }
