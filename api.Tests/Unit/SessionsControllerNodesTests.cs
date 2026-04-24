@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Claims;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -24,6 +26,7 @@ public class SessionsControllerNodesTests
     private readonly SessionValidator _validator;
     private readonly SessionsController _controller;
     private readonly Guid _sessionId = Guid.NewGuid();
+    private readonly Guid _testUserId = Guid.NewGuid();
 
     public SessionsControllerNodesTests()
     {
@@ -47,11 +50,24 @@ public class SessionsControllerNodesTests
             _engineFactory.Object,
             _validator,
             null!); // IMapboxRoutingService
+
+        var claims = new List<Claim>
+        {
+            new Claim(ClaimTypes.NameIdentifier, _testUserId.ToString()),
+            new Claim(ClaimTypes.Name, "testuser")
+        };
+        var identity = new ClaimsIdentity(claims, "TestAuthType");
+        var claimsPrincipal = new ClaimsPrincipal(identity);
+
+        _controller.ControllerContext = new ControllerContext
+        {
+            HttpContext = new DefaultHttpContext { User = claimsPrincipal }
+        };
     }
 
-    private void SetupSession(string mode = "singleplayer") =>
+    private void SetupSession(string mode = "singleplayer", Guid? userId = null) =>
         _sessionRepo.Setup(r => r.GetByIdAsync(_sessionId))
-            .ReturnsAsync(new GameSession { Id = _sessionId, Mode = mode });
+            .ReturnsAsync(new GameSession { Id = _sessionId, Mode = mode, UserId = userId ?? _testUserId });
 
     // --- State validation ---
 
@@ -142,6 +158,19 @@ public class SessionsControllerNodesTests
     }
 
     // --- Other guard cases ---
+
+    [Fact]
+    public async Task CheckNodes_ReturnsForbid_WhenUserDoesNotOwnSession()
+    {
+        SetupSession(userId: Guid.NewGuid()); // Set a different user ID
+
+        var result = await _controller.CheckNodes(_sessionId, new SessionsController.CheckNodesRequest
+        {
+            NodeIds = [Guid.NewGuid()]
+        });
+
+        Assert.IsType<ForbidResult>(result);
+    }
 
     [Fact]
     public async Task CheckNodes_ReturnsNotFound_WhenSessionDoesNotExist()
