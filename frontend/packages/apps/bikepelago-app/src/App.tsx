@@ -8,6 +8,7 @@ import AthleteProfile from './pages/AthleteProfile';
 import NewGame from './pages/NewGame';
 import { Login } from './pages/Login';
 import Register from './pages/Register';
+import About from './pages/About';
 import Settings from './pages/Settings';
 import { handleUnauthorized, useAuthStore } from './store/authStore';
 import { DataFetchProvider } from '@bikeapelago/shared-data-fetching';
@@ -28,6 +29,7 @@ function App() {
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/about" element={<About />} />
             <Route path="/" element={<PrivateRoute><Home /></PrivateRoute>} />
             <Route path="/game/:id" element={<PrivateRoute><GameView /></PrivateRoute>} />
             <Route path="/new-game" element={<PrivateRoute><NewGame /></PrivateRoute>} />

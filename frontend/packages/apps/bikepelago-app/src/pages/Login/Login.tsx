@@ -111,7 +111,7 @@ export function Login(): ReactElement {
           </button>
         </form>
 
-        <div className='mt-8 text-center text-sm'>
+        <div className='mt-8 text-center text-sm space-y-2'>
           <p className='text-[var(--color-text-subtle-hex)]'>
             New to the archipelago?{' '}
             <Link
@@ -119,6 +119,15 @@ export function Login(): ReactElement {
               className='text-orange-500 hover:text-orange-600 font-bold transition-colors'
             >
               Self-Register
+            </Link>
+          </p>
+          <p className='text-[var(--color-text-subtle-hex)]'>
+            Not sure what this is?{' '}
+            <Link
+              to='/about'
+              className='text-orange-500 hover:text-orange-600 font-bold transition-colors'
+            >
+              Learn more
             </Link>
           </p>
         </div>
