@@ -1,14 +1,29 @@
-# Bikeapelago: API Guidelines (Gemini)
+# API Gemini Instructions
 
-Instructions for Gemini working on the .NET API.
+Guidance for Gemini working inside `api/`.
 
-## Build and Test Commands
-- **Build**: `dotnet build`
-- **Run**: `dotnet run`
-- **Clean**: `dotnet clean`
+## Safety
 
-## Style Guidelines
-- **Surgical Update**: Use `replace` for code modifications.
-- **Verification**: Ensure `dotnet build` passes after any change.
-- **Patterns**: Maintain the current repository abstractions for PostgreSQL and Mock data.
-- **Documentation**: Update XML documentation and Swagger annotations as needed.
+- No direct SQL write operations.
+- Use EF Core migration workflow for schema changes.
+
+## Build and Test
+
+From `api/`:
+
+```bash
+dotnet build
+dotnet run
+```
+
+From repo root:
+
+```bash
+dotnet test api.Tests/Bikeapelago.Api.Tests.csproj
+```
+
+## Working Rules
+
+- Make targeted edits.
+- Preserve repository/service layering.
+- Keep docs updated when endpoints/config/scripts change.

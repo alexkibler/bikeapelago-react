@@ -1,43 +1,54 @@
-# Bikeapelago: React & .NET Migration
+# Bikeapelago Monorepo
 
-Bikeapelago is a location-based game integration for [Archipelago](https://archipelago.gg/), originally built with SvelteKit and now migrated to a modern **React** frontend and **.NET 10** Web API backend.
+Bikeapelago is a location-based Archipelago integration with:
+- a `.NET 10` API (`api/`)
+- a React + Vite frontend workspace (`frontend/`)
 
-## Project Structure
+## Repository Layout
 
-This monorepo contains both the frontend and backend components of the application:
-
-- `frontend/`: React SPA built with Vite, TypeScript, Tailwind CSS, and Zustand.
-- `api/`: .NET 10 Web API providing session management, Archipelago synchronization, and proxy services.
+- `api/` - ASP.NET Core API, EF Core/PostgreSQL, SignalR hub
+- `api.Tests/` - xUnit API test project
+- `frontend/` - pnpm workspace
+- `frontend/packages/apps/bikepelago-app/` - main game app
+- `frontend/packages/apps/admin-ui/` - admin dashboard
 
 ## Prerequisites
 
-- **PostgreSQL**: v14 or later with **PostGIS** extension.
-- **Node.js**: v18 or later
-- **.NET SDK**: 10.0 or higher
+- Docker + Docker Compose
+- .NET SDK 10+
+- Node.js 20+ (Node 25 currently used in frontend Docker image)
+- pnpm 10+
 
-## Getting Started
+## Quick Start
 
-### 1. Docker Compose (Recommended)
-
-The easiest way to run the entire stack (including databases) is via Docker Compose:
-
+1. Copy environment config:
 ```bash
 cp .env.example .env
-# Fill in MAPBOX_API_KEY, JWT_KEY, ADMIN_PASSWORD in .env
+```
+2. Fill required values in `.env`:
+- `DB_PASSWORD`
+- `OSM_DISCOVERY_PASSWORD`
+- `MAPBOX_API_KEY`
+- `JWT_KEY`
+- `ADMIN_PASSWORD`
+
+3. Start the stack:
+```bash
 docker compose up
 ```
 
-Profiles:
-- `--profile api`: Containerized .NET API
-- `--profile frontend`: Dev React frontend (port 18182) + Admin UI (port 18183)
-- `--profile prod-frontend`: Production Nginx frontends (port 8182 / 8183)
-- `--profile archipelago`: Local Archipelago server
+Current `docker-compose.yml` behavior:
+- Starts API + frontend dev servers + both PostGIS databases by default
+- `archipelago` service is optional via `--profile archipelago`
 
-### 2. Manual Setup
+Key URLs:
+- API: `http://localhost:5054`
+- Game frontend (Vite): `http://localhost:18182`
+- Admin frontend (Vite): `http://localhost:18183`
 
-#### Backend (API)
+## Manual Development
 
-Navigate to the `api` directory and run the application:
+### API
 
 ```bash
 cd api
@@ -45,88 +56,76 @@ dotnet restore
 dotnet run
 ```
 
-The API will be available at `http://localhost:5000` (or as configured in `appsettings.json`).
+API local URL (launch settings): `http://localhost:5054`
 
-### 2. Frontend
-
-Navigate to the `frontend` directory, install dependencies, and start the development server:
+### Frontend
 
 ```bash
 cd frontend
 pnpm install
-pnpm run dev
+pnpm --filter "@bikeapelago/bikepelago-app" run dev
 ```
 
-The frontend will be available at `http://localhost:5173`.
+Admin UI:
+```bash
+pnpm --filter "@bikeapelago/admin-ui" run dev
+```
 
-### 3. OrbStack Deployment (Production Frontend)
+Typical local URLs:
+- Game app: `http://localhost:5173`
+- Admin UI: `http://localhost:5174` (or next free Vite port)
 
-If you have a deployed API and want to run the frontends via OrbStack pointing to it:
+## Testing and Validation
 
-1. Update your `.env`:
-   ```bash
-   API_PROXY_URL=https://api.your-deployed-domain.com/api/
-   API_HUBS_URL=https://api.your-deployed-domain.com/hubs/
-   ```
-2. Start the production frontend profile:
-   ```bash
-   docker compose --profile prod-frontend up -d
-   ```
-3. Access your apps via OrbStack's local domains:
-   - Game: `http://bikeapelago-react-prod.bikeapelago.orb.local`
-   - Admin: `http://bikeapelago-admin-prod.bikeapelago.orb.local`
+### API
 
-## Architecture Overview
+```bash
+# from repo root
+dotnet test api.Tests/Bikeapelago.Api.Tests.csproj
 
-Bikeapelago uses a decoupled architecture:
+# or from api/
+dotnet build
+```
 
-- **Frontend**: A React application using **Zustand** for state management and **Tailwind CSS** with **DaisyUI** for styling. It communicates with the .NET API via REST.
-- **Backend**: A .NET 10 Web API following a repository pattern. It uses **EF Core** with **PostgreSQL/PostGIS** for persistence and authentication. It also includes an **OsmDiscoveryService** for location-based features.
+### Frontend
 
-## Features
-- **Archipelago Integration**: Seamlessly connect your real-world activities to your Archipelago multiworld game.
-- **Single Player Route Setup**: Upload a GPX or FIT file to create a singleplayer session with nodes distributed evenly along your route. Nodes unlock sequentially as you check them.
-
-## Documentation
-
-- [Architecture Details](ARCHITECTURE.md): Deep dive into the design decisions and patterns.
-- [Frontend README](frontend/README.md): Detailed information about the React application.
-- [API README](api/README.md): Detailed information about the .NET backend.
-
-## Environment Configuration
-
-The application is configured using environment variables. For local development, create a `.env` file in the project root based on `.env.example`.
-
-### Root `.env` (Backend & Docker)
-
-These variables are primarily used by the .NET API and Docker Compose:
-
-| Variable | Description | Default / Example |
-|---|---|---|
-| `MAPBOX_API_KEY` | **Required** for routing and node validation. | `pk.eyJ...` |
-| `JWT_KEY` | Key for signing authentication tokens. | `openssl rand -base64 32` |
-| `DB_USER` | PostgreSQL user for the main application database. | `osm` |
-| `DB_PASSWORD` | PostgreSQL password for the main application database. | - |
-| `OSM_DISCOVERY_HOST` | Host for the OSM Discovery database (PostGIS). | `localhost` |
-| `ADMIN_EMAIL` | Initial admin account email for seeding. | `admin@localhost` |
-| `ADMIN_PASSWORD` | Password for the initial admin account. | - |
-
-### Frontend `.env`
-
-Vite reads environment variables from `.env` files in the specific package directories. Create one in each app directory as needed:
-- Game App: `frontend/packages/apps/bikepelago-app/.env`
-- Admin UI: `frontend/packages/apps/admin-ui/.env`
-
-| Variable | Description | Example |
-|---|---|---|
-| `VITE_PUBLIC_API_URL` | The base URL for the .NET API. | `http://localhost:5054` |
-
-## Verification
-
-The project includes a comprehensive E2E test suite using **Playwright**, located in the `frontend/tests` directory.
-
-To run the tests:
 ```bash
 cd frontend
-npm run test:e2e
+pnpm -r --if-present run lint
+pnpm --filter "@bikeapelago/bikepelago-app" run test:run
+pnpm --filter "@bikeapelago/admin-ui" run tsc
 ```
+
+Note: there is no repository-level Playwright `test:e2e` script currently.
+
+## Configuration
+
+### Root `.env`
+
+Used by Docker Compose and API startup.
+
+Important variables:
+- `DB_USER`, `DB_PASSWORD`, `DB_BIKEAPELAGO_PORT`
+- `OSM_DISCOVERY_HOST`, `OSM_DISCOVERY_PORT`, `OSM_DISCOVERY_USER`, `OSM_DISCOVERY_PASSWORD`
+- `MAPBOX_API_KEY`
+- `JWT_KEY`
+- `ADMIN_EMAIL`, `ADMIN_PASSWORD`
+- Optional for production frontend proxying: `API_PROXY_URL`, `API_HUBS_URL`
+
+### Frontend app `.env`
+
+Each app can define Vite API target:
+- `frontend/packages/apps/bikepelago-app/.env`
+- `frontend/packages/apps/admin-ui/.env`
+
+Variable:
+- `VITE_PUBLIC_API_URL` (fallback in both apps is `http://127.0.0.1:5054`)
+
+## Additional Docs
+
+- [Architecture](ARCHITECTURE.md)
+- [API README](api/README.md)
+- [Frontend README](frontend/README.md)
+- [Claude Instructions](CLAUDE.md)
+- [Gemini Instructions](GEMINI.md)
+- [Codex Instructions](CODEX.md)
