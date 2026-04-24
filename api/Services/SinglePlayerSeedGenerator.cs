@@ -257,19 +257,31 @@ public class SinglePlayerSeedGenerator(ILogger<SinglePlayerSeedGenerator> logger
             .ThenBy(_ => rng.Next())
             .ToList();
 
-        for (int i = 0; i < macguffinItems.Count && i < emptySlotsBySphere.Count; i++)
+        // At most one Macguffin per node — skip the second slot of any node that already
+        // received one, so Macguffins spread across as many distinct nodes as possible.
+        var macguffinNodeIds = new HashSet<Guid>();
+        int macguffinPlaced  = 0;
+
+        for (int i = 0; macguffinPlaced < macguffinItems.Count && i < emptySlotsBySphere.Count; i++)
         {
             var (node, isArrival, _) = emptySlotsBySphere[i];
+
+            if (macguffinNodeIds.Contains(node.Id))
+                continue;
+
             if (isArrival)
             {
-                node.ArrivalRewardItemId   = macguffinItems[i];
-                node.ArrivalRewardItemName = ItemDefinitions.GetItemName(macguffinItems[i]);
+                node.ArrivalRewardItemId   = macguffinItems[macguffinPlaced];
+                node.ArrivalRewardItemName = ItemDefinitions.GetItemName(macguffinItems[macguffinPlaced]);
             }
             else
             {
-                node.PrecisionRewardItemId   = macguffinItems[i];
-                node.PrecisionRewardItemName = ItemDefinitions.GetItemName(macguffinItems[i]);
+                node.PrecisionRewardItemId   = macguffinItems[macguffinPlaced];
+                node.PrecisionRewardItemName = ItemDefinitions.GetItemName(macguffinItems[macguffinPlaced]);
             }
+
+            macguffinNodeIds.Add(node.Id);
+            macguffinPlaced++;
         }
 
         // ── Phase 4: Fast Fill ─────────────────────────────────────────────────
