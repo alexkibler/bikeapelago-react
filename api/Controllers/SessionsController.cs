@@ -439,6 +439,59 @@ public class SessionsController(
         return Accepted(new { message = "Check request processed." });
     }
 
+    [HttpPost("{id}/debug/force-complete")]
+    public async Task<IActionResult> DebugForceComplete(Guid id)
+    {
+        var session = await _sessionRepository.GetByIdAsync(id);
+        if (session == null)
+            return NotFound(new { message = "Session not found." });
+
+        var allNodes = await _nodeRepository.GetBySessionIdAsync(id);
+        var nodesToUpdate = new List<MapNode>();
+
+        foreach (var node in allNodes)
+        {
+            bool changed = false;
+
+            if (!node.IsArrivalChecked)
+            {
+                node.IsArrivalChecked = true;
+                if (node.ArrivalRewardItemId.HasValue)
+                {
+                    session.ReceivedItemIds.Add(node.ArrivalRewardItemId.Value);
+                    if (node.ArrivalRewardItemId.Value == ItemDefinitions.Macguffin)
+                        session.MacguffinsCollected++;
+                }
+                changed = true;
+            }
+
+            if (!node.IsPrecisionChecked)
+            {
+                node.IsPrecisionChecked = true;
+                if (node.PrecisionRewardItemId.HasValue)
+                {
+                    session.ReceivedItemIds.Add(node.PrecisionRewardItemId.Value);
+                    if (node.PrecisionRewardItemId.Value == ItemDefinitions.Macguffin)
+                        session.MacguffinsCollected++;
+                }
+                changed = true;
+            }
+
+            if (changed)
+            {
+                node.State = "Checked";
+                nodesToUpdate.Add(node);
+            }
+        }
+
+        if (nodesToUpdate.Count > 0)
+            await _nodeRepository.UpdateRangeAsync(nodesToUpdate);
+
+        session.Status = SessionStatus.Completed;
+        await _sessionRepository.UpdateAsync(session);
+
+        return Ok(new { message = "Session force-completed." });
+    }
 
     [HttpPost("/api/discovery/validate-nodes")]
     public async Task<ActionResult<IEnumerable<ValidateResult>>> ValidateNodes(
