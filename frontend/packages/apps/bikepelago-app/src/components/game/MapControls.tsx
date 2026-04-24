@@ -44,13 +44,24 @@ export const MapAutoFitter = ({ nodes }: { nodes: MapNode[] }) => {
 // Map click listener — sets the custom route origin pin.
 // Clicking the map always moves the pin (never toggles it off); click the pin marker to remove it.
 // When an active route exists, the click is held in pendingMapClick until the user confirms.
-export const MapEvents = () => {
+// It includes a "smart" check to ignore clicks near existing nodes to prevent accidental pin drops.
+export const MapEvents = ({ nodes }: { nodes: MapNode[] }) => {
+  const map = useMap();
   const setCustomOrigin = useGameStore(s => s.setCustomOrigin);
   const setPendingMapClick = useGameStore(s => s.setPendingMapClick);
   const routeData = useGameStore(s => s.routeData);
 
   useMapEvents({
     click(e) {
+      // Smart check: ignore clicks near nodes (28px radius)
+      const clickPoint = map.latLngToLayerPoint(e.latlng);
+      const isNearNode = nodes.some(node => {
+        const nodePoint = map.latLngToLayerPoint([node.lat, node.lon]);
+        return clickPoint.distanceTo(nodePoint) < 28;
+      });
+
+      if (isNearNode) return;
+
       if (routeData.polyline.length > 0) {
         setPendingMapClick([e.latlng.lat, e.latlng.lng]);
       } else {

@@ -2,6 +2,9 @@
 
 Instructions for Claude working on the .NET API.
 
+> [!IMPORTANT]
+> **DATABASE SAFETY**: NEVER execute DDL or DML directly against the database (no `psql -c`, no `docker exec ... psql`, no raw SQL run outside of migrations). All schema changes go through `dotnet ef migrations add` + `dotnet ef database update`. If a migration needs raw SQL, use `migrationBuilder.Sql()` inside the migration file. No exceptions.
+
 ## Build and Test Commands
 - **Build**: `dotnet build`
 - **Run**: `dotnet run`

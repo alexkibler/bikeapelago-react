@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using Bikeapelago.Api.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NetTopologySuite.Geometries;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
@@ -13,9 +14,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Bikeapelago.Api.Migrations
 {
     [DbContext(typeof(BikeapelagoDbContext))]
-    partial class BikeapelagoDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260424124554_PendingModelSync")]
+    partial class PendingModelSync
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -95,13 +98,6 @@ namespace Bikeapelago.Api.Migrations
                         .HasColumnType("text")
                         .HasJsonPropertyName("ap_slot_name");
 
-                    b.Property<string>("ConnectionMode")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("text")
-                        .HasDefaultValue("singleplayer")
-                        .HasJsonPropertyName("connection_mode");
-
                     b.Property<string>("CreatedAt")
                         .IsRequired()
                         .HasColumnType("text")
@@ -114,6 +110,13 @@ namespace Bikeapelago.Api.Migrations
                     b.Property<Point>("Location")
                         .HasColumnType("geometry (point)");
 
+                    b.Property<string>("Mode")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("text")
+                        .HasDefaultValue("bike")
+                        .HasJsonPropertyName("mode");
+
                     b.Property<string>("Name")
                         .HasColumnType("text")
                         .HasJsonPropertyName("name");
@@ -123,6 +126,7 @@ namespace Bikeapelago.Api.Migrations
                         .HasJsonPropertyName("north_pass_received");
 
                     b.Property<string>("ProgressionMode")
+                        .IsRequired()
                         .HasColumnType("text")
                         .HasJsonPropertyName("progression_mode");
 
@@ -151,13 +155,6 @@ namespace Bikeapelago.Api.Migrations
                         .IsRequired()
                         .HasColumnType("text")
                         .HasJsonPropertyName("status");
-
-                    b.Property<string>("TransportMode")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("text")
-                        .HasDefaultValue("bike")
-                        .HasJsonPropertyName("transport_mode");
 
                     b.Property<string>("UpdatedAt")
                         .IsRequired()

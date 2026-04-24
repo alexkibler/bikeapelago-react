@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
-import { MapContainer, TileLayer, Marker, ZoomControl, Polyline, Circle } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, ZoomControl, Polyline, Circle, Polygon } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Navigation } from 'lucide-react';
@@ -32,11 +32,17 @@ const getMarkerIcon = (state: NodeState, debugClickable = false, selected = fals
     : debugClickable
       ? `box-shadow:0 0 0 3px rgba(234,179,8,0.6), 0 0 10px ${color};`
       : `box-shadow:0 0 10px ${color};`;
+  
+  // Use a 44px hit area for mobile friendliness
   return L.divIcon({
     className: 'custom-div-icon',
-    html: `<div style="background-color:${color}; width:20px; height:20px; border-radius:50%; border:3px solid rgba(255, 255, 255, 0.5); ${ring} ${cursor}"></div>`,
-    iconSize: [20, 20],
-    iconAnchor: [10, 10]
+    html: `
+      <div style="display:flex; align-items:center; justify-content:center; width:44px; height:44px;">
+        <div style="background-color:${color}; width:20px; height:20px; border-radius:50%; border:3px solid rgba(255, 255, 255, 0.5); ${ring} ${cursor}"></div>
+      </div>
+    `,
+    iconSize: [44, 44],
+    iconAnchor: [22, 22]
   });
 };
 
@@ -44,23 +50,158 @@ const getCustomOriginIcon = () =>
   L.divIcon({
     className: 'custom-div-icon',
     html: `
-      <div style="
-        width:26px; height:26px; border-radius:50%;
-        background:linear-gradient(135deg,#7c3aed,#4f46e5);
-        border:3px solid #fff;
-        box-shadow:0 0 0 2px #7c3aed, 0 4px 12px rgba(124,58,237,0.5);
-        display:flex; align-items:center; justify-content:center;
-        font-size:11px; font-weight:900; color:#fff; cursor:pointer;
-      ">S</div>
+      <div style="display:flex; align-items:center; justify-content:center; width:44px; height:44px;">
+        <div style="
+          width:26px; height:26px; border-radius:50%;
+          background:linear-gradient(135deg,#7c3aed,#4f46e5);
+          border:3px solid #fff;
+          box-shadow:0 0 0 2px #7c3aed, 0 4px 12px rgba(124,58,237,0.5);
+          display:flex; align-items:center; justify-content:center;
+          font-size:11px; font-weight:900; color:#fff; cursor:pointer;
+        ">S</div>
+      </div>
     `,
-    iconSize: [26, 26],
-    iconAnchor: [13, 13],
+    iconSize: [44, 44],
+    iconAnchor: [22, 22],
   });
 
 interface MapCanvasProps {
   session: GameSession;
   nodes: MapNode[];
 }
+
+const ProgressionOverlay = ({ session }: { session: GameSession }) => {
+  if (!session.center_lat || !session.center_lon || !session.radius) return null;
+
+  const center: [number, number] = [session.center_lat, session.center_lon];
+  const hubRadius = session.radius * 0.25;
+  const outerRadius = session.radius;
+
+  const getWedgePoints = (startDeg: number, endDeg: number, r: number, innerR: number = 0): [number, number][] => {
+    const points: [number, number][] = [];
+    const step = 5; // degrees
+    
+    // Normalize angles
+    let start = startDeg;
+    let end = endDeg;
+    if (end <= start) end += 360;
+
+    // Outer arc
+    for (let a = start; a <= end; a += step) {
+      const rad = (90 - a) * (Math.PI / 180);
+      const lat = center[0] + (r / 111132) * Math.sin(rad);
+      const lon = center[1] + (r / (111132 * Math.cos(center[0] * Math.PI / 180))) * Math.cos(rad);
+      points.push([lat, lon]);
+    }
+    const finalRad = (90 - end) * (Math.PI / 180);
+    points.push([
+      center[0] + (r / 111132) * Math.sin(finalRad),
+      center[1] + (r / (111132 * Math.cos(center[0] * Math.PI / 180))) * Math.cos(finalRad)
+    ]);
+
+    if (innerR > 0) {
+      // Inner arc (backwards)
+      for (let a = end; a >= start; a -= step) {
+        const rad = (90 - a) * (Math.PI / 180);
+        const lat = center[0] + (innerR / 111132) * Math.sin(rad);
+        const lon = center[1] + (innerR / (111132 * Math.cos(center[0] * Math.PI / 180))) * Math.cos(rad);
+        points.push([lat, lon]);
+      }
+      const startRad = (90 - start) * (Math.PI / 180);
+      points.push([
+        center[0] + (innerR / 111132) * Math.sin(startRad),
+        center[1] + (innerR / (111132 * Math.cos(center[0] * Math.PI / 180))) * Math.cos(startRad)
+      ]);
+    } else {
+      points.unshift(center);
+    }
+    
+    return points;
+  };
+
+  const getArcPoints = (startDeg: number, endDeg: number, r: number): [number, number][] => {
+    const points: [number, number][] = [];
+    const step = 5;
+    let start = startDeg;
+    let end = endDeg;
+    if (end <= start) end += 360;
+    for (let a = start; a <= end; a += step) {
+      const rad = (90 - a) * (Math.PI / 180);
+      const lat = center[0] + (r / 111132) * Math.sin(rad);
+      const lon = center[1] + (r / (111132 * Math.cos(center[0] * Math.PI / 180))) * Math.cos(rad);
+      points.push([lat, lon]);
+    }
+    return points;
+  };
+
+  const unlockedColor = '#f97316';
+  const lockedColor = '#525252';
+
+  // For Radius mode, show all 4 concentric rings
+  if (session.progression_mode === 'radius') {
+    const steps = [
+      { r: 0.25, unlocked: true }, // Hub always unlocked
+      { r: 0.50, unlocked: session.radius_step >= 1 },
+      { r: 0.75, unlocked: session.radius_step >= 2 },
+      { r: 1.00, unlocked: session.radius_step >= 3 },
+    ];
+    
+    return (
+      <>
+        {steps.map((step, i) => (
+          <Circle 
+            key={i}
+            center={center} 
+            radius={step.r * session.radius!} 
+            pathOptions={{ 
+              color: step.unlocked ? unlockedColor : lockedColor, 
+              weight: step.unlocked ? 2 : 1, 
+              fillColor: step.unlocked ? unlockedColor : lockedColor, 
+              fillOpacity: step.unlocked ? 0.04 : 0,
+              dashArray: step.unlocked ? undefined : '5,5'
+            }} 
+          />
+        ))}
+      </>
+    );
+  }
+
+  // For Quadrant mode, draw the 4 wedges
+  const quadrants = [
+    { name: 'North', start: 315, end: 45, unlocked: session.north_pass_received },
+    { name: 'East', start: 45, end: 135, unlocked: session.east_pass_received },
+    { name: 'South', start: 135, end: 225, unlocked: session.south_pass_received },
+    { name: 'West', start: 225, end: 315, unlocked: session.west_pass_received },
+  ];
+
+  return (
+    <>
+      {/* The Hub is always unlocked, but we only draw its stroke for locked quadrants below */}
+      <Circle center={center} radius={hubRadius} pathOptions={{ color: unlockedColor, weight: 0, fillColor: unlockedColor, fillOpacity: 0.1 }} />
+      
+      {quadrants.map(q => (
+        <div key={q.name}>
+          <Polygon
+            positions={getWedgePoints(q.start, q.end, outerRadius, q.unlocked ? 0 : hubRadius)}
+            pathOptions={{
+              color: q.unlocked ? unlockedColor : lockedColor,
+              weight: q.unlocked ? 2 : 1,
+              fillColor: q.unlocked ? unlockedColor : lockedColor,
+              fillOpacity: q.unlocked ? 0.1 : 0.03, // Match hub opacity when unlocked
+              dashArray: q.unlocked ? undefined : '5,5'
+            }}
+          />
+          {!q.unlocked && (
+            <Polyline 
+              positions={getArcPoints(q.start, q.end, hubRadius)} 
+              pathOptions={{ color: unlockedColor, weight: 2 }} 
+            />
+          )}
+        </div>
+      ))}
+    </>
+  );
+};
 
 const MapCanvas = ({ session, nodes }: MapCanvasProps) => {
   const activePanel = useGameStore(s => s.activePanel);
@@ -131,45 +272,40 @@ const MapCanvas = ({ session, nodes }: MapCanvasProps) => {
           maxZoom={19}
         />
         <MapResizer />
-        <MapEvents />
+        <MapEvents nodes={nodes} />
         <MapAutoFitter nodes={nodes} />
         <ZoomControl position="bottomleft" />
 
-        {/* Radius circle around session center */}
-        {session.center_lat && session.center_lon && session.radius && (
-          <Circle
-            center={[session.center_lat, session.center_lon]}
-            radius={session.radius}
-            pathOptions={{
-              color: '#f97316',
-              weight: 2,
-              opacity: 0.5,
-              fillColor: '#f97316',
-              fillOpacity: 0.04,
-              dashArray: '8 6',
-            }}
-          />
-        )}
+        <ProgressionOverlay session={session} />
         
         {nodes.map(node => {
           const isSelected = selectedNodeIds.has(node.id);
           const inRouteMode = activePanel === 'route';
-          // Debug-clickable only when debug mode is on and NOT in route-selection mode
-          const debugClickable = debugMode && !inRouteMode && node.state === 'Available' && pendingDebugNodeId !== node.id;
-          // Available nodes are selectable when the Route panel is open
-          const routeSelectable = inRouteMode && node.state === 'Available';
+          const inInventoryMode = activePanel === 'inventory';
+          
+          // Debug-clickable only when debug mode is on and NOT in another interaction mode
+          const debugClickable = debugMode && !inRouteMode && !inInventoryMode && node.state === 'Available' && pendingDebugNodeId !== node.id;
+          
+          // Available nodes are selectable when either Route or Inventory panel is open
+          const canSelect = (inRouteMode || inInventoryMode) && node.state === 'Available';
 
-          const handleClick = routeSelectable
-            ? () => toggleSelectedNode(node.id)
+          const handleClick = canSelect
+            ? (e: L.LeafletMouseEvent) => {
+                L.DomEvent.stopPropagation(e);
+                toggleSelectedNode(node.id);
+              }
             : debugClickable
-              ? () => handleDebugCheck(node)
+              ? (e: L.LeafletMouseEvent) => {
+                  L.DomEvent.stopPropagation(e);
+                  handleDebugCheck(node);
+                }
               : undefined;
 
           return (
             <Marker
               key={node.id}
               position={[node.lat, node.lon]}
-              icon={getMarkerIcon(node.state, debugClickable, isSelected)}
+              icon={getMarkerIcon(node.state, debugClickable || canSelect, isSelected)}
               title={node.name}
               eventHandlers={handleClick ? { click: handleClick } : undefined}
             />
@@ -203,7 +339,12 @@ const MapCanvas = ({ session, nodes }: MapCanvasProps) => {
             position={customOrigin}
             icon={getCustomOriginIcon()}
             zIndexOffset={900}
-            eventHandlers={{ click: () => setCustomOrigin(null) }}
+            eventHandlers={{ 
+              click: (e) => {
+                L.DomEvent.stopPropagation(e);
+                setCustomOrigin(null);
+              }
+            }}
           />
         )}
 

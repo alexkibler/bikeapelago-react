@@ -129,6 +129,57 @@ public class SpatialMathTests
             $"Linear bias=1.0 ratio {r10:F3} should be between bias=0.5 ({r05:F3}) and bias=1.5 ({r15:F3})");
     }
 
+    [Fact]
+    public void GenerateRandomPointsInWedge_AllPointsAreWithinWedge()
+    {
+        // Test a wedge from 315 to 45 (wraps north)
+        double start = 315;
+        double end = 45;
+        var points = PostGisOsmDiscoveryService.GenerateRandomPointsInWedge(
+            CenterLat, CenterLon, 5000, start, end, count: 1000);
+
+        // Access private static methods via reflection for testing if they weren't internal/public
+        // But let's just use the same logic here to verify the output distribution
+        foreach (var p in points)
+        {
+            double az = CalculateAzimuth(CenterLat, CenterLon, p.Lat, p.Lon);
+            Assert.True(IsInWedge(az, start, end), $"Point at azimuth {az} should be within {start}-{end}");
+        }
+    }
+
+    [Fact]
+    public void GenerateRandomPointsInWedge_EasternWedge()
+    {
+        double start = 45;
+        double end = 135;
+        var points = PostGisOsmDiscoveryService.GenerateRandomPointsInWedge(
+            CenterLat, CenterLon, 5000, start, end, count: 1000);
+
+        foreach (var p in points)
+        {
+            double az = CalculateAzimuth(CenterLat, CenterLon, p.Lat, p.Lon);
+            Assert.True(IsInWedge(az, start, end), $"Point at azimuth {az} should be within {start}-{end}");
+        }
+    }
+
+    // Duplicate logic for testing purposes
+    private double CalculateAzimuth(double lat1, double lon1, double lat2, double lon2)
+    {
+        double lat1Rad = lat1 * Math.PI / 180.0;
+        double lat2Rad = lat2 * Math.PI / 180.0;
+        double dLonRad = (lon2 - lon1) * Math.PI / 180.0;
+        double y = Math.Sin(dLonRad) * Math.Cos(lat2Rad);
+        double x = Math.Cos(lat1Rad) * Math.Sin(lat2Rad) - Math.Sin(lat1Rad) * Math.Cos(lat2Rad) * Math.Cos(dLonRad);
+        double brng = Math.Atan2(y, x);
+        return (brng * 180.0 / Math.PI + 360.0) % 360.0;
+    }
+
+    private bool IsInWedge(double az, double start, double end)
+    {
+        if (start < end) return az >= start && az <= end;
+        return az >= start || az <= end;
+    }
+
     // ── Helpers ───────────────────────────────────────────────────────────
 
     private static (int inner, int outer) SplitByHalfRadius(

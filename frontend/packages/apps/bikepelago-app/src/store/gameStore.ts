@@ -63,6 +63,9 @@ interface GameState {
   nodes: MapNode[];
   setNodes: (nodes: MapNode[]) => void;
 
+  session: any | null; // Using any for brevity since type is imported in game.ts
+  setSession: (session: any | null) => void;
+
   routeData: RouteData;
   setRouteData: (data: RouteData) => void;
 
@@ -140,6 +143,9 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   nodes: [],
   setNodes: (nodes) => set({ nodes }),
+
+  session: null,
+  setSession: (session) => set({ session }),
 
   routeData: {
     distance: 0,

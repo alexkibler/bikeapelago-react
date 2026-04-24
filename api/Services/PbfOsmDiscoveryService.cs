@@ -17,7 +17,12 @@ public class PbfOsmDiscoveryService(ILogger<PbfOsmDiscoveryService> logger, stri
 
     public async Task<List<DiscoveryPoint>> GetRandomNodesAsync(double lat, double lon, double radiusMeters, int count, string mode = "bike", double densityBias = 0.5)
     {
-        _logger.LogInformation("Streaming random nodes from PBF file at {Path} near {Lat},{Lon} radius {Radius}m, mode: {Mode}", _pbfPath, lat, lon, radiusMeters, mode);
+        return await GetRandomNodesInWedgeAsync(lat, lon, radiusMeters, 0, 360, count, mode, densityBias);
+    }
+
+    public async Task<List<DiscoveryPoint>> GetRandomNodesInWedgeAsync(double lat, double lon, double radiusMeters, double startDeg, double endDeg, int count, string mode = "bike", double densityBias = 0.5)
+    {
+        _logger.LogInformation("Streaming random nodes from PBF file at {Path} near {Lat},{Lon} radius {Radius}m, wedge {Start}-{End}, mode: {Mode}", _pbfPath, lat, lon, radiusMeters, startDeg, endDeg, mode);
 
         if (!File.Exists(_pbfPath))
         {
@@ -61,7 +66,11 @@ public class PbfOsmDiscoveryService(ILogger<PbfOsmDiscoveryService> logger, stri
                         double dist = CalculateDistance(lat, lon, node.Latitude.Value, node.Longitude.Value);
                         if (dist <= radiusMeters)
                         {
-                            candidateNodes.Add(new DiscoveryPoint(node.Longitude.Value, node.Latitude.Value));
+                            double az = CalculateAzimuth(lat, lon, node.Latitude.Value, node.Longitude.Value);
+                            if (IsInWedge(az, startDeg, endDeg))
+                            {
+                                candidateNodes.Add(new DiscoveryPoint(node.Longitude.Value, node.Latitude.Value));
+                            }
                         }
                     }
                 }
@@ -79,6 +88,25 @@ public class PbfOsmDiscoveryService(ILogger<PbfOsmDiscoveryService> logger, stri
         }
 
         return candidateNodes.Take(count).ToList();
+    }
+
+    private static double CalculateAzimuth(double lat1, double lon1, double lat2, double lon2)
+    {
+        double lat1Rad = lat1 * Math.PI / 180.0;
+        double lat2Rad = lat2 * Math.PI / 180.0;
+        double dLonRad = (lon2 - lon1) * Math.PI / 180.0;
+
+        double y = Math.Sin(dLonRad) * Math.Cos(lat2Rad);
+        double x = Math.Cos(lat1Rad) * Math.Sin(lat2Rad) - Math.Sin(lat1Rad) * Math.Cos(lat2Rad) * Math.Cos(dLonRad);
+        double brng = Math.Atan2(y, x);
+        return (brng * 180.0 / Math.PI + 360.0) % 360.0;
+    }
+
+    private static bool IsInWedge(double az, double start, double end)
+    {
+        if (Math.Abs(start - 0) < 0.01 && Math.Abs(end - 360) < 0.01) return true;
+        if (start < end) return az >= start && az <= end;
+        return az >= start || az <= end;
     }
 
     private static bool IsBikeFriendly(Way way)

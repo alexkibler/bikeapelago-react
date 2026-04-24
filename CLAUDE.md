@@ -3,7 +3,7 @@
 General instructions for AI agents working in the Bikeapelago monorepo.
 
 > [!IMPORTANT]
-> **DATABASE SAFETY**: NEVER perform database writes (DDL/DML) without explicit approval. See `GEMINI.md` for full policy.
+> **DATABASE SAFETY**: NEVER execute DDL or DML directly against the database (no `psql -c`, no `docker exec ... psql`, no raw SQL run outside of migrations). All schema changes go through `dotnet ef migrations add` + `dotnet ef database update`. If a migration needs raw SQL, use `migrationBuilder.Sql()` inside the migration file. No exceptions.
 
 ## Project Structure
 - `api/`: .NET 10 Web API.

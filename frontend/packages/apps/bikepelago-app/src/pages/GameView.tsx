@@ -47,6 +47,7 @@ const GameView = () => {
   const sessionNodesReq = useSessionNodesGet({ sessionId: id, syncVersion });
 
   const session = sessionReq.data;
+  const setSession = useGameStore((s) => s.setSession);
 
   const showReconnect = useMemo(() => {
     if (apStatus === 'error' && apError) {
@@ -61,6 +62,10 @@ const GameView = () => {
   }, [apStatus, apError, reconnectCanceled]);
 
   useEffect(() => {
+    if (session) setSession(session);
+  }, [session, setSession]);
+
+  useEffect(() => {
     if (sessionNodesReq.data) {
       setNodes(sessionNodesReq.data);
     }
@@ -68,14 +73,26 @@ const GameView = () => {
 
   useEffect(() => {
     if (session?.received_item_ids) {
+      const ITEM_MAP: Record<number, string> = {
+        802001: 'Goal',
+        802002: 'North Quadrant Pass',
+        802003: 'South Quadrant Pass',
+        802004: 'East Quadrant Pass',
+        802005: 'West Quadrant Pass',
+        802006: 'Progressive Radius Increase',
+        802010: 'Detour',
+        802011: 'Drone',
+        802012: 'Signal Amplifier'
+      };
+
       setReceivedItems(
         session.received_item_ids.map((itemId: number) => ({
           id: itemId,
-          name: `Item ${itemId}`,
+          name: ITEM_MAP[itemId] || `Item ${itemId}`,
         })),
       );
     }
-  }, [session]);
+  }, [session, setReceivedItems]);
 
   // Save new connection info to DB on successful reconnect
   useEffect(() => {
@@ -104,8 +121,12 @@ const GameView = () => {
 
   // Effect for Archipelago connection (depends only on session loading)
   useEffect(() => {
-    if (id && session?.ap_server_url && session?.ap_slot_name) {
-      archipelago.connect(id, session.ap_server_url, session.ap_slot_name);
+    if (id && session) {
+      if (session.ap_server_url && session.ap_slot_name) {
+        archipelago.connect(id, session.ap_server_url, session.ap_slot_name);
+      } else {
+        archipelago.joinSessionOnly(id);
+      }
     }
   }, [id, session]);
 

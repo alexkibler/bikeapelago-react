@@ -51,7 +51,7 @@ const ChatPanel = () => {
       <div className="p-4 border-b border-[var(--color-border-hex)] flex items-center justify-between bg-[rgb(var(--color-surface-overlay))]">
         <div className="flex items-center gap-2">
           <MessageSquare className="w-4 h-4 text-[var(--color-primary-hex)]" />
-          <span className="text-xs font-black uppercase tracking-widest text-[var(--color-text-muted-hex)]">Game Chat</span>
+          <span className="text-xs font-black uppercase tracking-widest text-[var(--color-text-muted-hex)]">Game Log</span>
         </div>
         <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-[var(--color-surface-hex)]/40 border border-[var(--color-border-hex)]">
           <div className={`w-1.5 h-1.5 rounded-full ${status === 'connected' ? 'bg-[var(--color-success-hex)] shadow-[0_0_8px_rgba(var(--color-success),0.5)]' : 'bg-[var(--color-border-hex)] animate-pulse'}`}></div>
@@ -63,7 +63,7 @@ const ChatPanel = () => {
         {messages.length === 0 && (
           <div className="h-full flex flex-col items-center justify-center opacity-30 text-center px-8">
             <MessageSquare className="w-8 h-8 mb-3" />
-            <p className="text-xs italic">No messages yet. Connect to Archipelago to see game events.</p>
+            <p className="text-xs italic">No entries yet. Clearing nodes and receiving items will populate this log.</p>
           </div>
         )}
 

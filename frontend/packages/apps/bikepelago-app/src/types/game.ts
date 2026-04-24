@@ -24,6 +24,8 @@ export interface GameSession {
   center_lon?: number;
   radius?: number;
   received_item_ids?: number[];
+  connection_mode: string; // "archipelago" | "singleplayer"
+  transport_mode: string; // "bike" | "walk"
   progression_mode: string;
   north_pass_received: boolean;
   east_pass_received: boolean;

@@ -20,12 +20,14 @@ public class ItemExecutionService(
     IGameSessionRepository sessionRepository,
     IOsmDiscoveryService osmDiscoveryService,
     IArchipelagoService archipelagoService,
+    IProgressionEngineFactory engineFactory,
     ILogger<ItemExecutionService> logger) : IItemExecutionService
 {
     private readonly IMapNodeRepository _nodeRepository = nodeRepository;
     private readonly IGameSessionRepository _sessionRepository = sessionRepository;
     private readonly IOsmDiscoveryService _osmDiscoveryService = osmDiscoveryService;
     private readonly IArchipelagoService _archipelagoService = archipelagoService;
+    private readonly IProgressionEngineFactory _engineFactory = engineFactory;
     private readonly ILogger<ItemExecutionService> _logger = logger;
 
     public async Task<bool> ExecuteDetourAsync(Guid sessionId, Guid nodeId)
@@ -35,37 +37,117 @@ public class ItemExecutionService(
 
         if (session == null || node == null || node.State == "Checked") return false;
 
-        _logger.LogInformation("Executing Detour for node {NodeId} in session {SessionId}", nodeId, sessionId);
+        // Ensure user has a Detour item
+        if (!await ConsumeItemAsync(session, 802010)) 
+        {
+            _logger.LogWarning("Attempted to use Detour without any Detour items in session {SessionId}", sessionId);
+            return false;
+        }
 
-        // Fetch replacement point matching the same region tag
+        _logger.LogInformation("Executing Detour for node {NodeId} ({RegionTag}) in session {SessionId}", nodeId, node.RegionTag, sessionId);
+
+        double totalRadius = session.Radius ?? 5000;
+        double hubRadius = totalRadius * 0.25;
+
+        // Fetch candidate replacement points
         var points = await _osmDiscoveryService.GetRandomNodesAsync(
             session.CenterLat ?? 0,
             session.CenterLon ?? 0,
-            session.Radius ?? 5000,
-            20,
-            session.Mode,
+            totalRadius,
+            200, // Sample more for better randomness
+            session.TransportMode,
             0.5);
 
-        var replacementPoint = points
-            .Where(p => GetRegionTag(CalculateAzimuth(session.CenterLat ?? 0, session.CenterLon ?? 0, p.Lat, p.Lon)) == node.RegionTag)
+        _logger.LogInformation("Found {Count} candidate points for detour. Total Radius: {TotalRadius}, Hub Radius: {HubRadius}", points.Count, totalRadius, hubRadius);
+
+        // Filter for points that are currently "playable" based on session progression
+        var playablePoints = points.Where(p => {
+            double dist = CalculateDistance(session.CenterLat ?? 0, session.CenterLon ?? 0, p.Lat, p.Lon);
+            
+            // 1. Hub is always playable
+            if (dist <= hubRadius) return true;
+
+            // 2. Beyond hub depends on progression mode
+            double az = CalculateAzimuth(session.CenterLat ?? 0, session.CenterLon ?? 0, p.Lat, p.Lon);
+            
+            if (session.ProgressionMode == "quadrant")
+            {
+                string tag = GetRegionTag(az);
+                if (tag == "North" && session.NorthPassReceived) return true;
+                if (tag == "East" && session.EastPassReceived) return true;
+                if (tag == "South" && session.SouthPassReceived) return true;
+                if (tag == "West" && session.WestPassReceived) return true;
+                return false;
+            }
+            else if (session.ProgressionMode == "radius")
+            {
+                // steps: 0=25%, 1=50%, 2=75%, 3=100%
+                double unlockedRadius = hubRadius * (session.RadiusStep + 1);
+                return dist <= unlockedRadius;
+            }
+            
+            // "free" or null progression mode means everything in radius is playable
+            return dist <= totalRadius;
+        }).ToList();
+
+        _logger.LogInformation("Filtered to {Count} playable candidate points", playablePoints.Count);
+
+        var replacementPoint = playablePoints
             .OrderBy(_ => Guid.NewGuid())
             .FirstOrDefault();
 
         if (replacementPoint != null)
         {
+            double dist = CalculateDistance(session.CenterLat ?? 0, session.CenterLon ?? 0, replacementPoint.Lat, replacementPoint.Lon);
+            double az = CalculateAzimuth(session.CenterLat ?? 0, session.CenterLon ?? 0, replacementPoint.Lat, replacementPoint.Lon);
+            
+            string newTag = dist <= hubRadius ? "Hub" : GetRegionTag(az);
+            
+            _logger.LogInformation("Selected replacement point at {Lat}, {Lon} (New Tag: {Tag})", replacementPoint.Lat, replacementPoint.Lon, newTag);
+            
             node.Location = new NetTopologySuite.Geometries.Point(replacementPoint.Lon, replacementPoint.Lat) { SRID = 4326 };
+            node.RegionTag = newTag;
+            node.State = "Available"; // Since it's in a playable area, it's now Available
             node.HasBeenRelocated = true;
+            
             await _nodeRepository.UpdateAsync(node);
+            await _archipelagoService.BroadcastMessageAsync(sessionId, $"Used Detour on {node.Name}!", "item");
             return true;
         }
 
+        _logger.LogWarning("Failed to find any playable replacement points among {Count} candidates", points.Count);
         return false;
+    }
+
+    private static double CalculateDistance(double lat1, double lon1, double lat2, double lon2)
+    {
+        // Haversine formula
+        double r = 6371000; // meters
+        double phi1 = lat1 * Math.PI / 180;
+        double phi2 = lat2 * Math.PI / 180;
+        double dphi = (lat2 - lat1) * Math.PI / 180;
+        double dlambda = (lon2 - lon1) * Math.PI / 180;
+
+        double a = Math.Sin(dphi / 2) * Math.Sin(dphi / 2) +
+                   Math.Cos(phi1) * Math.Cos(phi2) *
+                   Math.Sin(dlambda / 2) * Math.Sin(dlambda / 2);
+        double c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
+
+        return r * c;
     }
 
     public async Task<bool> ExecuteDroneAsync(Guid sessionId, Guid nodeId)
     {
+        var session = await _sessionRepository.GetByIdAsync(sessionId);
         var node = await _nodeRepository.GetByIdAsync(nodeId);
-        if (node == null || (node.IsArrivalChecked && node.IsPrecisionChecked)) return false;
+        if (session == null || node == null || (node.IsArrivalChecked && node.IsPrecisionChecked)) return false;
+
+        // Ensure user has a Drone item
+        if (!await ConsumeItemAsync(session, 802011))
+        {
+            _logger.LogWarning("Attempted to use Drone without any Drone items in session {SessionId}", sessionId);
+            return false;
+        }
 
         _logger.LogInformation("Executing Drone for node {NodeId} in session {SessionId}", nodeId, sessionId);
 
@@ -73,8 +155,18 @@ public class ItemExecutionService(
         node.IsPrecisionChecked = true;
         node.State = "Checked";
         await _nodeRepository.UpdateAsync(node);
+        await _archipelagoService.BroadcastMessageAsync(sessionId, $"Drone completed {node.Name}!", "item");
 
+        // Notify Archipelago if in archipelago mode
         await _archipelagoService.CheckLocationsAsync(sessionId, [node.ApArrivalLocationId, node.ApPrecisionLocationId]);
+        
+        // Trigger progression unlock if in single player mode
+        if (session.ConnectionMode == "singleplayer")
+        {
+            var engine = _engineFactory.CreateEngine(session.ConnectionMode);
+            await engine.UnlockNextAsync(sessionId);
+        }
+
         return true;
     }
 
@@ -83,10 +175,35 @@ public class ItemExecutionService(
         var session = await _sessionRepository.GetByIdAsync(sessionId);
         if (session == null) return false;
 
+        // Ensure user has a Signal Amplifier item
+        if (!await ConsumeItemAsync(session, 802012))
+        {
+            _logger.LogWarning("Attempted to use Signal Amplifier without any items in session {SessionId}", sessionId);
+            return false;
+        }
+
         _logger.LogInformation("Executing Signal Amplifier for session {SessionId}", sessionId);
         session.SignalAmplifierActive = true;
         await _sessionRepository.UpdateAsync(session);
+        await _archipelagoService.BroadcastMessageAsync(sessionId, "Signal Amplifier activated for next ride!", "item");
         return true; 
+    }
+
+    private async Task<bool> ConsumeItemAsync(GameSession session, long itemId)
+    {
+        // For Single Player, we manage items locally by removing them from the list.
+        // For Archipelago, items are typically managed by the server, but we remove one 
+        // from the local cached list so the UI updates immediately. 
+        // Note: AP sync may restore it if the AP world doesn't track consumption.
+        var itemIndex = session.ReceivedItemIds.IndexOf(itemId);
+        if (itemIndex >= 0)
+        {
+            session.ReceivedItemIds.RemoveAt(itemIndex);
+            await _sessionRepository.UpdateAsync(session);
+            return true;
+        }
+
+        return false;
     }
 
     private double CalculateAzimuth(double lat1, double lon1, double lat2, double lon2)

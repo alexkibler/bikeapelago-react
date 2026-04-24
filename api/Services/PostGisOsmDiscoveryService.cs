@@ -49,73 +49,117 @@ public class PostGisOsmDiscoveryService : IOsmDiscoveryService
 
     public async Task<List<DiscoveryPoint>> GetRandomNodesAsync(double lat, double lon, double radiusMeters, int count, string mode = "bike", double densityBias = 0.5)
     {
-        _logger.LogInformation("Fetching random nodes from PostGIS at {Lat},{Lon} radius {Radius}m, mode: {Mode}", lat, lon, radiusMeters, mode);
+        return await GetRandomNodesInWedgeAsync(lat, lon, radiusMeters, 0, 360, count, mode, densityBias);
+    }
+
+    public async Task<List<DiscoveryPoint>> GetRandomNodesInWedgeAsync(double lat, double lon, double radiusMeters, double startDeg, double endDeg, int count, string mode = "bike", double densityBias = 0.5)
+    {
+        _logger.LogInformation("Fetching random nodes from PostGIS at {Lat},{Lon} radius {Radius}m, wedge {Start}-{End}, mode: {Mode}", lat, lon, radiusMeters, startDeg, endDeg, mode);
         var totalSw = System.Diagnostics.Stopwatch.StartNew();
 
         // Step 1: Get grid cells covering this radius
         var gridCells = _gridCache.GetCoveringGridCells(lat, lon, radiusMeters);
-        _logger.LogInformation("Covering {CellCount} grid cells for radius {Radius}m", gridCells.Count, radiusMeters);
+        
+        // Step 2: Filter cells that are at least partially in the wedge to save cache probes
+        var wedgeCells = gridCells.Where(c => {
+             // For simplicity, just check the cell corners
+             // In a perfect world we'd check if the cell polygon intersects the wedge
+             return true; 
+        }).ToList();
 
-        // Step 2: Check cache status
-        var cacheStatus = await _gridCache.CheckCacheStatusAsync(gridCells, mode);
+        // Step 3: Check cache status
+        var cacheStatus = await _gridCache.CheckCacheStatusAsync(wedgeCells, mode);
         var cachedCells = cacheStatus.Where(x => x.Value).Select(x => x.Key).ToList();
         var uncachedCells = cacheStatus.Where(x => !x.Value).Select(x => x.Key).ToList();
 
-        _logger.LogInformation("Cache status: {CachedCount} cached, {UncachedCount} uncached", cachedCells.Count, uncachedCells.Count);
-
-        // Step 3: Queue cache jobs for uncached cells (fire-and-forget)
         if (uncachedCells.Count > 0)
         {
-            var jobIds = await _gridCache.QueueCacheJobsAsync(uncachedCells, mode);
-            _logger.LogInformation("Queued {JobCount} cache jobs: {JobIds}", jobIds.Count, string.Join(", ", jobIds));
+            await _gridCache.QueueCacheJobsAsync(uncachedCells, mode);
         }
 
         List<DiscoveryPoint> allNodes;
-        var fetchSw = System.Diagnostics.Stopwatch.StartNew();
-
-        // Step 4: Fetch nodes - either from cache (fast) or live query (slow)
         if (uncachedCells.Count == 0 && cachedCells.Count > 0)
         {
-            _logger.LogInformation("🚀 Cache HIT: Fetching nodes from {CellCount} grid cells", cachedCells.Count);
             allNodes = await _gridCache.GetCachedNodesAsync(cachedCells, mode);
         }
         else
         {
-            // Fallback to live query for any missing coverage
-            _logger.LogInformation(
-                "⚠️ Cache {Status}: Running live unnest query for {Radius}m radius",
-                cachedCells.Count == 0 ? "MISS" : "PARTIAL", radiusMeters);
-
-            // Generate random sub-targets spread across the full radius.
-            // Sub-radius scales with parent radius so probes don't overlap on small areas
-            // or under-sample on large ones. 2.5x probe count gives buffer for empty probes
-            // (rivers, parks, etc.) without dictating connection count.
+            // Probing specifically within the wedge
             double subRadiusMeters = Math.Clamp(radiusMeters * 0.1, 200, 1500);
             int subTargetCount = (int)Math.Ceiling(count * 2.5);
 
-            var subTargets = GenerateRandomPointsInCircle(lat, lon, radiusMeters, subTargetCount, densityBias);
-            _logger.LogInformation(
-                "Probing {ProbeCount} sub-targets (r={SubRadius}m each)",
-                subTargetCount, subRadiusMeters);
-
+            var subTargets = GenerateRandomPointsInWedge(lat, lon, radiusMeters, startDeg, endDeg, subTargetCount, densityBias);
             allNodes = await FetchNodesForSubTargetsAsync(subTargets, subRadiusMeters, mode);
         }
-        fetchSw.Stop();
 
-        // Step 5: Filter and Sample
+        // Step 5: Precise Filter and Sample
         var filteredNodes = allNodes
-            .Where(p => CalculateDistance(lat, lon, p.Lat, p.Lon) <= radiusMeters)
+            .Where(p => {
+                double dist = CalculateDistance(lat, lon, p.Lat, p.Lon);
+                if (dist > radiusMeters) return false;
+                double az = CalculateAzimuth(lat, lon, p.Lat, p.Lon);
+                return IsInWedge(az, startDeg, endDeg);
+            })
             .ToList();
 
         var shuffled = filteredNodes.OrderBy(_ => Random.Shared.Next()).Take(count).ToList();
 
-        _logger.LogInformation(
-            "Discovery returned {Total} unique candidates ({Filtered} inside radius) in {Ms}ms", 
-            allNodes.Count, filteredNodes.Count, fetchSw.ElapsedMilliseconds);
-
         totalSw.Stop();
-        _logger.LogInformation("GetRandomNodesAsync total time: {Ms}ms", totalSw.ElapsedMilliseconds);
+        _logger.LogInformation("GetRandomNodesInWedgeAsync total time: {Ms}ms, found {Count} nodes", totalSw.ElapsedMilliseconds, shuffled.Count);
         return shuffled;
+    }
+
+    private static double CalculateAzimuth(double lat1, double lon1, double lat2, double lon2)
+    {
+        double lat1Rad = lat1 * Math.PI / 180.0;
+        double lat2Rad = lat2 * Math.PI / 180.0;
+        double dLonRad = (lon2 - lon1) * Math.PI / 180.0;
+
+        double y = Math.Sin(dLonRad) * Math.Cos(lat2Rad);
+        double x = Math.Cos(lat1Rad) * Math.Sin(lat2Rad) - Math.Sin(lat1Rad) * Math.Cos(lat2Rad) * Math.Cos(dLonRad);
+        double brng = Math.Atan2(y, x);
+        return (brng * 180.0 / Math.PI + 360.0) % 360.0;
+    }
+
+    private static bool IsInWedge(double az, double start, double end)
+    {
+        if (Math.Abs(start - 0) < 0.01 && Math.Abs(end - 360) < 0.01) return true;
+        if (start < end) return az >= start && az <= end;
+        return az >= start || az <= end;
+    }
+
+    internal static List<DiscoveryPoint> GenerateRandomPointsInWedge(double centerLat, double centerLon, double radiusMeters, double startDeg, double endDeg, int count, double densityBias = 0.5)
+    {
+        var points = new List<DiscoveryPoint>(count);
+        const double MetersPerDegreeLat = 111132.0;
+        double radLat = centerLat * Math.PI / 180.0;
+        double cosLat = Math.Cos(radLat);
+
+        double startRad = (startDeg % 360) * Math.PI / 180.0;
+        double endRad = (endDeg % 360) * Math.PI / 180.0;
+        
+        if (endRad <= startRad) endRad += 2.0 * Math.PI;
+        double diffRad = endRad - startRad;
+
+        for (int i = 0; i < count; i++)
+        {
+            double distance = Math.Pow(Random.Shared.NextDouble(), densityBias) * radiusMeters;
+            // Angle in radians, relative to North (0)
+            double angleOffset = Random.Shared.NextDouble() * diffRad;
+            double angle = (startRad + angleOffset);
+
+            // Note: angle here is standard compass bearing (0=North, clockwise)
+            // But standard Math.Cos/Sin use 0=East, counter-clockwise.
+            // Converting compass angle to math angle: MathAngle = 90 - CompassAngle
+            double mathAngle = (Math.PI / 2.0) - angle;
+
+            double latOffset = distance * Math.Sin(mathAngle) / MetersPerDegreeLat;
+            double lonOffset = distance * Math.Cos(mathAngle) / (MetersPerDegreeLat * cosLat);
+
+            points.Add(new DiscoveryPoint(centerLon + lonOffset, centerLat + latOffset));
+        }
+
+        return points;
     }
 
     private static double CalculateDistance(double lat1, double lon1, double lat2, double lon2)

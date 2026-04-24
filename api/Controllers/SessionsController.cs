@@ -138,7 +138,7 @@ public class SessionsController(
             var session = new GameSession
             {
                 UserId = userId,
-                Mode = "singleplayer",
+                ConnectionMode = "singleplayer",
                 Status = SessionStatus.SetupInProgress,
                 Location = new NetTopologySuite.Geometries.Point(metrics.CenterLon, metrics.CenterLat) { SRID = 4326 },
                 Radius = (int)Math.Ceiling(metrics.MaxRadius)
@@ -412,7 +412,7 @@ public class SessionsController(
                 : UnprocessableEntity(new { message = validation.Error });
         }
 
-        var engine = _engineFactory.CreateEngine(session.Mode);
+        var engine = _engineFactory.CreateEngine(session.ConnectionMode);
         await engine.CheckNodesAsync(id, validation.ValidNodes);
 
         return Accepted(new { message = "Check request processed." });
@@ -449,5 +449,30 @@ public class SessionsController(
     {
         var success = await _itemExecutionService.ExecuteSignalAmplifierAsync(id);
         return success ? Ok(new { message = "Signal Amplifier activated" }) : BadRequest(new { message = "Failed to activate Signal Amplifier" });
+    }
+
+    [HttpPost("{id}/debug/items")]
+    [Microsoft.AspNetCore.Authorization.Authorize]
+    public async Task<IActionResult> SetItemCount(Guid id, [FromQuery] long itemId, [FromQuery] int count, [FromServices] IArchipelagoService archipelagoService)
+    {
+        var session = await _sessionRepository.GetByIdAsync(id);
+        if (session == null || session.ConnectionMode != "singleplayer") 
+            return BadRequest("Debug only available for singleplayer sessions");
+
+        // Remove all instances of this itemId
+        session.ReceivedItemIds.RemoveAll(x => x == itemId);
+        
+        // Add back the desired number of instances
+        for (int i = 0; i < count; i++)
+        {
+            session.ReceivedItemIds.Add(itemId);
+        }
+
+        await _sessionRepository.UpdateAsync(session);
+        
+        // Force a sync to unlock nodes if it was a progression item
+        await archipelagoService.UpdateUnlockedNodesAsync(id, session.ReceivedItemIds.ToArray());
+
+        return Ok(new { message = $"Item {itemId} count set to {count}" });
     }
 }

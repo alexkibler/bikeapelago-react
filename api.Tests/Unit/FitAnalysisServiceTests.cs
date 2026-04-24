@@ -138,15 +138,51 @@ public class FitAnalysisServiceTests
     }
 
     [Fact]
-    public void FindReachedNodes_NodeJustBeyond100m_IsNotReached()
+    public void FindReachedNodes_SignalAmplifier_ClearsNodeAt70m()
     {
-        // 110 m north ≈ 0.001 degrees latitude — clearly outside 100 m threshold
-        var node = new MapNode { Id = Guid.NewGuid(), Lat = lat + 0.001, Lon = lon };
+        // 70 m north ≈ 0.00063 degrees latitude
+        var node = new MapNode { Id = Guid.NewGuid(), Lat = lat + 0.00063, Lon = lon };
         var path = new List<PathPoint> { new PathPoint { Lat = lat, Lon = lon } };
 
-        var reached = FitAnalysisService.FindReachedNodes(path, new[] { node });
+        // 1. Without Amplifier (Precision radius is 25m)
+        var reachedNormal = FitAnalysisService.FindReachedNodes(path, new[] { node }, radiusMultiplier: 1.0);
+        Assert.Single(reachedNormal);
+        Assert.True(reachedNormal[0].ArrivalChecked);
+        Assert.False(reachedNormal[0].PrecisionChecked); // MISSED!
 
-        Assert.Empty(reached);
+        // 2. With Amplifier (Precision radius becomes 50m)
+        // Wait, 70m is still outside 50m. Let's use 40m for this test case.
+        // 40m north ≈ 0.00036 degrees
+        var node40m = new MapNode { Id = Guid.NewGuid(), Lat = lat + 0.00036, Lon = lon };
+        
+        var reachedNormal40 = FitAnalysisService.FindReachedNodes(path, new[] { node40m }, radiusMultiplier: 1.0);
+        Assert.False(reachedNormal40[0].PrecisionChecked);
+
+        var reachedAmplified = FitAnalysisService.FindReachedNodes(path, new[] { node40m }, radiusMultiplier: 2.0);
+        Assert.True(reachedAmplified[0].PrecisionChecked); // CLEARED!
+    }
+
+    [Fact]
+    public void FindReachedNodes_Stackability_WorksWithHighMultipliers()
+    {
+        // 120m north ≈ 0.0011 degrees. 
+        // Normally outside both Arrival (100m) and Precision (25m).
+        var node = new MapNode { Id = Guid.NewGuid(), Lat = lat + 0.0011, Lon = lon };
+        var path = new List<PathPoint> { new PathPoint { Lat = lat, Lon = lon } };
+
+        // 1. Normal (1x) -> None
+        var r1 = FitAnalysisService.FindReachedNodes(path, new[] { node }, 1.0);
+        Assert.Empty(r1);
+
+        // 2. Stacked (2x) -> Arrival Cleared (200m) but Precision Missed (50m)
+        var r2 = FitAnalysisService.FindReachedNodes(path, new[] { node }, 2.0);
+        Assert.True(r2[0].ArrivalChecked);
+        Assert.False(r2[0].PrecisionChecked);
+
+        // 3. Super Stacked (8x) -> Both Cleared (Arrival 800m, Precision 200m)
+        var r8 = FitAnalysisService.FindReachedNodes(path, new[] { node }, 8.0);
+        Assert.True(r8[0].ArrivalChecked);
+        Assert.True(r8[0].PrecisionChecked);
     }
 
     [Fact]

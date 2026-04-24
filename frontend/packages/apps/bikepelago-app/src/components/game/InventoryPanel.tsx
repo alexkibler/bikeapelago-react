@@ -1,27 +1,36 @@
-import { useState } from 'react';
+import { useState, KeyboardEvent } from 'react';
 import { useParams } from 'react-router-dom';
 import { useGameStore } from '../../store/gameStore';
 import { useArchipelagoStore } from '../../store/archipelagoStore';
-import { Package, RefreshCw, Crosshair, Radio, CheckCircle2 } from 'lucide-react';
+import { Package, RefreshCw, Crosshair, Radio, CheckCircle2, ShieldAlert } from 'lucide-react';
 import { apiFetch, ENDPOINTS } from '../../lib/api';
 import { useToast } from '../../hooks/useToast';
 
 const InventoryPanel = () => {
   const { id: sessionId } = useParams<{ id: string }>();
+  const session = useGameStore(s => s.session);
   const { selectedNodeIds, triggerSync, clearSelectedNodes } = useGameStore();
   const { receivedItems } = useArchipelagoStore();
   const toast = useToast();
   const [isUsing, setIsUsing] = useState(false);
+  const [debugMode, setDebugMode] = useState(false);
 
-  // Define useful item names
-  const ITEM_DETOUR = 'Detour';
-  const ITEM_DRONE = 'Drone';
-  const ITEM_SIGNAL_AMPLIFIER = 'Signal Amplifier';
+  // Define useful item names and IDs
+  const ITEMS = {
+    DETOUR: { name: 'Detour', id: 802010 },
+    DRONE: { name: 'Drone', id: 802011 },
+    SIGNAL_AMPLIFIER: { name: 'Signal Amplifier', id: 802012 },
+    PASS_NORTH: { name: 'North Quadrant Pass', id: 802002 },
+    PASS_SOUTH: { name: 'South Quadrant Pass', id: 802003 },
+    PASS_EAST: { name: 'East Quadrant Pass', id: 802004 },
+    PASS_WEST: { name: 'West Quadrant Pass', id: 802005 },
+    RADIUS_INC: { name: 'Progressive Radius Increase', id: 802006 },
+  };
 
   // Count items
-  const detourCount = receivedItems.filter(i => i.name === ITEM_DETOUR || i.name === 'Location Swap').length;
-  const droneCount = receivedItems.filter(i => i.name === ITEM_DRONE).length;
-  const signalAmpCount = receivedItems.filter(i => i.name === ITEM_SIGNAL_AMPLIFIER).length;
+  const detourCount = receivedItems.filter(i => i.name === ITEMS.DETOUR.name || i.name === 'Location Swap').length;
+  const droneCount = receivedItems.filter(i => i.name === ITEMS.DRONE.name).length;
+  const signalAmpCount = receivedItems.filter(i => i.name === ITEMS.SIGNAL_AMPLIFIER.name).length;
 
   const handleUseDetour = async () => {
     if (!sessionId || selectedNodeIds.size !== 1) {
@@ -78,29 +87,76 @@ const InventoryPanel = () => {
     }
   };
 
-  const otherItems = receivedItems.filter(i => ![ITEM_DETOUR, ITEM_DRONE, ITEM_SIGNAL_AMPLIFIER, 'Location Swap'].includes(i.name));
+  const handleDebugUpdate = async (itemId: number, countStr: string) => {
+    if (!sessionId) return;
+    const count = parseInt(countStr);
+    if (isNaN(count)) return;
+
+    try {
+      await apiFetch(`${ENDPOINTS.ITEMS.DEBUG_SET_ITEM_COUNT(sessionId)}?itemId=${itemId}&count=${count}`, { method: 'POST' });
+      triggerSync();
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Debug update failed';
+      toast.error(message);
+    }
+  };
+
+  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>, itemId: number) => {
+    if (e.key === 'Enter') {
+      handleDebugUpdate(itemId, e.currentTarget.value);
+      e.currentTarget.blur();
+    }
+  };
+
+  const otherItems = receivedItems.filter(i => ![ITEMS.DETOUR.name, ITEMS.DRONE.name, ITEMS.SIGNAL_AMPLIFIER.name, 'Location Swap'].includes(i.name));
+
+  const ItemCount = ({ count, itemId }: { count: number, itemId: number }) => {
+    if (debugMode) {
+      return (
+        <input
+          type="number"
+          defaultValue={count}
+          onBlur={(e) => handleDebugUpdate(itemId, e.target.value)}
+          onKeyDown={(e) => handleKeyDown(e, itemId)}
+          className="w-12 bg-[var(--color-surface-hex)] border border-[var(--color-border-hex)] rounded text-right px-1 font-mono text-sm focus:outline-none focus:ring-1 focus:ring-orange-500"
+        />
+      );
+    }
+    return <div className="text-xl font-black text-current opacity-80">{count}</div>;
+  };
 
   return (
     <div className="flex flex-col h-full bg-[var(--color-surface-hex)] text-[var(--color-text-hex)] p-4 overflow-y-auto">
-      <div className="flex items-center gap-2 mb-6 text-xl font-bold">
-        <Package className="w-5 h-5 text-[var(--color-primary-hex)]" />
-        <h2 className="panel-title">Inventory</h2>
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-2 text-xl font-bold">
+          <Package className="w-5 h-5 text-[var(--color-primary-hex)]" />
+          <h2 className="panel-title">Inventory</h2>
+        </div>
+        {session?.connection_mode === 'singleplayer' && (
+          <button 
+            onClick={() => setDebugMode(!debugMode)}
+            className={`p-1.5 rounded-lg transition-colors ${debugMode ? 'bg-orange-500 text-white' : 'text-[var(--color-text-subtle-hex)] hover:bg-[rgb(var(--color-surface-overlay))]'}`}
+            title="Toggle Debug Mode"
+          >
+            <ShieldAlert className="w-4 h-4" />
+          </button>
+        )}
       </div>
 
       <div className="space-y-4">
         {/* Detour */}
-        <div className={`bg-[rgb(var(--color-surface-overlay))] p-4 rounded-xl border border-[var(--color-border-hex)] transition-all ${detourCount > 0 ? 'opacity-100' : 'opacity-40'}`}>
-          <div className="flex items-center justify-between mb-3">
+        <div className="bg-[rgb(var(--color-surface-overlay))] p-4 rounded-xl border border-[var(--color-border-strong-hex)] shadow-sm transition-all">
+          <div className="flex items-center justify-between mb-3 text-blue-500">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-500">
+              <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center border border-blue-500/20">
                 <RefreshCw className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="font-bold text-sm">The Detour</h3>
-                <p className="text-[10px] text-[var(--color-text-subtle-hex)] uppercase tracking-widest">Relocate Node</p>
+                <h3 className="font-bold text-sm text-[var(--color-text-hex)]">The Detour</h3>
+                <p className="text-[10px] text-[var(--color-text-muted-hex)] font-bold uppercase tracking-widest">Relocate Node</p>
               </div>
             </div>
-            <div className="text-xl font-black text-blue-500">{detourCount}</div>
+            <ItemCount count={detourCount} itemId={ITEMS.DETOUR.id} />
           </div>
           {detourCount > 0 && (
             <button 
@@ -114,18 +170,18 @@ const InventoryPanel = () => {
         </div>
 
         {/* Drone */}
-        <div className={`bg-[rgb(var(--color-surface-overlay))] p-4 rounded-xl border border-[var(--color-border-hex)] transition-all ${droneCount > 0 ? 'opacity-100' : 'opacity-40'}`}>
-          <div className="flex items-center justify-between mb-3">
+        <div className="bg-[rgb(var(--color-surface-overlay))] p-4 rounded-xl border border-[var(--color-border-strong-hex)] shadow-sm transition-all">
+          <div className="flex items-center justify-between mb-3 text-purple-500">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-purple-500/10 flex items-center justify-center text-purple-500">
+              <div className="w-10 h-10 rounded-lg bg-purple-500/10 flex items-center justify-center border border-purple-500/20">
                 <Crosshair className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="font-bold text-sm">The Drone</h3>
-                <p className="text-[10px] text-[var(--color-text-subtle-hex)] uppercase tracking-widest">Instant Completion</p>
+                <h3 className="font-bold text-sm text-[var(--color-text-hex)]">The Drone</h3>
+                <p className="text-[10px] text-[var(--color-text-muted-hex)] font-bold uppercase tracking-widest">Instant Completion</p>
               </div>
             </div>
-            <div className="text-xl font-black text-purple-500">{droneCount}</div>
+            <ItemCount count={droneCount} itemId={ITEMS.DRONE.id} />
           </div>
           {droneCount > 0 && (
             <button 
@@ -139,18 +195,18 @@ const InventoryPanel = () => {
         </div>
 
         {/* Signal Amplifier */}
-        <div className={`bg-[rgb(var(--color-surface-overlay))] p-4 rounded-xl border border-[var(--color-border-hex)] transition-all ${signalAmpCount > 0 ? 'opacity-100' : 'opacity-40'}`}>
-          <div className="flex items-center justify-between mb-3">
+        <div className="bg-[rgb(var(--color-surface-overlay))] p-4 rounded-xl border border-[var(--color-border-strong-hex)] shadow-sm transition-all">
+          <div className="flex items-center justify-between mb-3 text-orange-500">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-orange-500/10 flex items-center justify-center text-orange-500">
+              <div className="w-10 h-10 rounded-lg bg-orange-500/10 flex items-center justify-center border border-orange-500/20">
                 <Radio className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="font-bold text-sm">Signal Amplifier</h3>
-                <p className="text-[10px] text-[var(--color-text-subtle-hex)] uppercase tracking-widest">2x Radius Buff</p>
+                <h3 className="font-bold text-sm text-[var(--color-text-hex)]">Signal Amplifier</h3>
+                <p className="text-[10px] text-[var(--color-text-muted-hex)] font-bold uppercase tracking-widest">2x Radius Buff</p>
               </div>
             </div>
-            <div className="text-xl font-black text-orange-500">{signalAmpCount}</div>
+            <ItemCount count={signalAmpCount} itemId={ITEMS.SIGNAL_AMPLIFIER.id} />
           </div>
           {signalAmpCount > 0 && (
             <button 
@@ -163,8 +219,21 @@ const InventoryPanel = () => {
           )}
         </div>
 
+        {/* Debug Progression Items */}
+        {debugMode && (
+          <div className="mt-8 space-y-2">
+            <h4 className="text-[10px] uppercase tracking-[0.2em] text-orange-500 mb-4 font-black">Debug Progression</h4>
+            {[ITEMS.PASS_NORTH, ITEMS.PASS_EAST, ITEMS.PASS_SOUTH, ITEMS.PASS_WEST, ITEMS.RADIUS_INC].map(item => (
+              <div key={item.id} className="bg-[rgb(var(--color-surface-overlay))] p-3 rounded-lg border border-[var(--color-border-hex)] flex items-center justify-between">
+                <span className="text-xs font-bold text-[var(--color-text-muted-hex)]">{item.name}</span>
+                <ItemCount count={receivedItems.filter(i => i.name === item.name).length} itemId={item.id} />
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* Other Items */}
-        {otherItems.length > 0 && (
+        {!debugMode && otherItems.length > 0 && (
           <div className="mt-8">
             <h4 className="text-[10px] uppercase tracking-[0.2em] text-[var(--color-text-subtle-hex)] mb-4 font-bold">Progression & Filler</h4>
             <div className="grid grid-cols-1 gap-2">
@@ -175,14 +244,6 @@ const InventoryPanel = () => {
                 </div>
               ))}
             </div>
-          </div>
-        )}
-
-        {receivedItems.length === 0 && (
-          <div className="text-center py-12 bg-[var(--color-surface-hex)]/50 rounded-2xl border border-[var(--color-border-hex)] border-dashed">
-            <Package className="w-12 h-12 text-[var(--color-text-subtle-hex)] mx-auto mb-4 opacity-20" />
-            <p className="text-[var(--color-text-subtle-hex)] text-sm">Your inventory is empty.</p>
-            <p className="text-[10px] text-[var(--color-text-subtle-hex)] mt-1 uppercase tracking-widest">Find items by checking locations</p>
           </div>
         )}
       </div>

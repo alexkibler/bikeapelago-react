@@ -44,6 +44,11 @@ public class OsmDiscoveryService : IOsmDiscoveryService
         return _impl.GetRandomNodesAsync(lat, lon, radiusMeters, count, mode, densityBias);
     }
 
+    public Task<List<DiscoveryPoint>> GetRandomNodesInWedgeAsync(double lat, double lon, double radiusMeters, double startDeg, double endDeg, int count, string mode = "bike", double densityBias = 0.5)
+    {
+        return _impl.GetRandomNodesInWedgeAsync(lat, lon, radiusMeters, startDeg, endDeg, count, mode, densityBias);
+    }
+
     public Task<List<ValidateResult>> ValidateNodesAsync(ValidateRequest request)
     {
         return _impl.ValidateNodesAsync(request);
@@ -53,20 +58,29 @@ public class OsmDiscoveryService : IOsmDiscoveryService
     {
         public Task<List<DiscoveryPoint>> GetRandomNodesAsync(double lat, double lon, double radiusMeters, int count, string mode = "bike", double densityBias = 0.5)
         {
+            return GetRandomNodesInWedgeAsync(lat, lon, radiusMeters, 0, 360, count, mode, densityBias);
+        }
+
+        public Task<List<DiscoveryPoint>> GetRandomNodesInWedgeAsync(double lat, double lon, double radiusMeters, double startDeg, double endDeg, int count, string mode = "bike", double densityBias = 0.5)
+        {
             var mockPoints = new List<DiscoveryPoint>();
             var random = Random.Shared;
 
-            // ~0.00001 degrees per meter (111 meters per degree)
             double radiusDegrees = radiusMeters / 111000.0;
+            double startRad = (startDeg % 360) * Math.PI / 180.0;
+            double endRad = (endDeg % 360) * Math.PI / 180.0;
+            if (endRad <= startRad) endRad += 2.0 * Math.PI;
+            double diffRad = endRad - startRad;
 
             for (int i = 0; i < count; i++)
             {
-                // Random point within circle using polar coordinates
-                double angle = random.NextDouble() * 2 * Math.PI;
+                double angle = startRad + (random.NextDouble() * diffRad);
+                double mathAngle = (Math.PI / 2.0) - angle;
+                
                 double distance = Math.Sqrt(random.NextDouble()) * radiusDegrees;
 
-                double randomLon = lon + (distance * Math.Cos(angle));
-                double randomLat = lat + (distance * Math.Sin(angle));
+                double randomLon = lon + (distance * Math.Cos(mathAngle));
+                double randomLat = lat + (distance * Math.Sin(mathAngle));
 
                 mockPoints.Add(new DiscoveryPoint(randomLon, randomLat));
             }

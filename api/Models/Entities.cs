@@ -64,11 +64,14 @@ public class GameSession
     [JsonPropertyName("received_item_ids")]
     public List<long> ReceivedItemIds { get; set; } = new();
 
-    [JsonPropertyName("mode")]
-    public string Mode { get; set; } = "bike";
+    [JsonPropertyName("connection_mode")]
+    public string ConnectionMode { get; set; } = "singleplayer"; // "archipelago" | "singleplayer"
+
+    [JsonPropertyName("transport_mode")]
+    public string TransportMode { get; set; } = "bike"; // "bike" | "walk"
 
     [JsonPropertyName("progression_mode")]
-    public string ProgressionMode { get; set; } = "None"; // "None", "Quadrant", "Radius", "Free"
+    public string? ProgressionMode { get; set; } // "quadrant" | "radius" | "free"
 
     [JsonPropertyName("north_pass_received")]
     public bool NorthPassReceived { get; set; }

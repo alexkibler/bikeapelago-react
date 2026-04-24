@@ -13,6 +13,7 @@ export const ENDPOINTS = {
     DETOUR: (sessionId: string) => `${API_BASE}/sessions/${sessionId}/items/detour`,
     DRONE: (sessionId: string) => `${API_BASE}/sessions/${sessionId}/items/drone`,
     SIGNAL_AMPLIFIER: (sessionId: string) => `${API_BASE}/sessions/${sessionId}/items/signal-amplifier`,
+    DEBUG_SET_ITEM_COUNT: (sessionId: string) => `${API_BASE}/sessions/${sessionId}/debug/items`,
   }
 };
 

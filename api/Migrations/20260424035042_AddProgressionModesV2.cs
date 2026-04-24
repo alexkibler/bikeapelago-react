@@ -10,6 +10,11 @@ namespace Bikeapelago.Api.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            // Wipe legacy data for a clean slate with the new progression system
+            migrationBuilder.Sql("DELETE FROM \"ApiLogs\"");
+            migrationBuilder.Sql("DELETE FROM \"MapNodes\"");
+            migrationBuilder.Sql("DELETE FROM \"GameSessions\"");
+
             migrationBuilder.RenameColumn(
                 name: "ApLocationId",
                 table: "MapNodes",
