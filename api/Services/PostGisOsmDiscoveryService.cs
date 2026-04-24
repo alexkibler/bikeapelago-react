@@ -131,35 +131,43 @@ public class PostGisOsmDiscoveryService : IOsmDiscoveryService
     internal static List<DiscoveryPoint> GenerateRandomPointsInWedge(double centerLat, double centerLon, double radiusMeters, double startDeg, double endDeg, int count, double densityBias = 0.5)
     {
         var points = new List<DiscoveryPoint>(count);
-        const double MetersPerDegreeLat = 111132.0;
-        double radLat = centerLat * Math.PI / 180.0;
-        double cosLat = Math.Cos(radLat);
 
-        double startRad = (startDeg % 360) * Math.PI / 180.0;
-        double endRad = (endDeg % 360) * Math.PI / 180.0;
+        double normalizedStart = NormalizeDegrees(startDeg);
+        double normalizedEnd = NormalizeDegrees(endDeg);
+        double sweepDeg = normalizedEnd - normalizedStart;
         
-        if (endRad <= startRad) endRad += 2.0 * Math.PI;
-        double diffRad = endRad - startRad;
+        if (sweepDeg <= 0) sweepDeg += 360;
 
         for (int i = 0; i < count; i++)
         {
             double distance = Math.Pow(Random.Shared.NextDouble(), densityBias) * radiusMeters;
-            // Angle in radians, relative to North (0)
-            double angleOffset = Random.Shared.NextDouble() * diffRad;
-            double angle = (startRad + angleOffset);
-
-            // Note: angle here is standard compass bearing (0=North, clockwise)
-            // But standard Math.Cos/Sin use 0=East, counter-clockwise.
-            // Converting compass angle to math angle: MathAngle = 90 - CompassAngle
-            double mathAngle = (Math.PI / 2.0) - angle;
-
-            double latOffset = distance * Math.Sin(mathAngle) / MetersPerDegreeLat;
-            double lonOffset = distance * Math.Cos(mathAngle) / (MetersPerDegreeLat * cosLat);
-
-            points.Add(new DiscoveryPoint(centerLon + lonOffset, centerLat + latOffset));
+            double bearing = NormalizeDegrees(normalizedStart + Random.Shared.NextDouble() * sweepDeg);
+            points.Add(ProjectPoint(centerLat, centerLon, distance, bearing));
         }
 
         return points;
+    }
+
+    private static double NormalizeDegrees(double degrees) => (degrees % 360 + 360) % 360;
+
+    private static DiscoveryPoint ProjectPoint(double centerLat, double centerLon, double distanceMeters, double bearingDegrees)
+    {
+        const double EarthRadiusMeters = 6_371_000;
+        double angularDistance = distanceMeters / EarthRadiusMeters;
+        double bearing = bearingDegrees * Math.PI / 180.0;
+        double lat1 = centerLat * Math.PI / 180.0;
+        double lon1 = centerLon * Math.PI / 180.0;
+
+        double lat2 = Math.Asin(
+            Math.Sin(lat1) * Math.Cos(angularDistance) +
+            Math.Cos(lat1) * Math.Sin(angularDistance) * Math.Cos(bearing));
+        double lon2 = lon1 + Math.Atan2(
+            Math.Sin(bearing) * Math.Sin(angularDistance) * Math.Cos(lat1),
+            Math.Cos(angularDistance) - Math.Sin(lat1) * Math.Sin(lat2));
+
+        double lat = lat2 * 180.0 / Math.PI;
+        double lon = ((lon2 * 180.0 / Math.PI + 540.0) % 360.0) - 180.0;
+        return new DiscoveryPoint(lon, lat);
     }
 
     private static double CalculateDistance(double lat1, double lon1, double lat2, double lon2)
