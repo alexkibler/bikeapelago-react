@@ -92,11 +92,7 @@ public class ArchipelagoServiceTests
         _mockHubContext.Setup(h => h.Clients).Returns(mockClients.Object);
 
         // Act
-        var method = typeof(ArchipelagoService).GetMethod("UpdateUnlockedNodesAsync", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-        Assert.NotNull(method);
-        var task = (Task?)method.Invoke(_service, [sessionId, receivedItemIds]);
-        Assert.NotNull(task);
-        await task;
+        await _service.UpdateUnlockedNodesAsync(sessionId, receivedItemIds);
 
         // Assert
         // In "None" mode, it should unlock all non-hidden nodes if the logic allows, 

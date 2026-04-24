@@ -85,6 +85,15 @@ public class GameSession
     [JsonPropertyName("west_pass_received")]
     public bool WestPassReceived { get; set; }
 
+    [JsonPropertyName("detours_used")]
+    public int DetoursUsed { get; set; } = 0;
+
+    [JsonPropertyName("drones_used")]
+    public int DronesUsed { get; set; } = 0;
+
+    [JsonPropertyName("signal_amplifiers_used")]
+    public int SignalAmplifiersUsed { get; set; } = 0;
+
     [JsonPropertyName("radius_step")]
     public int RadiusStep { get; set; } = 0; // 0=25%, 1=50%, 2=75%, 3=100%
 
@@ -157,6 +166,18 @@ public class MapNode
 
     [JsonPropertyName("has_been_relocated")]
     public bool HasBeenRelocated { get; set; }
+
+    [JsonPropertyName("arrival_reward_item_id")]
+    public long? ArrivalRewardItemId { get; set; }
+
+    [JsonPropertyName("arrival_reward_item_name")]
+    public string? ArrivalRewardItemName { get; set; }
+
+    [JsonPropertyName("precision_reward_item_id")]
+    public long? PrecisionRewardItemId { get; set; }
+
+    [JsonPropertyName("precision_reward_item_name")]
+    public string? PrecisionRewardItemName { get; set; }
 
     [NotMapped]
     [JsonPropertyName("lat")]

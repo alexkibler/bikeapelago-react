@@ -21,7 +21,7 @@ public class NodeGenerationIntegrationTests : IAsyncLifetime
 {
     private static readonly string BaseUrl =
         Environment.GetEnvironmentVariable("BIKEAPELAGO_API_URL")
-        ?? "http://bikeapelago-api.orb.local";
+        ?? "http://localhost:5054";
 
     private static readonly string Token =
         Environment.GetEnvironmentVariable("BIKEAPELAGO_TOKEN")

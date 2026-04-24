@@ -13,6 +13,7 @@ public interface IItemExecutionService
     Task<bool> ExecuteDetourAsync(Guid sessionId, Guid nodeId);
     Task<bool> ExecuteDroneAsync(Guid sessionId, Guid nodeId);
     Task<bool> ExecuteSignalAmplifierAsync(Guid sessionId);
+    int GetActiveInventory(GameSession session, long itemId);
 }
 
 public class ItemExecutionService(
@@ -38,7 +39,7 @@ public class ItemExecutionService(
         if (session == null || node == null || node.State == "Checked") return false;
 
         // Ensure user has a Detour item
-        if (!await ConsumeItemAsync(session, 802010)) 
+        if (!await ConsumeItemAsync(session, ItemDefinitions.Detour)) 
         {
             _logger.LogWarning("Attempted to use Detour without any Detour items in session {SessionId}", sessionId);
             return false;
@@ -143,7 +144,7 @@ public class ItemExecutionService(
         if (session == null || node == null || (node.IsArrivalChecked && node.IsPrecisionChecked)) return false;
 
         // Ensure user has a Drone item
-        if (!await ConsumeItemAsync(session, 802011))
+        if (!await ConsumeItemAsync(session, ItemDefinitions.Drone))
         {
             _logger.LogWarning("Attempted to use Drone without any Drone items in session {SessionId}", sessionId);
             return false;
@@ -151,21 +152,19 @@ public class ItemExecutionService(
 
         _logger.LogInformation("Executing Drone for node {NodeId} in session {SessionId}", nodeId, sessionId);
 
-        node.IsArrivalChecked = true;
-        node.IsPrecisionChecked = true;
-        node.State = "Checked";
-        await _nodeRepository.UpdateAsync(node);
-        await _archipelagoService.BroadcastMessageAsync(sessionId, $"Drone completed {node.Name}!", "item");
+        await _archipelagoService.BroadcastMessageAsync(sessionId, $"Drone exploring {node.Name}...", "item");
 
-        // Notify Archipelago if in archipelago mode
-        await _archipelagoService.CheckLocationsAsync(sessionId, [node.ApArrivalLocationId, node.ApPrecisionLocationId]);
-        
-        // Trigger progression unlock if in single player mode
-        if (session.ConnectionMode == "singleplayer")
+        var engine = _engineFactory.CreateEngine(session.ConnectionMode);
+        await engine.CheckNodesAsync(sessionId, [new NewlyCheckedNode
         {
-            var engine = _engineFactory.CreateEngine(session.ConnectionMode);
-            await engine.UnlockNextAsync(sessionId);
-        }
+            Id = node.Id,
+            ApArrivalLocationId = node.ApArrivalLocationId,
+            ApPrecisionLocationId = node.ApPrecisionLocationId,
+            ArrivalChecked = true,
+            PrecisionChecked = true,
+            Lat = node.Lat ?? 0,
+            Lon = node.Lon ?? 0
+        }]);
 
         return true;
     }
@@ -176,7 +175,7 @@ public class ItemExecutionService(
         if (session == null) return false;
 
         // Ensure user has a Signal Amplifier item
-        if (!await ConsumeItemAsync(session, 802012))
+        if (!await ConsumeItemAsync(session, ItemDefinitions.SignalAmplifier))
         {
             _logger.LogWarning("Attempted to use Signal Amplifier without any items in session {SessionId}", sessionId);
             return false;
@@ -189,21 +188,32 @@ public class ItemExecutionService(
         return true; 
     }
 
+    public int GetActiveInventory(GameSession session, long itemId)
+    {
+        int totalReceived = session.ReceivedItemIds.Count(id => id == itemId);
+        int totalUsed = 0;
+
+        if (itemId == ItemDefinitions.Detour) totalUsed = session.DetoursUsed;
+        else if (itemId == ItemDefinitions.Drone) totalUsed = session.DronesUsed;
+        else if (itemId == ItemDefinitions.SignalAmplifier) totalUsed = session.SignalAmplifiersUsed;
+
+        return totalReceived - totalUsed;
+    }
+
     private async Task<bool> ConsumeItemAsync(GameSession session, long itemId)
     {
-        // For Single Player, we manage items locally by removing them from the list.
-        // For Archipelago, items are typically managed by the server, but we remove one 
-        // from the local cached list so the UI updates immediately. 
-        // Note: AP sync may restore it if the AP world doesn't track consumption.
-        var itemIndex = session.ReceivedItemIds.IndexOf(itemId);
-        if (itemIndex >= 0)
+        int available = GetActiveInventory(session, itemId);
+        if (available <= 0)
         {
-            session.ReceivedItemIds.RemoveAt(itemIndex);
-            await _sessionRepository.UpdateAsync(session);
-            return true;
+            return false;
         }
 
-        return false;
+        if (itemId == ItemDefinitions.Detour) session.DetoursUsed++;
+        else if (itemId == ItemDefinitions.Drone) session.DronesUsed++;
+        else if (itemId == ItemDefinitions.SignalAmplifier) session.SignalAmplifiersUsed++;
+
+        await _sessionRepository.UpdateAsync(session);
+        return true;
     }
 
     private double CalculateAzimuth(double lat1, double lon1, double lat2, double lon2)

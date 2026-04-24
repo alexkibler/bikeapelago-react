@@ -82,7 +82,12 @@ const GameView = () => {
         802006: 'Progressive Radius Increase',
         802010: 'Detour',
         802011: 'Drone',
-        802012: 'Signal Amplifier'
+        802012: 'Signal Amplifier',
+        802020: 'Fresh Air',
+        802021: 'Leg Cramp',
+        802022: 'Empty CO2',
+        802023: 'Kudos',
+        802024: 'Wheel Patch Kit'
       };
 
       setReceivedItems(

@@ -391,7 +391,10 @@ public class SessionsController(
     public class CheckNodesRequest
     {
         [JsonPropertyName("nodeIds")]
-        public List<Guid> NodeIds { get; set; } = [];
+        public List<Guid>? NodeIds { get; set; }
+
+        [JsonPropertyName("nodes")]
+        public List<NewlyCheckedNode>? Nodes { get; set; }
     }
 
     [HttpPost("{id}/nodes/check")]
@@ -401,13 +404,31 @@ public class SessionsController(
         if (session == null)
             return NotFound(new { message = "Session not found." });
 
-        var nodes = await _nodeRepository.GetBySessionIdAsync(id);
-        var targetNodes = nodes.Where(n => request.NodeIds.Contains(n.Id)).ToList();
+        var dbNodes = await _nodeRepository.GetBySessionIdAsync(id);
+        
+        var checks = new List<NewlyCheckedNode>();
+        
+        if (request.Nodes != null && request.Nodes.Count > 0)
+        {
+            checks = request.Nodes;
+        }
+        else if (request.NodeIds != null && request.NodeIds.Count > 0)
+        {
+            // Fallback for older frontend clients sending just IDs
+            checks = request.NodeIds.Select(nodeId => new NewlyCheckedNode 
+            { 
+                Id = nodeId,
+                ArrivalChecked = true,
+                PrecisionChecked = true 
+            }).ToList();
+        }
 
-        var validation = _sessionValidator.ValidateNodeCheck(targetNodes, id);
+        var targetDbNodes = dbNodes.Where(n => checks.Any(c => c.Id == n.Id)).ToList();
+
+        var validation = _sessionValidator.ValidateNodeCheck(targetDbNodes, checks, id);
         if (!validation.IsValid)
         {
-            return validation.ValidNodes.Count == 0 && targetNodes.Count == 0
+            return validation.ValidNodes.Count == 0 && checks.Count == 0
                 ? BadRequest(new { message = validation.Error })
                 : UnprocessableEntity(new { message = validation.Error });
         }
@@ -417,6 +438,7 @@ public class SessionsController(
 
         return Accepted(new { message = "Check request processed." });
     }
+
 
     [HttpPost("/api/discovery/validate-nodes")]
     public async Task<ActionResult<IEnumerable<ValidateResult>>> ValidateNodes(
@@ -456,12 +478,17 @@ public class SessionsController(
     public async Task<IActionResult> SetItemCount(Guid id, [FromQuery] long itemId, [FromQuery] int count, [FromServices] IArchipelagoService archipelagoService)
     {
         var session = await _sessionRepository.GetByIdAsync(id);
-        if (session == null || session.ConnectionMode != "singleplayer") 
+        if (session == null || session.ConnectionMode != "singleplayer")
             return BadRequest("Debug only available for singleplayer sessions");
+
+        // Reset used count
+        if (itemId == ItemDefinitions.Detour) session.DetoursUsed = 0;
+        else if (itemId == ItemDefinitions.Drone) session.DronesUsed = 0;
+        else if (itemId == ItemDefinitions.SignalAmplifier) session.SignalAmplifiersUsed = 0;
 
         // Remove all instances of this itemId
         session.ReceivedItemIds.RemoveAll(x => x == itemId);
-        
+
         // Add back the desired number of instances
         for (int i = 0; i < count; i++)
         {

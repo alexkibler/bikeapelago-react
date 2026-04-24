@@ -14,6 +14,7 @@ namespace Bikeapelago.Api.Tests.Unit;
 public class SinglePlayerProgressionEngineTests
 {
     private readonly Mock<IMapNodeRepository> _mockNodeRepo;
+    private readonly Mock<IGameSessionRepository> _mockSessionRepo;
     private readonly Mock<ILogger<SinglePlayerProgressionEngine>> _mockLogger;
     private readonly SinglePlayerProgressionEngine _engine;
     private readonly Guid _sessionId = Guid.NewGuid();
@@ -21,8 +22,12 @@ public class SinglePlayerProgressionEngineTests
     public SinglePlayerProgressionEngineTests()
     {
         _mockNodeRepo = new Mock<IMapNodeRepository>();
+        _mockSessionRepo = new Mock<IGameSessionRepository>();
         _mockLogger = new Mock<ILogger<SinglePlayerProgressionEngine>>();
-        _engine = new SinglePlayerProgressionEngine(_mockNodeRepo.Object, _mockLogger.Object);
+        
+        _mockSessionRepo.Setup(r => r.GetByIdAsync(_sessionId)).ReturnsAsync(new GameSession { Id = _sessionId });
+        
+        _engine = new SinglePlayerProgressionEngine(_mockNodeRepo.Object, _mockSessionRepo.Object, Mock.Of<IArchipelagoService>(), _mockLogger.Object);
     }
 
     // --- CheckNodesAsync ---
@@ -31,13 +36,13 @@ public class SinglePlayerProgressionEngineTests
     public async Task CheckNodesAsync_MarksTargetNodesAsChecked()
     {
         // Arrange
-        var nodes = new List<MapNode>
+        var nodes = new List<NewlyCheckedNode>
         {
-            new() { Id = Guid.NewGuid(), SessionId = _sessionId, ApArrivalLocationId = 1, State = "Available" },
-            new() { Id = Guid.NewGuid(), SessionId = _sessionId, ApArrivalLocationId = 2, State = "Available" },
+            new() { Id = Guid.NewGuid(), ApArrivalLocationId = 1, ArrivalChecked = true, PrecisionChecked = true },
+            new() { Id = Guid.NewGuid(), ApArrivalLocationId = 2, ArrivalChecked = true, PrecisionChecked = true },
         };
-        // UnlockNextAsync will need to list all session nodes each call
-        _mockNodeRepo.Setup(r => r.GetBySessionIdAsync(_sessionId)).ReturnsAsync([]);
+        // It fetches nodes to check their current state and to unlock later
+        _mockNodeRepo.Setup(r => r.GetBySessionIdAsync(_sessionId)).ReturnsAsync(nodes.Select(n => new MapNode { Id = n.Id, State = "Available" }).ToList());
 
         // Act
         await _engine.CheckNodesAsync(_sessionId, nodes);
@@ -52,13 +57,22 @@ public class SinglePlayerProgressionEngineTests
     public async Task CheckNodesAsync_SkipsAlreadyCheckedNodes()
     {
         // Arrange
-        var alreadyChecked = new MapNode { Id = Guid.NewGuid(), SessionId = _sessionId, ApArrivalLocationId = 1, State = "Checked" };
-        var newNode = new MapNode { Id = Guid.NewGuid(), SessionId = _sessionId, ApArrivalLocationId = 2, State = "Available" };
+        var alreadyCheckedId = Guid.NewGuid();
+        var newNodeId = Guid.NewGuid();
+        
+        var alreadyCheckedNode = new MapNode { Id = alreadyCheckedId, SessionId = _sessionId, ApArrivalLocationId = 1, State = "Checked", IsArrivalChecked = true, IsPrecisionChecked = true };
+        var newNode = new MapNode { Id = newNodeId, SessionId = _sessionId, ApArrivalLocationId = 2, State = "Available" };
+        
+        var nodes = new List<NewlyCheckedNode>
+        {
+            new() { Id = alreadyCheckedId, ApArrivalLocationId = 1, ArrivalChecked = true, PrecisionChecked = true },
+            new() { Id = newNodeId, ApArrivalLocationId = 2, ArrivalChecked = true, PrecisionChecked = true },
+        };
 
-        _mockNodeRepo.Setup(r => r.GetBySessionIdAsync(_sessionId)).ReturnsAsync([]);
+        _mockNodeRepo.Setup(r => r.GetBySessionIdAsync(_sessionId)).ReturnsAsync(new List<MapNode> { alreadyCheckedNode, newNode });
 
         // Act
-        await _engine.CheckNodesAsync(_sessionId, [alreadyChecked, newNode]);
+        await _engine.CheckNodesAsync(_sessionId, nodes);
 
         // Assert — only the newly-checked node goes into UpdateRangeAsync
         _mockNodeRepo.Verify(r => r.UpdateRangeAsync(
@@ -70,72 +84,24 @@ public class SinglePlayerProgressionEngineTests
     public async Task CheckNodesAsync_DoesNothing_WhenAllNodesAlreadyChecked()
     {
         // Arrange
-        var nodes = new List<MapNode>
+        var alreadyCheckedId = Guid.NewGuid();
+        var nodes = new List<NewlyCheckedNode>
         {
-            new() { Id = Guid.NewGuid(), SessionId = _sessionId, ApArrivalLocationId = 1, State = "Checked" },
+            new() { Id = alreadyCheckedId, ApArrivalLocationId = 1, ArrivalChecked = true, PrecisionChecked = true },
         };
+        
+        var dbNodes = new List<MapNode>
+        {
+            new() { Id = alreadyCheckedId, SessionId = _sessionId, ApArrivalLocationId = 1, State = "Checked", IsArrivalChecked = true, IsPrecisionChecked = true }
+        };
+
+        _mockNodeRepo.Setup(r => r.GetBySessionIdAsync(_sessionId)).ReturnsAsync(dbNodes);
 
         // Act
         await _engine.CheckNodesAsync(_sessionId, nodes);
 
-        // Assert — no DB writes, no unlock triggered
+        // Assert — no DB writes
         _mockNodeRepo.Verify(r => r.UpdateRangeAsync(It.IsAny<IEnumerable<MapNode>>()), Times.Never());
-        _mockNodeRepo.Verify(r => r.GetBySessionIdAsync(_sessionId), Times.Never());
-    }
-
-    [Fact]
-    public async Task CheckNodesAsync_CallsUnlockNextOncePerNewlyCheckedNode()
-    {
-        // Arrange — 2 newly checked nodes → UnlockNextAsync should be called twice
-        var nodes = new List<MapNode>
-        {
-            new() { Id = Guid.NewGuid(), SessionId = _sessionId, ApArrivalLocationId = 1, State = "Available" },
-            new() { Id = Guid.NewGuid(), SessionId = _sessionId, ApArrivalLocationId = 2, State = "Available" },
-        };
-
-        // Each UnlockNextAsync call fetches nodes; return empty so it no-ops cleanly
-        _mockNodeRepo.Setup(r => r.GetBySessionIdAsync(_sessionId)).ReturnsAsync([]);
-
-        // Act
-        await _engine.CheckNodesAsync(_sessionId, nodes);
-
-        // Assert — GetBySessionIdAsync (used by UnlockNextAsync) called twice
-        _mockNodeRepo.Verify(r => r.GetBySessionIdAsync(_sessionId), Times.Exactly(2));
-    }
-
-    // --- UnlockNextAsync ---
-
-    [Fact]
-    public async Task UnlockNextAsync_UnlocksLowestApArrivalLocationIdHiddenNode()
-    {
-        // Arrange
-        var hidden1 = new MapNode { Id = Guid.NewGuid(), SessionId = _sessionId, ApArrivalLocationId = 802, State = "Hidden" };
-        var hidden2 = new MapNode { Id = Guid.NewGuid(), SessionId = _sessionId, ApArrivalLocationId = 801, State = "Hidden" };
-        var available = new MapNode { Id = Guid.NewGuid(), SessionId = _sessionId, ApArrivalLocationId = 800, State = "Available" };
-
-        _mockNodeRepo.Setup(r => r.GetBySessionIdAsync(_sessionId))
-            .ReturnsAsync([hidden1, hidden2, available]);
-
-        // Act
-        await _engine.UnlockNextAsync(_sessionId);
-
-        // Assert — only the node with the lowest ApArrivalLocationId (801) is updated
-        _mockNodeRepo.Verify(r => r.UpdateAsync(It.Is<MapNode>(n => n.ApArrivalLocationId == 801 && n.State == "Available")), Times.Once());
-        _mockNodeRepo.Verify(r => r.UpdateAsync(It.Is<MapNode>(n => n.ApArrivalLocationId == 802)), Times.Never());
-    }
-
-    [Fact]
-    public async Task UnlockNextAsync_DoesNothing_WhenNoHiddenNodes()
-    {
-        // Arrange
-        _mockNodeRepo.Setup(r => r.GetBySessionIdAsync(_sessionId))
-            .ReturnsAsync([new MapNode { State = "Available" }]);
-
-        // Act
-        await _engine.UnlockNextAsync(_sessionId);
-
-        // Assert
-        _mockNodeRepo.Verify(r => r.UpdateAsync(It.IsAny<MapNode>()), Times.Never());
     }
 }
 
@@ -161,10 +127,10 @@ public class ArchipelagoProgressionEngineTests
     public async Task CheckNodesAsync_SendsAllLocationIdsToArchipelago()
     {
         // Arrange
-        var nodes = new List<MapNode>
+        var nodes = new List<NewlyCheckedNode>
         {
-            new() { Id = Guid.NewGuid(), ApArrivalLocationId = 800001, ApPrecisionLocationId = 800002, IsArrivalChecked = true, IsPrecisionChecked = true },
-            new() { Id = Guid.NewGuid(), ApArrivalLocationId = 800003, ApPrecisionLocationId = 800004, IsArrivalChecked = true },
+            new() { Id = Guid.NewGuid(), ApArrivalLocationId = 800001, ApPrecisionLocationId = 800002, ArrivalChecked = true, PrecisionChecked = true },
+            new() { Id = Guid.NewGuid(), ApArrivalLocationId = 800003, ApPrecisionLocationId = 800004, ArrivalChecked = true },
         };
 
         _mockApService.Setup(s => s.CheckLocationsAsync(_sessionId, It.IsAny<long[]>()))
@@ -178,47 +144,5 @@ public class ArchipelagoProgressionEngineTests
             _sessionId,
             It.Is<long[]>(ids => ids.OrderBy(x => x).SequenceEqual(new long[] { 800001, 800002, 800003 }))),
             Times.Once());
-    }
-
-    [Fact]
-    public async Task UnlockNextAsync_SendsCheckedLocationsToArchipelago()
-    {
-        // Arrange
-        var nodes = new List<MapNode>
-        {
-            new() { Id = Guid.NewGuid(), ApArrivalLocationId = 800001, IsArrivalChecked = true },
-            new() { Id = Guid.NewGuid(), ApArrivalLocationId = 800003, IsArrivalChecked = false },
-        };
-
-        _mockNodeRepo.Setup(r => r.GetBySessionIdAsync(_sessionId)).ReturnsAsync(nodes);
-        _mockApService.Setup(s => s.CheckLocationsAsync(_sessionId, It.IsAny<long[]>()))
-            .Returns(Task.CompletedTask);
-
-        // Act
-        await _engine.UnlockNextAsync(_sessionId);
-
-        // Assert — only the Checked node's location is sent
-        _mockApService.Verify(s => s.CheckLocationsAsync(
-            _sessionId,
-            It.Is<long[]>(ids => ids.SequenceEqual(new long[] { 800001 }))),
-            Times.Once());
-    }
-
-    [Fact]
-    public async Task UnlockNextAsync_DoesNotCallArchipelago_WhenNoCheckedNodes()
-    {
-        // Arrange
-        var nodes = new List<MapNode>
-        {
-            new() { ApArrivalLocationId = 800001, State = "Available" },
-        };
-
-        _mockNodeRepo.Setup(r => r.GetBySessionIdAsync(_sessionId)).ReturnsAsync(nodes);
-
-        // Act
-        await _engine.UnlockNextAsync(_sessionId);
-
-        // Assert
-        _mockApService.Verify(s => s.CheckLocationsAsync(It.IsAny<Guid>(), It.IsAny<long[]>()), Times.Never());
     }
 }

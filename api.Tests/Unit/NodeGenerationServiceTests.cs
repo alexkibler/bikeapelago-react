@@ -31,6 +31,7 @@ public class NodeGenerationServiceTests
             _osmDiscoveryServiceMock.Object,
             _nodeRepositoryMock.Object,
             _sessionRepositoryMock.Object,
+            new SinglePlayerSeedGenerator(Mock.Of<ILogger<SinglePlayerSeedGenerator>>()),
             _loggerMock.Object);
     }
 
@@ -111,7 +112,7 @@ public class NodeGenerationServiceTests
     {
         // Arrange
         var sessionId = Guid.NewGuid();
-        var session = new GameSession { Id = sessionId, Status = SessionStatus.SetupInProgress };
+        var session = new GameSession { Id = sessionId, Status = SessionStatus.SetupInProgress, ConnectionMode = "none" };
 
         _sessionRepositoryMock.Setup(r => r.GetByIdAsync(sessionId)).ReturnsAsync(session);
         _nodeRepositoryMock.Setup(r => r.GetBySessionIdAsync(sessionId)).ReturnsAsync(new List<MapNode>());
@@ -149,7 +150,7 @@ public class NodeGenerationServiceTests
     {
         // Arrange
         var sessionId = Guid.NewGuid();
-        var session = new GameSession { Id = sessionId, Status = SessionStatus.SetupInProgress };
+        var session = new GameSession { Id = sessionId, Status = SessionStatus.SetupInProgress, ConnectionMode = "none" };
 
         _sessionRepositoryMock.Setup(r => r.GetByIdAsync(sessionId)).ReturnsAsync(session);
         _nodeRepositoryMock.Setup(r => r.GetBySessionIdAsync(sessionId)).ReturnsAsync(new List<MapNode>());
@@ -177,7 +178,7 @@ public class NodeGenerationServiceTests
     {
         // Arrange
         var sessionId = Guid.NewGuid();
-        var session = new GameSession { Id = sessionId, Status = SessionStatus.SetupInProgress };
+        var session = new GameSession { Id = sessionId, Status = SessionStatus.SetupInProgress, ConnectionMode = "none" };
 
         _sessionRepositoryMock.Setup(r => r.GetByIdAsync(sessionId)).ReturnsAsync(session);
         _nodeRepositoryMock.Setup(r => r.GetBySessionIdAsync(sessionId)).ReturnsAsync(new List<MapNode>());

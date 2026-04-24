@@ -108,7 +108,17 @@ const InventoryPanel = () => {
     }
   };
 
-  const otherItems = receivedItems.filter(i => ![ITEMS.DETOUR.name, ITEMS.DRONE.name, ITEMS.SIGNAL_AMPLIFIER.name, 'Location Swap'].includes(i.name));
+  const otherItems = Object.values(
+    receivedItems
+      .filter(i => ![ITEMS.DETOUR.name, ITEMS.DRONE.name, ITEMS.SIGNAL_AMPLIFIER.name, 'Location Swap'].includes(i.name))
+      .reduce((acc, item) => {
+        if (!acc[item.id]) {
+          acc[item.id] = { ...item, count: 0 };
+        }
+        acc[item.id].count += 1;
+        return acc;
+      }, {} as Record<number, { id: number, name: string, count: number }>)
+  );
 
   const ItemCount = ({ count, itemId }: { count: number, itemId: number }) => {
     if (debugMode) {
@@ -237,9 +247,11 @@ const InventoryPanel = () => {
           <div className="mt-8">
             <h4 className="text-[10px] uppercase tracking-[0.2em] text-[var(--color-text-subtle-hex)] mb-4 font-bold">Progression & Filler</h4>
             <div className="grid grid-cols-1 gap-2">
-              {otherItems.map((item, idx) => (
-                <div key={`${item.id}-${idx}`} className="bg-[rgb(var(--color-surface-overlay))] p-3 rounded-lg border border-[var(--color-border-hex)] flex items-center justify-between">
-                  <span className="text-xs font-medium text-[var(--color-text-muted-hex)]">{item.name}</span>
+              {otherItems.map((item) => (
+                <div key={item.id} className="bg-[rgb(var(--color-surface-overlay))] p-3 rounded-lg border border-[var(--color-border-hex)] flex items-center justify-between">
+                  <span className="text-xs font-medium text-[var(--color-text-muted-hex)]">
+                    {item.name} {item.count > 1 && <span className="opacity-60 ml-1">(x{item.count})</span>}
+                  </span>
                   <CheckCircle2 className="w-3 h-3 text-green-500/50" />
                 </div>
               ))}

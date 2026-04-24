@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using Bikeapelago.Api.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NetTopologySuite.Geometries;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
@@ -13,9 +14,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Bikeapelago.Api.Migrations
 {
     [DbContext(typeof(BikeapelagoDbContext))]
-    partial class BikeapelagoDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260424173038_AddSinglePlayerRewards")]
+    partial class AddSinglePlayerRewards
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -107,14 +110,6 @@ namespace Bikeapelago.Api.Migrations
                         .HasColumnType("text")
                         .HasJsonPropertyName("created");
 
-                    b.Property<int>("DetoursUsed")
-                        .HasColumnType("integer")
-                        .HasJsonPropertyName("detours_used");
-
-                    b.Property<int>("DronesUsed")
-                        .HasColumnType("integer")
-                        .HasJsonPropertyName("drones_used");
-
                     b.Property<bool>("EastPassReceived")
                         .HasColumnType("boolean")
                         .HasJsonPropertyName("east_pass_received");
@@ -150,10 +145,6 @@ namespace Bikeapelago.Api.Migrations
                     b.Property<bool>("SignalAmplifierActive")
                         .HasColumnType("boolean")
                         .HasJsonPropertyName("signal_amplifier_active");
-
-                    b.Property<int>("SignalAmplifiersUsed")
-                        .HasColumnType("integer")
-                        .HasJsonPropertyName("signal_amplifiers_used");
 
                     b.Property<bool>("SouthPassReceived")
                         .HasColumnType("boolean")

@@ -9,8 +9,7 @@ namespace Bikeapelago.Api.Services;
 
 public interface IProgressionEngine
 {
-    Task UnlockNextAsync(Guid sessionId);
-    Task CheckNodesAsync(Guid sessionId, List<MapNode> targetNodes);
+    Task CheckNodesAsync(Guid sessionId, List<NewlyCheckedNode> checks);
 }
 
 public class SinglePlayerProgressionEngine(
@@ -24,111 +23,80 @@ public class SinglePlayerProgressionEngine(
     private readonly IArchipelagoService _archipelagoService = archipelagoService;
     private readonly ILogger<SinglePlayerProgressionEngine> _logger = logger;
 
-    public async Task UnlockNextAsync(Guid sessionId)
+    public async Task CheckNodesAsync(Guid sessionId, List<NewlyCheckedNode> checks)
     {
-        _logger.LogInformation("Single player unlock trigger for session {SessionId}", sessionId);
-
         var session = await _sessionRepository.GetByIdAsync(sessionId);
-        if (session == null) return;
+        if (session == null || checks.Count == 0) return;
 
-        if (session.ProgressionMode == "quadrant")
+        var nodeIds = checks.Select(c => c.Id).ToList();
+        var targetNodes = (await _nodeRepository.GetBySessionIdAsync(sessionId))
+            .Where(n => nodeIds.Contains(n.Id)).ToList();
+
+        var nodesToUpdate = new List<MapNode>();
+        bool sessionChanged = false;
+
+        foreach (var check in checks)
         {
-            await HandleQuadrantUnlockAsync(session);
+            var node = targetNodes.FirstOrDefault(n => n.Id == check.Id);
+            if (node == null) continue;
+
+            bool nodeChanged = false;
+
+            // Sequential/Simultaneous Transition Check for Arrival
+            if (!node.IsArrivalChecked && check.ArrivalChecked)
+            {
+                node.IsArrivalChecked = true;
+                nodeChanged = true;
+                
+                if (node.ArrivalRewardItemId.HasValue)
+                {
+                    session.ReceivedItemIds.Add(node.ArrivalRewardItemId.Value);
+                    sessionChanged = true;
+                    _logger.LogInformation("Node {NodeId}: Granting Arrival Reward {ItemId}", node.Id, node.ArrivalRewardItemId.Value);
+                    await _archipelagoService.BroadcastMessageAsync(sessionId, $"Received {node.ArrivalRewardItemName}!", "item");
+                }
+            }
+
+            // Sequential/Simultaneous Transition Check for Precision
+            if (!node.IsPrecisionChecked && check.PrecisionChecked)
+            {
+                node.IsPrecisionChecked = true;
+                nodeChanged = true;
+
+                if (node.PrecisionRewardItemId.HasValue)
+                {
+                    session.ReceivedItemIds.Add(node.PrecisionRewardItemId.Value);
+                    sessionChanged = true;
+                    _logger.LogInformation("Node {NodeId}: Granting Precision Reward {ItemId}", node.Id, node.PrecisionRewardItemId.Value);
+                    await _archipelagoService.BroadcastMessageAsync(sessionId, $"Received {node.PrecisionRewardItemName}!", "item");
+                }
+            }
+
+            if (node.IsArrivalChecked && node.IsPrecisionChecked && node.State != "Checked")
+            {
+                node.State = "Checked";
+                nodeChanged = true;
+                await _archipelagoService.BroadcastMessageAsync(sessionId, $"Cleared {node.Name}!", "system");
+            }
+
+            if (nodeChanged)
+            {
+                nodesToUpdate.Add(node);
+            }
         }
-        else if (session.ProgressionMode == "radius")
-        {
-            await HandleRadiusUnlockAsync(session);
-        }
-        else 
-        {
-            // Default/Free mode: unlock next deterministic node
-            await HandleFreeUnlockAsync(session);
-        }
-    }
 
-    private async Task HandleQuadrantUnlockAsync(GameSession session)
-    {
-        var missingPasses = new List<long>();
-        if (!session.NorthPassReceived) missingPasses.Add(802002);
-        if (!session.SouthPassReceived) missingPasses.Add(802003);
-        if (!session.EastPassReceived) missingPasses.Add(802004);
-        if (!session.WestPassReceived) missingPasses.Add(802005);
-
-        if (missingPasses.Count == 0)
+        if (nodesToUpdate.Count > 0)
         {
-            await GrantRandomUsefulItemAsync(session);
-            return;
+            await _nodeRepository.UpdateRangeAsync(nodesToUpdate);
+            _logger.LogInformation("Updated {Count} node(s) for singleplayer Session {SessionId}", nodesToUpdate.Count, sessionId);
         }
 
-        var passToGrant = missingPasses[new Random().Next(missingPasses.Count)];
-        _logger.LogInformation("Granting Quadrant Pass {ItemId} to Session {SessionId}", passToGrant, session.Id);
-        
-        session.ReceivedItemIds.Add(passToGrant);
-        await _sessionRepository.UpdateAsync(session);
-        await _archipelagoService.UpdateUnlockedNodesAsync(session.Id, session.ReceivedItemIds.ToArray());
-        await _archipelagoService.BroadcastMessageAsync(session.Id, $"Received {_archipelagoService.GetItemName(session.Id, passToGrant)}!", "item");
-    }
-
-    private async Task HandleRadiusUnlockAsync(GameSession session)
-    {
-        if (session.RadiusStep < 3)
+        if (sessionChanged)
         {
-            _logger.LogInformation("Granting Radius Increase to Session {SessionId}", session.Id);
-            long itemId = 802006;
-            session.ReceivedItemIds.Add(itemId);
             await _sessionRepository.UpdateAsync(session);
-            await _archipelagoService.UpdateUnlockedNodesAsync(session.Id, session.ReceivedItemIds.ToArray());
-            await _archipelagoService.BroadcastMessageAsync(session.Id, $"Received {_archipelagoService.GetItemName(session.Id, itemId)}!", "item");
+            // Ensure UI and nodes are synced after reward grants
+            await _archipelagoService.UpdateUnlockedNodesAsync(sessionId, session.ReceivedItemIds.ToArray());
         }
-        else
-        {
-            await GrantRandomUsefulItemAsync(session);
-        }
-    }
-
-    private async Task HandleFreeUnlockAsync(GameSession session)
-    {
-        var nodes = await _nodeRepository.GetBySessionIdAsync(session.Id);
-        var nextNode = nodes
-            .Where(n => n.State == "Hidden")
-            .OrderBy(n => n.ApArrivalLocationId)
-            .FirstOrDefault();
-
-        if (nextNode != null)
-        {
-            _logger.LogInformation("Unlocking next deterministic node: {NodeId} ({Name})", nextNode.Id, nextNode.Name);
-            nextNode.State = "Available";
-            await _nodeRepository.UpdateAsync(nextNode);
-            await _archipelagoService.BroadcastMessageAsync(session.Id, $"Received {nextNode.Name} Reveal!", "item");
-        }
-    }
-
-    private async Task GrantRandomUsefulItemAsync(GameSession session)
-    {
-        long[] useful = [802010, 802011, 802012]; // Detour, Drone, Signal Amp
-        var item = useful[new Random().Next(useful.Length)];
-        session.ReceivedItemIds.Add(item);
-        await _sessionRepository.UpdateAsync(session);
-        await _archipelagoService.UpdateUnlockedNodesAsync(session.Id, session.ReceivedItemIds.ToArray());
-        await _archipelagoService.BroadcastMessageAsync(session.Id, $"Received {_archipelagoService.GetItemName(session.Id, item)}!", "item");
-    }
-
-    public async Task CheckNodesAsync(Guid sessionId, List<MapNode> targetNodes)
-    {
-        var nodesToUpdate = targetNodes.Where(n => n.State != "Checked").ToList();
-        if (nodesToUpdate.Count == 0) return;
-
-        foreach (var node in nodesToUpdate)
-        {
-            node.State = "Checked";
-            await _archipelagoService.BroadcastMessageAsync(sessionId, $"Cleared {node.Name}!", "system");
-        }
-
-        await _nodeRepository.UpdateRangeAsync(nodesToUpdate);
-        _logger.LogInformation("Marked {Count} node(s) as Checked for singleplayer Session {SessionId}", nodesToUpdate.Count, sessionId);
-
-        for (int i = 0; i < nodesToUpdate.Count; i++)
-            await UnlockNextAsync(sessionId);
     }
 }
 
@@ -163,13 +131,13 @@ public class ArchipelagoProgressionEngine(IArchipelagoService archipelagoService
         }
     }
 
-    public async Task CheckNodesAsync(Guid sessionId, List<MapNode> targetNodes)
+    public async Task CheckNodesAsync(Guid sessionId, List<NewlyCheckedNode> checks)
     {
         var locationsToCheck = new List<long>();
-        foreach (var node in targetNodes)
+        foreach (var check in checks)
         {
-            if (node.IsArrivalChecked) locationsToCheck.Add(node.ApArrivalLocationId);
-            if (node.IsPrecisionChecked) locationsToCheck.Add(node.ApPrecisionLocationId);
+            if (check.ArrivalChecked) locationsToCheck.Add(check.ApArrivalLocationId);
+            if (check.PrecisionChecked) locationsToCheck.Add(check.ApPrecisionLocationId);
         }
 
         if (locationsToCheck.Count > 0)

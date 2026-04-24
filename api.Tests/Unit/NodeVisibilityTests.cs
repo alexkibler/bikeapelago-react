@@ -28,6 +28,7 @@ public class NodeVisibilityTests
             _osmDiscoveryServiceMock.Object,
             _nodeRepositoryMock.Object,
             _sessionRepositoryMock.Object,
+            new SinglePlayerSeedGenerator(Mock.Of<ILogger<SinglePlayerSeedGenerator>>()),
             Mock.Of<ILogger<NodeGenerationService>>());
     }
 
@@ -40,7 +41,7 @@ public class NodeVisibilityTests
         var centerLon = -79.9959;
         var radius = 1000.0; // 1km radius
         
-        var session = new GameSession { Id = sessionId, Status = SessionStatus.SetupInProgress };
+        var session = new GameSession { Id = sessionId, Status = SessionStatus.SetupInProgress, ConnectionMode = "none" };
         _sessionRepositoryMock.Setup(r => r.GetByIdAsync(sessionId)).ReturnsAsync(session);
         _nodeRepositoryMock.Setup(r => r.GetBySessionIdAsync(sessionId)).ReturnsAsync(new List<MapNode>());
 

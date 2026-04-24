@@ -30,11 +30,13 @@ public class NodeGenerationService(
     IOsmDiscoveryService osmDiscoveryService,
     IMapNodeRepository nodeRepository,
     IGameSessionRepository sessionRepository,
+    SinglePlayerSeedGenerator singlePlayerSeedGenerator,
     ILogger<NodeGenerationService> logger) : INodeGenerationService
 {
     private readonly IOsmDiscoveryService _osmDiscoveryService = osmDiscoveryService;
     private readonly IMapNodeRepository _nodeRepository = nodeRepository;
     private readonly IGameSessionRepository _sessionRepository = sessionRepository;
+    private readonly SinglePlayerSeedGenerator _singlePlayerSeedGenerator = singlePlayerSeedGenerator;
     private readonly ILogger<NodeGenerationService> _logger = logger;
 
     public async Task<int> GenerateNodesAsync(NodeGenerationRequest request)
@@ -81,14 +83,20 @@ public class NodeGenerationService(
         var mapNodes = selectedPoints.Select((nodeData, i) => new MapNode
         {
             SessionId = session.Id,
-            ApArrivalLocationId = 800000 + (2 * i + 1),
-            ApPrecisionLocationId = 800000 + (2 * i + 2),
+            ApArrivalLocationId = ItemDefinitions.StartId + (2 * i + 1),
+            ApPrecisionLocationId = ItemDefinitions.StartId + (2 * i + 2),
             OsmNodeId = $"osm-{request.SessionId}-{i + 1}",
             Name = $"Node {i + 1}",
             Location = new NetTopologySuite.Geometries.Point(nodeData.Point.Lon, nodeData.Point.Lat) { SRID = 4326 },
             State = nodeData.RegionTag == "Hub" ? "Available" : "Hidden",
             RegionTag = nodeData.RegionTag
         }).ToList();
+
+        if (session.ConnectionMode == "singleplayer")
+        {
+            _singlePlayerSeedGenerator.GenerateSeed(session, mapNodes);
+        }
+
         await _nodeRepository.CreateRangeAsync(mapNodes);
         _logger.LogInformation("[generate] BulkInsert ({Count} nodes): {Ms}ms", mapNodes.Count, sw.ElapsedMilliseconds);
 

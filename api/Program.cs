@@ -76,6 +76,7 @@ builder.Services.AddScoped<IGeographicSortingService, GeographicSortingService>(
 builder.Services.AddScoped<PostGisOsmDiscoveryService>();
 builder.Services.AddScoped<IOsmDiscoveryService, OsmDiscoveryService>();
 builder.Services.AddScoped<INodeGenerationService, NodeGenerationService>();
+builder.Services.AddScoped<SinglePlayerSeedGenerator>();
 builder.Services.AddScoped<IFitAnalysisService, FitAnalysisService>();
 builder.Services.AddScoped<ISchemaDiscoveryService, SchemaDiscoveryService>();
 builder.Services.AddScoped<SinglePlayerProgressionEngine>();

@@ -98,12 +98,12 @@ public class ArchipelagoService : IArchipelagoService
         var changed = false;
 
         bool sessionChanged = false;
-        if (!session.NorthPassReceived && receivedItemIds.Any(id => IsItemNamed(sessionId, id, "North Quadrant Pass"))) { session.NorthPassReceived = true; sessionChanged = true; }
-        if (!session.EastPassReceived && receivedItemIds.Any(id => IsItemNamed(sessionId, id, "East Quadrant Pass"))) { session.EastPassReceived = true; sessionChanged = true; }
-        if (!session.SouthPassReceived && receivedItemIds.Any(id => IsItemNamed(sessionId, id, "South Quadrant Pass"))) { session.SouthPassReceived = true; sessionChanged = true; }
-        if (!session.WestPassReceived && receivedItemIds.Any(id => IsItemNamed(sessionId, id, "West Quadrant Pass"))) { session.WestPassReceived = true; sessionChanged = true; }
+        if (!session.NorthPassReceived && receivedItemIds.Contains(ItemDefinitions.NorthPass)) { session.NorthPassReceived = true; sessionChanged = true; }
+        if (!session.EastPassReceived && receivedItemIds.Contains(ItemDefinitions.EastPass)) { session.EastPassReceived = true; sessionChanged = true; }
+        if (!session.SouthPassReceived && receivedItemIds.Contains(ItemDefinitions.SouthPass)) { session.SouthPassReceived = true; sessionChanged = true; }
+        if (!session.WestPassReceived && receivedItemIds.Contains(ItemDefinitions.WestPass)) { session.WestPassReceived = true; sessionChanged = true; }
         
-        int radiusIncreases = receivedItemIds.Count(id => IsItemNamed(sessionId, id, "Progressive Radius Increase"));
+        int radiusIncreases = receivedItemIds.Count(id => id == ItemDefinitions.ProgressiveRadiusIncrease);
         if (radiusIncreases > session.RadiusStep) { session.RadiusStep = radiusIncreases; sessionChanged = true; }
 
         if (sessionChanged) await sessionRepository.UpdateAsync(session);
@@ -137,19 +137,7 @@ public class ArchipelagoService : IArchipelagoService
             return session.Items.GetItemName(itemId) ?? itemId.ToString();
         }
 
-        return itemId switch
-        {
-            802001 => "Goal",
-            802002 => "North Quadrant Pass",
-            802003 => "South Quadrant Pass",
-            802004 => "East Quadrant Pass",
-            802005 => "West Quadrant Pass",
-            802006 => "Progressive Radius Increase",
-            802010 => "Detour",
-            802011 => "Drone",
-            802012 => "Signal Amplifier",
-            _ => (itemId > 800000 && itemId <= 802000) ? $"Node Reveal {itemId - 800000}" : $"Item {itemId}"
-        };
+        return ItemDefinitions.GetItemName(itemId);
     }
 
     private bool IsItemNamed(Guid sessionId, long itemId, string name)
@@ -192,7 +180,7 @@ public class ArchipelagoService : IArchipelagoService
         }
         else if (session.ProgressionMode == "free")
         {
-            return receivedItemIds.Any(id => IsItemNamed(session.Id, id, $"{node.Name} Reveal"));
+            return receivedItemIds.Any(id => GetItemName(session.Id, id) == $"{node.Name} Reveal");
         }
 
         return true;
