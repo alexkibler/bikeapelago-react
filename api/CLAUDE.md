@@ -1,20 +1,40 @@
-# Bikeapelago: API Guidelines (Claude)
+# API Claude Instructions
 
-Instructions for Claude working on the .NET API.
+Guidance for Claude working inside `api/`.
 
-> [!IMPORTANT]
-> **DATABASE SAFETY**: NEVER execute DDL or DML directly against the database (no `psql -c`, no `docker exec ... psql`, no raw SQL run outside of migrations). All schema changes go through `dotnet ef migrations add` + `dotnet ef database update`. If a migration needs raw SQL, use `migrationBuilder.Sql()` inside the migration file. No exceptions.
+## Safety
 
-## Build and Test Commands
-- **Build**: `dotnet build`
-- **Run**: `dotnet run`
-- **Clean**: `dotnet clean`
-- **Format**: `dotnet format`
-- **Update Database**: `dotnet ef database update`
+- Do not execute direct SQL mutations manually.
+- Use EF migrations for schema changes.
 
-## Style Guidelines
-- **Architecture**: Adhere to the Repository Pattern and Dependency Injection.
-- **Naming**: Use PascalCase for classes, methods, and properties. Use camelCase for local variables and parameters.
-- **Async**: Favor `async/await` for all I/O-bound operations.
-- **Safety**: Use C# 10 nullable reference types and modern language features.
-- **Controllers**: Keep controllers thin; delegate business logic to services.
+## Commands
+
+From `api/`:
+
+```bash
+dotnet build
+dotnet run
+dotnet clean
+dotnet format
+```
+
+From repo root:
+
+```bash
+dotnet test api.Tests/Bikeapelago.Api.Tests.csproj
+```
+
+## Implementation Guidelines
+
+- Keep controllers thin.
+- Put business logic in services.
+- Keep data access in repositories.
+- Prefer async APIs for I/O work.
+- Preserve nullable reference safety.
+
+## Documentation Rule
+
+If API behavior, endpoints, or config change, update:
+- `api/README.md`
+- `api/API_ENDPOINTS.md` (if endpoint surface changes)
+- root `README.md` when setup/deployment changes

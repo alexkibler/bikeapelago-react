@@ -1,19 +1,21 @@
-# Bikeapelago: Frontend Guidelines (Claude)
+# Game App Claude Instructions
 
-Instructions for Claude working on the React frontend.
+Guidance for Claude in `packages/apps/bikepelago-app`.
 
-## Build and Test Commands
-- **Install**: `npm install`
-- **Dev**: `npm run dev`
-- **Build**: `npm run build`
-- **Lint**: `npm run lint --fix`
-- **E2E Tests**: `npm run test:e2e`
-- **E2E Individual**: `npx playwright test tests/e2e/specific_test.spec.ts`
+## Commands
 
-## Style Guidelines
-- **Components**: Functional components with TypeScript interfaces for props.
-- **State**: Centralized in Zustand stores under `src/store/`.
-- **Styling**: Tailwind CSS with DaisyUI components.
-- **Hooks**: Abstract complex logic into custom hooks under `src/hooks/`.
-- **Testing**: Prioritize E2E coverage with Playwright for core user flows.
-- **Types**: Strictly typed with TypeScript; avoid `any`.
+Run from `frontend/`:
+
+```bash
+pnpm --filter "@bikeapelago/bikepelago-app" run dev
+pnpm --filter "@bikeapelago/bikepelago-app" run build
+pnpm --filter "@bikeapelago/bikepelago-app" run lint
+pnpm --filter "@bikeapelago/bikepelago-app" run test:run
+```
+
+## Working Rules
+
+- Use functional React components and hooks.
+- Keep Zustand store contracts stable unless change is intentional.
+- Keep API calls compatible with current backend routes.
+- Keep tests updated for changed UI behavior.

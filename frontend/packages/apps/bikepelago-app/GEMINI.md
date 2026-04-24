@@ -1,15 +1,25 @@
-# Bikeapelago: Frontend Guidelines (Gemini)
+# Game App Gemini Instructions
 
-Instructions for Gemini working on the React frontend.
+Guidance for Gemini in `packages/apps/bikepelago-app`.
 
-## Build and Test Commands
-- **Install**: `npm install`
-- **Dev**: `npm run dev`
-- **Build**: `npm run build`
-- **E2E Tests**: `npm run test:e2e`
+## Build and Validation
 
-## Style Guidelines
-- **Surgical Update**: Use `replace` for surgical code modifications.
-- **Verification**: Run `npm run test:e2e` to verify your changes.
-- **Patterns**: Adhere to functional React patterns and Zustand state management.
-- **Documentation**: Keep README and store documentation updated.
+Run from `frontend/`:
+
+```bash
+pnpm --filter "@bikeapelago/bikepelago-app" run build
+pnpm --filter "@bikeapelago/bikepelago-app" run lint
+pnpm --filter "@bikeapelago/bikepelago-app" run test:run
+```
+
+## Development
+
+```bash
+pnpm --filter "@bikeapelago/bikepelago-app" run dev
+```
+
+## Rules
+
+- Prefer targeted edits to existing components.
+- Preserve TypeScript typing; avoid `any`.
+- Update README if scripts/config behavior changes.
