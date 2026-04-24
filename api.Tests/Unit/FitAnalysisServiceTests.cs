@@ -24,18 +24,34 @@ public class FitAnalysisServiceTests
 
         var nodes = new List<MapNode>
         {
-            // 1. Very close (reached) ~15m away
+            // 1. Very close (reached) ~15m away -> Precision + Arrival
             new MapNode { Id = Guid.NewGuid(), Name = "Close", Lat = lat + 0.0001, Lon = lon + 0.0001 },
             // 2. Far away (unreached)
             new MapNode { Id = Guid.NewGuid(), Name = "Far", Lat = lat + 1.0, Lon = lon + 1.0 },
-            // 3. Just outside 30m range (~44m)
-            new MapNode { Id = Guid.NewGuid(), Name = "Boundary", Lat = lat + 0.0004, Lon = lon }
+            // 3. Just outside 100m range (~111m)
+            new MapNode { Id = Guid.NewGuid(), Name = "Boundary", Lat = lat + 0.001, Lon = lon }
         };
 
         var reached = FitAnalysisService.FindReachedNodes(path, nodes);
 
         Assert.Single(reached);
         Assert.Equal("Close", nodes.First(n => n.Id == reached[0].Id).Name);
+        Assert.True(reached[0].ArrivalChecked);
+        Assert.True(reached[0].PrecisionChecked);
+    }
+
+    [Fact]
+    public void FindReachedNodes_NodeAt80m_IsOnlyArrivalReached()
+    {
+        // ~88m north ≈ 0.0008 degrees
+        var node = new MapNode { Id = Guid.NewGuid(), Lat = lat + 0.0008, Lon = lon };
+        var path = new List<PathPoint> { new PathPoint { Lat = lat, Lon = lon } };
+
+        var reached = FitAnalysisService.FindReachedNodes(path, new[] { node });
+
+        Assert.Single(reached);
+        Assert.True(reached[0].ArrivalChecked);
+        Assert.False(reached[0].PrecisionChecked);
     }
 
     [Fact]
@@ -77,9 +93,12 @@ public class FitAnalysisServiceTests
         // After snapping the node lands on the route – FIT analysis marks it as reached
         Assert.Single(reachedWithSnapped);
         Assert.Equal(snappedNode.Id, reachedWithSnapped[0].Id);
+        Assert.True(reachedWithSnapped[0].PrecisionChecked);
 
-        // Without snapping the node would have been missed entirely
-        Assert.Empty(reachedWithOriginal);
+        // Without snapping the node (at ~44m) is only Arrival reached (100m)
+        Assert.Single(reachedWithOriginal);
+        Assert.True(reachedWithOriginal[0].ArrivalChecked);
+        Assert.False(reachedWithOriginal[0].PrecisionChecked);
     }
 
     [Fact]
@@ -106,22 +125,23 @@ public class FitAnalysisServiceTests
     }
 
     [Fact]
-    public void FindReachedNodes_NodeWithin30m_IsReached()
+    public void FindReachedNodes_NodeWithin100m_IsReached()
     {
-        // 25 m north ≈ 0.000225 degrees latitude (safely inside the 30 m threshold)
-        var node = new MapNode { Id = Guid.NewGuid(), Lat = lat + 0.000225, Lon = lon };
+        // 80 m north ≈ 0.00072 degrees latitude (safely inside the 100 m threshold)
+        var node = new MapNode { Id = Guid.NewGuid(), Lat = lat + 0.00072, Lon = lon };
         var path = new List<PathPoint> { new PathPoint { Lat = lat, Lon = lon } };
 
         var reached = FitAnalysisService.FindReachedNodes(path, new[] { node });
 
         Assert.Single(reached);
+        Assert.True(reached[0].ArrivalChecked);
     }
 
     [Fact]
-    public void FindReachedNodes_NodeJustBeyond30m_IsNotReached()
+    public void FindReachedNodes_NodeJustBeyond100m_IsNotReached()
     {
-        // 35 m north ≈ 0.000315 degrees latitude — clearly outside 30 m threshold
-        var node = new MapNode { Id = Guid.NewGuid(), Lat = lat + 0.000315, Lon = lon };
+        // 110 m north ≈ 0.001 degrees latitude — clearly outside 100 m threshold
+        var node = new MapNode { Id = Guid.NewGuid(), Lat = lat + 0.001, Lon = lon };
         var path = new List<PathPoint> { new PathPoint { Lat = lat, Lon = lon } };
 
         var reached = FitAnalysisService.FindReachedNodes(path, new[] { node });

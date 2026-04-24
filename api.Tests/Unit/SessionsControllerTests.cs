@@ -38,7 +38,8 @@ public class SessionsControllerTests
             null!, // IFitAnalysisService
             Mock.Of<IProgressionEngineFactory>(),
             new SessionValidator(Mock.Of<ILogger<SessionValidator>>()),
-            _routeBuilderMock.Object);
+            _routeBuilderMock.Object,
+            Mock.Of<IItemExecutionService>());
 
         var claims = new List<Claim>
         {
