@@ -11,7 +11,15 @@ const Toggle = ({ id, label, checked, onCheckedChange, disabled = false, classNa
   return (
     <div className={`flex items-center justify-between ${className}`}>
       {label && (
-        <label htmlFor={id} className='text-xs font-bold uppercase tracking-wider text-[var(--color-text-subtle-hex)] cursor-pointer'>
+        <label
+          htmlFor={id}
+          onClick={(e) => {
+            e.preventDefault();
+            if (!disabled) onCheckedChange(!checked);
+            document.getElementById(id as string)?.focus();
+          }}
+          className='text-xs font-bold uppercase tracking-wider text-[var(--color-text-subtle-hex)] cursor-pointer'
+        >
           {label}
         </label>
       )}
