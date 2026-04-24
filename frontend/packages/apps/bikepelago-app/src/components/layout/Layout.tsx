@@ -15,14 +15,18 @@ const Layout = ({ children }: LayoutProps) => {
   const navigate = useNavigate();
   const isGamePage = location.pathname.startsWith('/game');
   const { isValid } = useAuthStore();
+  const isPublicPage =
+    location.pathname === '/login' ||
+    location.pathname === '/register' ||
+    location.pathname === '/about';
 
   useEffect(() => {
-    if (!isValid && location.pathname !== '/login' && location.pathname !== '/register') {
+    if (!isValid && !isPublicPage) {
       void navigate('/login');
     }
-  }, [isValid, location.pathname, navigate]);
+  }, [isPublicPage, isValid, navigate]);
 
-  const isAuthPage = location.pathname === '/login' || location.pathname === '/register';
+  const isAuthPage = isPublicPage;
 
   return (
     <div className={`min-h-screen bg-[var(--color-surface-alt-hex)] flex flex-col md:flex-row ${isGamePage ? 'h-screen' : ''}`}>
