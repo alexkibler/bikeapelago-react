@@ -370,9 +370,21 @@ public class SessionsController(
         }
     }
 
+    [Microsoft.AspNetCore.Authorization.Authorize]
     [HttpGet("{id}/nodes")]
     public async Task<ActionResult<IEnumerable<MapNode>>> GetSessionNodes(Guid id)
     {
+        var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(userIdString) || !Guid.TryParse(userIdString, out var userId))
+            return Unauthorized(new { message = "Invalid token" });
+
+        var session = await _sessionRepository.GetByIdAsync(id);
+        if (session == null)
+            return NotFound(new { message = "Session not found." });
+
+        if (session.UserId != userId)
+            return Forbid();
+
         var nodes = await _nodeRepository.GetBySessionIdAsync(id);
         return Ok(nodes);
     }
@@ -383,12 +395,20 @@ public class SessionsController(
         public List<Guid> NodeIds { get; set; } = [];
     }
 
+    [Microsoft.AspNetCore.Authorization.Authorize]
     [HttpPost("{id}/nodes/check")]
     public async Task<IActionResult> CheckNodes(Guid id, [FromBody] CheckNodesRequest request)
     {
+        var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(userIdString) || !Guid.TryParse(userIdString, out var userId))
+            return Unauthorized(new { message = "Invalid token" });
+
         var session = await _sessionRepository.GetByIdAsync(id);
         if (session == null)
             return NotFound(new { message = "Session not found." });
+
+        if (session.UserId != userId)
+            return Forbid();
 
         var nodes = await _nodeRepository.GetBySessionIdAsync(id);
         var targetNodes = nodes.Where(n => request.NodeIds.Contains(n.Id)).ToList();
