@@ -7,14 +7,20 @@ namespace Bikeapelago.Api.Services;
 
 public static class ItemPoolFactory
 {
-    public static List<long> GenerateItemPool(List<MapNode> nodes, string? progressionMode)
+    public static List<long> GenerateItemPool(List<MapNode> nodes, string? progressionMode, GameSession session)
     {
         var pool = new List<long>();
         var totalCapacity = nodes.Count * 2;
         var rng = new Random();
 
-        // 1. Progression Items
-        pool.Add(ItemDefinitions.Goal); // Always add the Goal item to the pool
+        // 1. Macguffin Items (Triforce Hunt win condition)
+        int totalMacguffins = (int)Math.Ceiling(totalCapacity * 0.15);
+        int macguffinsRequired = (int)Math.Ceiling(totalMacguffins * 0.80);
+        session.MacguffinsRequired = macguffinsRequired;
+        for (int i = 0; i < totalMacguffins; i++)
+        {
+            pool.Add(ItemDefinitions.Macguffin);
+        }
 
         if (progressionMode == "quadrant")
         {

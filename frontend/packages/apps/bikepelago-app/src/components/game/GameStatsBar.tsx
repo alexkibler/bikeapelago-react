@@ -58,8 +58,17 @@ const GameStatsBar = ({ session, nodes }: GameStatsBarProps) => {
         )}
       </div>
 
+      {session && session.macguffins_required > 0 && (
+        <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-[var(--color-border-hex)] bg-[rgb(var(--color-surface-overlay))]" title="Macguffins collected">
+          <span className="text-yellow-400 text-sm leading-none">&#10022;</span>
+          <span className="text-xs font-black text-[var(--color-text-hex)] leading-none tabular-nums">
+            {session.macguffins_collected} <span className="font-normal text-[var(--color-text-subtle-hex)]">/ {session.macguffins_required}</span>
+          </span>
+        </div>
+      )}
+
       <div className="relative">
-        <button 
+        <button
           onClick={() => setShowStatsInfo(!showStatsInfo)}
           className="flex items-center gap-4 font-black text-xs uppercase tracking-tight ml-4 p-1.5 rounded-lg hover:bg-[rgb(var(--color-surface-overlay))] transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--color-border-hex)]"
           aria-label="Toggle node statistics"

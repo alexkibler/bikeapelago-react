@@ -5,6 +5,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 
 // Extracted Components
 import ArchipelagoReconnectDialog from '../components/game/ArchipelagoReconnectDialog';
+import VictoryModal from '../components/game/VictoryModal';
 import DebugBanner from '../components/game/DebugBanner';
 import GameStatsBar from '../components/game/GameStatsBar';
 import MapCanvas from '../components/game/MapCanvas';
@@ -74,7 +75,7 @@ const GameView = () => {
   useEffect(() => {
     if (session?.received_item_ids) {
       const ITEM_MAP: Record<number, string> = {
-        802001: 'Goal',
+        802001: 'Macguffin',
         802002: 'North Quadrant Pass',
         802003: 'South Quadrant Pass',
         802004: 'East Quadrant Pass',
@@ -201,6 +202,7 @@ const GameView = () => {
 
   return (
     <div className='relative w-full h-full flex flex-col bg-[var(--color-surface-alt-hex)]'>
+      {session?.status === 'Completed' && <VictoryModal session={session} />}
       {showReconnect && <ArchipelagoReconnectDialog {...reconnectProps} />}
       <DebugBanner />
       <GameStatsBar session={session} nodes={nodes} />

@@ -10,7 +10,6 @@ public enum ItemType
     Progression,
     Useful,
     Filler,
-    Goal,
     NodeReveal
 }
 
@@ -24,8 +23,8 @@ public static class ItemDefinitions
 {
     public const long StartId = 800000;
 
-    [ItemType(ItemType.Goal)]
-    public const long Goal = 802001;
+    [ItemType(ItemType.Progression)]
+    public const long Macguffin = 802001;
 
     [ItemType(ItemType.Progression)]
     public const long NorthPass = 802002;
@@ -68,7 +67,7 @@ public static class ItemDefinitions
 
     public static readonly Dictionary<long, string> ItemNames = new()
     {
-        { Goal, "Goal" },
+        { Macguffin, "Macguffin" },
         { NorthPass, "North Quadrant Pass" },
         { SouthPass, "South Quadrant Pass" },
         { EastPass, "East Quadrant Pass" },

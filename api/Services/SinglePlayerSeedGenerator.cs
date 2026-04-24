@@ -121,7 +121,7 @@ public class SinglePlayerSeedGenerator(ILogger<SinglePlayerSeedGenerator> logger
             session.Radius.Value, 
             session.ProgressionMode);
 
-        var itemDeck = ItemPoolFactory.GenerateItemPool(nodes, session.ProgressionMode);
+        var itemDeck = ItemPoolFactory.GenerateItemPool(nodes, session.ProgressionMode, session);
         
         // Separate progression items from filler/useful
         var progressionItemsInDeck = new List<long>();

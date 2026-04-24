@@ -32,6 +32,9 @@ export interface GameSession {
   south_pass_received: boolean;
   west_pass_received: boolean;
   radius_step: number;
+  macguffins_required: number;
+  macguffins_collected: number;
+  status: 'SetupInProgress' | 'Active' | 'Completed' | 'Archived';
 }
 
 export interface PathPoint {

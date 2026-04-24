@@ -100,6 +100,12 @@ public class GameSession
     [JsonPropertyName("signal_amplifier_active")]
     public bool SignalAmplifierActive { get; set; }
 
+    [JsonPropertyName("macguffins_required")]
+    public int MacguffinsRequired { get; set; } = 0;
+
+    [JsonPropertyName("macguffins_collected")]
+    public int MacguffinsCollected { get; set; } = 0;
+
     [JsonPropertyName("status")]
     [JsonConverter(typeof(JsonStringEnumConverter))]
     public SessionStatus Status { get; set; } = SessionStatus.SetupInProgress;

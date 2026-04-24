@@ -47,13 +47,19 @@ public class SinglePlayerProgressionEngine(
             {
                 node.IsArrivalChecked = true;
                 nodeChanged = true;
-                
+
                 if (node.ArrivalRewardItemId.HasValue)
                 {
                     session.ReceivedItemIds.Add(node.ArrivalRewardItemId.Value);
                     sessionChanged = true;
                     _logger.LogInformation("Node {NodeId}: Granting Arrival Reward {ItemId}", node.Id, node.ArrivalRewardItemId.Value);
                     await _archipelagoService.BroadcastMessageAsync(sessionId, $"Received {node.ArrivalRewardItemName}!", "item");
+
+                    if (node.ArrivalRewardItemId.Value == ItemDefinitions.Macguffin)
+                    {
+                        session.MacguffinsCollected++;
+                        sessionChanged = true;
+                    }
                 }
             }
 
@@ -69,6 +75,12 @@ public class SinglePlayerProgressionEngine(
                     sessionChanged = true;
                     _logger.LogInformation("Node {NodeId}: Granting Precision Reward {ItemId}", node.Id, node.PrecisionRewardItemId.Value);
                     await _archipelagoService.BroadcastMessageAsync(sessionId, $"Received {node.PrecisionRewardItemName}!", "item");
+
+                    if (node.PrecisionRewardItemId.Value == ItemDefinitions.Macguffin)
+                    {
+                        session.MacguffinsCollected++;
+                        sessionChanged = true;
+                    }
                 }
             }
 
@@ -93,6 +105,15 @@ public class SinglePlayerProgressionEngine(
 
         if (sessionChanged)
         {
+            if (session.MacguffinsRequired > 0 &&
+                session.MacguffinsCollected >= session.MacguffinsRequired &&
+                session.Status != SessionStatus.Completed)
+            {
+                session.Status = SessionStatus.Completed;
+                _logger.LogInformation("Session {SessionId} completed! Collected {Collected}/{Required} Macguffins.", sessionId, session.MacguffinsCollected, session.MacguffinsRequired);
+                await _archipelagoService.BroadcastMessageAsync(sessionId, "You collected all required Macguffins! Congratulations!", "system");
+            }
+
             await _sessionRepository.UpdateAsync(session);
             // Ensure UI and nodes are synced after reward grants
             await _archipelagoService.UpdateUnlockedNodesAsync(sessionId, session.ReceivedItemIds.ToArray());
