@@ -7,28 +7,34 @@ using System.Linq;
 using System.Threading.Tasks;
 using Archipelago.MultiClient.Net;
 using Archipelago.MultiClient.Net.Enums;
-using Archipelago.MultiClient.Net.Models;
 using Archipelago.MultiClient.Net.Packets;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.AspNetCore.SignalR;
-using Bikeapelago.Api.Repositories;
+using Bikeapelago.Api.Data;
 using Bikeapelago.Api.Models;
+using Bikeapelago.Api.Repositories;
+using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace Bikeapelago.Api.Services;
 
-public record ArchipelagoStatusUpdate(string Status, string? Error = null);
-public record ArchipelagoLocationUpdate(long[] LocationIds);
-public record ArchipelagoItem(long Id, string Name);
-public record ArchipelagoItemsUpdate(ArchipelagoItem[] Items);
-public record ArchipelagoChatMessage(string Text, string Type, DateTime Timestamp);
-
-public class ArchipelagoService(IHubContext<ArchipelagoHub> hubContext, ILogger<ArchipelagoService> logger, IServiceScopeFactory scopeFactory) : IArchipelagoService
+public class ArchipelagoService : IArchipelagoService
 {
+    private readonly ILogger<ArchipelagoService> _logger;
+    private readonly IHubContext<ArchipelagoHub> _hubContext;
+    private readonly IServiceScopeFactory _scopeFactory;
     private readonly ConcurrentDictionary<Guid, IArchipelagoSession> _sessions = new();
-    private readonly IHubContext<ArchipelagoHub> _hubContext = hubContext;
-    private readonly Microsoft.Extensions.Logging.ILogger<ArchipelagoService> _logger = logger;
-    private readonly IServiceScopeFactory _scopeFactory = scopeFactory;
     private readonly ConcurrentDictionary<Guid, Task> _pendingItemUpdates = new();
+
+    public ArchipelagoService(
+        ILogger<ArchipelagoService> logger,
+        IHubContext<ArchipelagoHub> hubContext,
+        IServiceScopeFactory scopeFactory)
+    {
+        _logger = logger;
+        _hubContext = hubContext;
+        _scopeFactory = scopeFactory;
+    }
 
     private async Task UpdateNodeStatesAsync(Guid sessionId, long[] checkedLocationIds)
     {
@@ -60,8 +66,6 @@ public class ArchipelagoService(IHubContext<ArchipelagoHub> hubContext, ILogger<
 
             if (nodeChanged)
             {
-                // If either is checked, and state is not already "Checked", we might want to mark it as checked
-                // for the sake of the legacy UI, but technically it's a dual-state now.
                 if (node.IsArrivalChecked && node.IsPrecisionChecked)
                 {
                     node.State = "Checked";
@@ -79,7 +83,7 @@ public class ArchipelagoService(IHubContext<ArchipelagoHub> hubContext, ILogger<
         }
     }
 
-    private async Task UpdateUnlockedNodesAsync(Guid sessionId, long[] receivedItemIds)
+    public async Task UpdateUnlockedNodesAsync(Guid sessionId, long[] receivedItemIds)
     {
         if (receivedItemIds.Length == 0) return;
 
@@ -93,14 +97,13 @@ public class ArchipelagoService(IHubContext<ArchipelagoHub> hubContext, ILogger<
         var nodes = await nodeRepository.GetBySessionIdAsync(sessionId);
         var changed = false;
 
-        // Sync Progression States in Session
         bool sessionChanged = false;
-        if (!session.NorthPassReceived && receivedItemIds.Any(id => IsItemNamed(sessionId, id, "North Quadrant Pass"))) { session.NorthPassReceived = true; sessionChanged = true; }
-        if (!session.EastPassReceived && receivedItemIds.Any(id => IsItemNamed(sessionId, id, "East Quadrant Pass"))) { session.EastPassReceived = true; sessionChanged = true; }
-        if (!session.SouthPassReceived && receivedItemIds.Any(id => IsItemNamed(sessionId, id, "South Quadrant Pass"))) { session.SouthPassReceived = true; sessionChanged = true; }
-        if (!session.WestPassReceived && receivedItemIds.Any(id => IsItemNamed(sessionId, id, "West Quadrant Pass"))) { session.WestPassReceived = true; sessionChanged = true; }
+        if (!session.NorthPassReceived && receivedItemIds.Contains(ItemDefinitions.NorthPass)) { session.NorthPassReceived = true; sessionChanged = true; }
+        if (!session.EastPassReceived && receivedItemIds.Contains(ItemDefinitions.EastPass)) { session.EastPassReceived = true; sessionChanged = true; }
+        if (!session.SouthPassReceived && receivedItemIds.Contains(ItemDefinitions.SouthPass)) { session.SouthPassReceived = true; sessionChanged = true; }
+        if (!session.WestPassReceived && receivedItemIds.Contains(ItemDefinitions.WestPass)) { session.WestPassReceived = true; sessionChanged = true; }
         
-        int radiusIncreases = receivedItemIds.Count(id => IsItemNamed(sessionId, id, "Progressive Radius Increase"));
+        int radiusIncreases = receivedItemIds.Count(id => id == ItemDefinitions.ProgressiveRadiusIncrease);
         if (radiusIncreases > session.RadiusStep) { session.RadiusStep = radiusIncreases; sessionChanged = true; }
 
         if (sessionChanged) await sessionRepository.UpdateAsync(session);
@@ -110,7 +113,7 @@ public class ArchipelagoService(IHubContext<ArchipelagoHub> hubContext, ILogger<
         {
             if (node.State == "Hidden" && IsNodeUnlocked(session, node, receivedItemIds))
             {
-                _logger.LogInformation("Unlocking Node {NodeId} ({Name}) because progression requirements met or reveal item received", node.Id, node.Name);
+                _logger.LogInformation("Unlocking Node {NodeId} ({Name}) because progression requirements met", node.Id, node.Name);
                 node.State = "Available";
                 nodesToUpdate.Add(node);
                 changed = true;
@@ -120,23 +123,30 @@ public class ArchipelagoService(IHubContext<ArchipelagoHub> hubContext, ILogger<
         if (changed)
         {
             await nodeRepository.UpdateRangeAsync(nodesToUpdate);
-            _logger.LogInformation("Updated DB for Session {SessionId}: Nodes made Available based on items", sessionId);
             await _hubContext.Clients.Group(sessionId.ToString()).SendAsync("OnSyncRequired");
         }
     }
 
-    private bool IsItemNamed(Guid sessionId, long itemId, string name)
+    public async Task BroadcastMessageAsync(Guid sessionId, string message, string type = "system") =>
+        await _hubContext.Clients.Group(sessionId.ToString()).SendAsync("OnChatMessage", message, type);
+
+    public string GetItemName(Guid sessionId, long itemId)
     {
         if (_sessions.TryGetValue(sessionId, out var session))
         {
-            return session.Items.GetItemName(itemId) == name;
+            return session.Items.GetItemName(itemId) ?? itemId.ToString();
         }
-        return false;
+
+        return ItemDefinitions.GetItemName(itemId);
+    }
+
+    private bool IsItemNamed(Guid sessionId, long itemId, string name)
+    {
+        return GetItemName(sessionId, itemId) == name;
     }
 
     private bool IsNodeUnlocked(GameSession session, MapNode node, long[] receivedItemIds)
     {
-        // Hub is always available
         if (node.RegionTag == "Hub") return true;
 
         if (session.ProgressionMode == "quadrant")
@@ -170,8 +180,7 @@ public class ArchipelagoService(IHubContext<ArchipelagoHub> hubContext, ILogger<
         }
         else if (session.ProgressionMode == "free")
         {
-            // Node Reveal 1-to-1
-            return receivedItemIds.Any(id => IsItemNamed(session.Id, id, $"{node.Name} Reveal"));
+            return receivedItemIds.Any(id => GetItemName(session.Id, id) == $"{node.Name} Reveal");
         }
 
         return true;
@@ -204,40 +213,12 @@ public class ArchipelagoService(IHubContext<ArchipelagoHub> hubContext, ILogger<
             return;
         }
 
-        _logger.LogInformation("Connecting Session {SessionId} to Archipelago at {Url} as {Slot}", sessionId, url, slotName);
-
         if (_sessions.TryRemove(sessionId, out var existingSession))
         {
             try { await existingSession.Socket.DisconnectAsync(); } catch { }
         }
 
-        _logger.LogInformation("Connecting Session {SessionId} to Archipelago server at {Url} as {Slot}", sessionId, url, slotName);
-
-        var connectionUrl = url;
-        // Local Dev Convenience: If the hostname is 'archipelago' but it's not resolvable (because API is local but Archipelago is in Docker),
-        // we automatically try localhost:port which is what is mapped to the host.
-        if (url.StartsWith("archipelago:") && !url.Contains("localhost") && !url.Contains("127.0.0.1"))
-        {
-            try
-            {
-                var host = url.Contains(':') ? url.Split(':')[0] : url;
-                Dns.GetHostEntry(host);
-            }
-            catch (SocketException)
-            {
-                var isDocker = Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER") == "true";
-                var replacement = isDocker ? "host.docker.internal" : "localhost";
-
-                _logger.LogInformation("Hostname 'archipelago' is not resolvable. Translating to '{Replacement}' for local development.", replacement);
-                connectionUrl = url.Replace("archipelago", replacement);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogTrace(ex, "Dns.GetHostEntry failed for {Host}", url.Split(':')[0]);
-            }
-        }
-
-        session = ArchipelagoSessionFactory.CreateSession(connectionUrl);
+        session = ArchipelagoSessionFactory.CreateSession(url);
 
         session.Items.ItemReceived += (helper) =>
         {
@@ -247,9 +228,8 @@ public class ArchipelagoService(IHubContext<ArchipelagoHub> hubContext, ILogger<
                     ? Task.Delay(250).ContinueWith(_ => ProcessItemUpdateAsync(sessionId))
                     : existingTask
             );
-
+            
             bool isInitialSync = !_sessions.ContainsKey(sessionId);
-
             while (helper.Any())
             {
                 var item = helper.DequeueItem();
@@ -257,8 +237,7 @@ public class ArchipelagoService(IHubContext<ArchipelagoHub> hubContext, ILogger<
                 {
                     var itemName = session.Items.GetItemName(item.ItemId) ?? item.ItemId.ToString();
                     var player = session.Players.GetPlayerAlias(item.Player) ?? "Unknown";
-                    var text = $"Received {itemName} from {player}";
-                    _ = BroadcastMessage(sessionId, text, "item");
+                    _ = BroadcastMessage(sessionId, $"Received {itemName} from {player}", "item");
                 }
             }
         };
@@ -270,25 +249,10 @@ public class ArchipelagoService(IHubContext<ArchipelagoHub> hubContext, ILogger<
             _ = UpdateNodeStatesAsync(sessionId, locationArray);
         };
 
-        session.Socket.PacketReceived += (packet) =>
-        {
-            if (packet is PrintJsonPacket printJson)
-            {
-                var text = string.Join("", printJson.Data.Select(d => d.Text));
-                _ = BroadcastMessage(sessionId, text, "system");
-            }
-        };
-
-        session.Socket.ErrorReceived += (ex, message) =>
-        {
-            _logger.LogError(ex, "Archipelago Socket Error: {Message}", message);
-            _ = BroadcastStatus(sessionId, "error", message);
-        };
-
         LoginResult result;
         try
         {
-            result = session.TryConnectAndLogin("Bikeapelago", slotName, ItemsHandlingFlags.AllItems, password: password);
+            result = await Task.Run(() => session.TryConnectAndLogin("Bikeapelago", slotName, ItemsHandlingFlags.AllItems, password: password));
         }
         catch (Exception ex)
         {
@@ -299,9 +263,12 @@ public class ArchipelagoService(IHubContext<ArchipelagoHub> hubContext, ILogger<
 
         if (result.Successful)
         {
+            var loginResult = (LoginSuccessful)result;
             _sessions[sessionId] = session;
             var checkedLocations = session.Locations.AllLocationsChecked.ToArray();
             var receivedItems = session.Items.AllItemsReceived.Select(i => i.ItemId).ToArray();
+
+            await SyncSlotDataAsync(sessionId, loginResult);
 
             _ = BroadcastStatus(sessionId, "connected");
             _ = BroadcastLocations(sessionId, checkedLocations);
@@ -315,21 +282,75 @@ public class ArchipelagoService(IHubContext<ArchipelagoHub> hubContext, ILogger<
         {
             var loginFailure = (LoginFailure)result;
             var error = string.Join(", ", loginFailure.Errors);
-            _logger.LogWarning("Archipelago Login Failed: {Error}", error);
             _ = BroadcastStatus(sessionId, "error", error);
         }
     }
+
+    private async Task SyncSlotDataAsync(Guid sessionId, LoginSuccessful loginResult)
+    {
+        using var scope = _scopeFactory.CreateScope();
+        var sessionRepository = scope.ServiceProvider.GetRequiredService<IGameSessionRepository>();
+        var session = await sessionRepository.GetByIdAsync(sessionId);
+        
+        if (session == null) return;
+
+        bool changed = false;
+        if (loginResult.SlotData.TryGetValue("progression_mode", out var modeObj))
+        {
+            int modeInt = Convert.ToInt32(modeObj);
+            string modeStr = modeInt switch {
+                0 => "quadrant",
+                1 => "radius",
+                2 => "free",
+                _ => "None"
+            };
+            
+            if (session.ProgressionMode != modeStr)
+            {
+                _logger.LogInformation("Updating Session {SessionId} ProgressionMode to {Mode} from Archipelago SlotData", sessionId, modeStr);
+                session.ProgressionMode = modeStr;
+                changed = true;
+            }
+        }
+
+        if (changed) await sessionRepository.UpdateAsync(session);
+    }
+
+    private async Task ProcessItemUpdateAsync(Guid sessionId)
+    {
+        if (_sessions.TryGetValue(sessionId, out var session))
+        {
+            var allReceivedItems = session.Items.AllItemsReceived.Select(i => i.ItemId).ToArray();
+            await UpdateUnlockedNodesAsync(sessionId, allReceivedItems);
+            await SaveItemsToDbAsync(sessionId, allReceivedItems);
+            await BroadcastItems(sessionId, allReceivedItems);
+        }
+    }
+
+    private async Task SaveItemsToDbAsync(Guid sessionId, long[] receivedItemIds)
+    {
+        using var scope = _scopeFactory.CreateScope();
+        var sessionRepository = scope.ServiceProvider.GetRequiredService<IGameSessionRepository>();
+        await sessionRepository.UpdateReceivedItemsAsync(sessionId, receivedItemIds.ToList());
+    }
+
+    private async Task BroadcastStatus(Guid sessionId, string status, string? error = null) =>
+        await _hubContext.Clients.Group(sessionId.ToString()).SendAsync("OnStatusChanged", status, error);
+
+    private async Task BroadcastLocations(Guid sessionId, long[] checkedLocations) =>
+        await _hubContext.Clients.Group(sessionId.ToString()).SendAsync("OnLocationsChecked", checkedLocations);
+
+    private async Task BroadcastItems(Guid sessionId, long[] receivedItems) =>
+        await _hubContext.Clients.Group(sessionId.ToString()).SendAsync("OnItemsReceived", receivedItems);
+
+    private async Task BroadcastMessage(Guid sessionId, string message, string type) =>
+        await _hubContext.Clients.Group(sessionId.ToString()).SendAsync("OnChatMessage", message, type);
 
     public async Task CheckLocationsAsync(Guid sessionId, long[] locationIds)
     {
         if (_sessions.TryGetValue(sessionId, out var session))
         {
-            _logger.LogInformation("Checking locations {LocationIds} for Session {SessionId}", string.Join(", ", locationIds), sessionId);
             await session.Locations.CompleteLocationChecksAsync(locationIds);
-        }
-        else
-        {
-            _logger.LogWarning("Cannot check locations for Session {SessionId}: No active Archipelago connection found", sessionId);
         }
     }
 
@@ -348,54 +369,5 @@ public class ArchipelagoService(IHubContext<ArchipelagoHub> hubContext, ILogger<
         {
             await session.Socket.SendPacketAsync(new SayPacket { Text = message });
         }
-    }
-
-    private async Task BroadcastStatus(Guid sessionId, string status, string? error = null)
-    {
-        await _hubContext.Clients.Group(sessionId.ToString()).SendAsync("OnStatusUpdate", new ArchipelagoStatusUpdate(status, error));
-    }
-
-    private async Task BroadcastLocations(Guid sessionId, long[] locationIds)
-    {
-        await _hubContext.Clients.Group(sessionId.ToString()).SendAsync("OnLocationsUpdate", new ArchipelagoLocationUpdate(locationIds));
-    }
-
-    private async Task BroadcastMessage(Guid sessionId, string text, string type)
-    {
-        await _hubContext.Clients.Group(sessionId.ToString()).SendAsync("OnChatMessage", new ArchipelagoChatMessage(text, type, DateTime.UtcNow));
-    }
-
-    private async Task BroadcastItems(Guid sessionId, long[] itemIds)
-    {
-        if (!_sessions.TryGetValue(sessionId, out var session)) return;
-
-        var items = itemIds.Select(id => new ArchipelagoItem(id, session.Items.GetItemName(id) ?? $"Item {id}")).ToArray();
-        await _hubContext.Clients.Group(sessionId.ToString()).SendAsync("OnItemsUpdate", new ArchipelagoItemsUpdate(items));
-    }
-
-    private async Task SaveItemsToDbAsync(Guid sessionId, long[] itemIds)
-    {
-        try
-        {
-            using var scope = _scopeFactory.CreateScope();
-            var sessionRepository = scope.ServiceProvider.GetRequiredService<IGameSessionRepository>();
-            await sessionRepository.UpdateReceivedItemsAsync(sessionId, itemIds.ToList());
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to save items to DB for session {SessionId}", sessionId);
-        }
-    }
-
-    private async Task ProcessItemUpdateAsync(Guid sessionId)
-    {
-        if (!_sessions.TryGetValue(sessionId, out var session)) return;
-
-        var allReceivedItems = session.Items.AllItemsReceived.Select(i => i.ItemId).ToArray();
-        _logger.LogInformation("Processing batch item update for session {SessionId} ({Count} items)", sessionId, allReceivedItems.Length);
-
-        await UpdateUnlockedNodesAsync(sessionId, allReceivedItems);
-        await SaveItemsToDbAsync(sessionId, allReceivedItems);
-        await BroadcastItems(sessionId, allReceivedItems);
     }
 }

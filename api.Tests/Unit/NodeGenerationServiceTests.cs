@@ -31,6 +31,7 @@ public class NodeGenerationServiceTests
             _osmDiscoveryServiceMock.Object,
             _nodeRepositoryMock.Object,
             _sessionRepositoryMock.Object,
+            new SinglePlayerSeedGenerator(Mock.Of<ILogger<SinglePlayerSeedGenerator>>()),
             _loggerMock.Object);
     }
 
@@ -107,55 +108,97 @@ public class NodeGenerationServiceTests
     }
 
     [Fact]
-    public async Task GenerateNodesAsync_ShouldSucceed_WhenSessionIsSetupInProgressAndNoCheckedNodes()
+    public async Task GenerateNodesAsync_QuadrantMode_ShouldCallWedgeDiscoveryForEachQuadrant()
     {
         // Arrange
         var sessionId = Guid.NewGuid();
-        var session = new GameSession
-        {
-            Id = sessionId,
-            Status = SessionStatus.SetupInProgress
-        };
+        var session = new GameSession { Id = sessionId, Status = SessionStatus.SetupInProgress, ConnectionMode = "none" };
 
-        var existingNodes = new List<MapNode>
-        {
-            new MapNode { SessionId = sessionId, State = "Available" },
-            new MapNode { SessionId = sessionId, State = "Hidden" }
-        };
+        _sessionRepositoryMock.Setup(r => r.GetByIdAsync(sessionId)).ReturnsAsync(session);
+        _nodeRepositoryMock.Setup(r => r.GetBySessionIdAsync(sessionId)).ReturnsAsync(new List<MapNode>());
 
-        var discoveredNodes = new List<DiscoveryPoint>
-        {
-            new DiscoveryPoint(-74.01, 40.01),
-            new DiscoveryPoint(-74.02, 40.02)
-        };
-
-        _sessionRepositoryMock.Setup(r => r.GetByIdAsync(sessionId))
-            .ReturnsAsync(session);
-
-        _nodeRepositoryMock.Setup(r => r.GetBySessionIdAsync(sessionId))
-            .ReturnsAsync(existingNodes);
-
-        _osmDiscoveryServiceMock.Setup(r => r.GetRandomNodesAsync(
-            It.IsAny<double>(), It.IsAny<double>(), It.IsAny<double>(), 
-            It.IsAny<int>(), It.IsAny<string>(), It.IsAny<double>()))
-            .ReturnsAsync(discoveredNodes);
+        // Mock returns
+        _osmDiscoveryServiceMock.Setup(r => r.GetRandomNodesAsync(It.IsAny<double>(), It.IsAny<double>(), It.IsAny<double>(), It.IsAny<int>(), It.IsAny<string>(), It.IsAny<double>()))
+            .ReturnsAsync(new List<DiscoveryPoint> { new DiscoveryPoint(0, 0) });
+        _osmDiscoveryServiceMock.Setup(r => r.GetRandomNodesInWedgeAsync(It.IsAny<double>(), It.IsAny<double>(), It.IsAny<double>(), It.IsAny<double>(), It.IsAny<double>(), It.IsAny<int>(), It.IsAny<string>(), It.IsAny<double>()))
+            .ReturnsAsync(new List<DiscoveryPoint> { new DiscoveryPoint(0, 0) });
 
         var request = new NodeGenerationRequest
         {
             SessionId = sessionId,
-            CenterLat = 40.0,
-            CenterLon = -74.0,
-            Radius = 1000,
-            NodeCount = 2
+            GameMode = "quadrant",
+            NodeCount = 20,
+            Radius = 5000
         };
 
         // Act
-        var result = await _service.GenerateNodesAsync(request);
+        await _service.GenerateNodesAsync(request);
 
         // Assert
-        Assert.Equal(2, result);
-        _nodeRepositoryMock.Verify(r => r.DeleteBySessionIdAsync(sessionId), Times.Once);
-        _nodeRepositoryMock.Verify(r => r.CreateRangeAsync(It.Is<IEnumerable<MapNode>>(l => l.Count() == 2)), Times.Once);
-        _sessionRepositoryMock.Verify(r => r.UpdateAsync(It.Is<GameSession>(s => s.Status == SessionStatus.Active)), Times.Once);
+        // 1 call for Hub (GetRandomNodesAsync)
+        _osmDiscoveryServiceMock.Verify(r => r.GetRandomNodesAsync(It.IsAny<double>(), It.IsAny<double>(), It.IsAny<double>(), It.IsAny<int>(), It.IsAny<string>(), It.IsAny<double>()), Times.Once);
+        
+        // 4 calls for quadrants (North, East, South, West)
+        _osmDiscoveryServiceMock.Verify(r => r.GetRandomNodesInWedgeAsync(It.IsAny<double>(), It.IsAny<double>(), It.IsAny<double>(), 315, 45, It.IsAny<int>(), It.IsAny<string>(), It.IsAny<double>()), Times.Once);
+        _osmDiscoveryServiceMock.Verify(r => r.GetRandomNodesInWedgeAsync(It.IsAny<double>(), It.IsAny<double>(), It.IsAny<double>(), 45, 135, It.IsAny<int>(), It.IsAny<string>(), It.IsAny<double>()), Times.Once);
+        _osmDiscoveryServiceMock.Verify(r => r.GetRandomNodesInWedgeAsync(It.IsAny<double>(), It.IsAny<double>(), It.IsAny<double>(), 135, 225, It.IsAny<int>(), It.IsAny<string>(), It.IsAny<double>()), Times.Once);
+        _osmDiscoveryServiceMock.Verify(r => r.GetRandomNodesInWedgeAsync(It.IsAny<double>(), It.IsAny<double>(), It.IsAny<double>(), 225, 315, It.IsAny<int>(), It.IsAny<string>(), It.IsAny<double>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task GenerateNodesAsync_RadiusMode_ShouldCallDiscoveryTwice()
+    {
+        // Arrange
+        var sessionId = Guid.NewGuid();
+        var session = new GameSession { Id = sessionId, Status = SessionStatus.SetupInProgress, ConnectionMode = "none" };
+
+        _sessionRepositoryMock.Setup(r => r.GetByIdAsync(sessionId)).ReturnsAsync(session);
+        _nodeRepositoryMock.Setup(r => r.GetBySessionIdAsync(sessionId)).ReturnsAsync(new List<MapNode>());
+
+        _osmDiscoveryServiceMock.Setup(r => r.GetRandomNodesAsync(It.IsAny<double>(), It.IsAny<double>(), It.IsAny<double>(), It.IsAny<int>(), It.IsAny<string>(), It.IsAny<double>()))
+            .ReturnsAsync(new List<DiscoveryPoint> { new DiscoveryPoint(0, 0) });
+
+        var request = new NodeGenerationRequest
+        {
+            SessionId = sessionId,
+            GameMode = "radius",
+            NodeCount = 10
+        };
+
+        // Act
+        await _service.GenerateNodesAsync(request);
+
+        // Assert
+        // 1 call for Hub, 1 call for Outer
+        _osmDiscoveryServiceMock.Verify(r => r.GetRandomNodesAsync(It.IsAny<double>(), It.IsAny<double>(), It.IsAny<double>(), It.IsAny<int>(), It.IsAny<string>(), It.IsAny<double>()), Times.Exactly(2));
+    }
+
+    [Fact]
+    public async Task GenerateNodesAsync_ArchipelagoMode_ShouldUseUniformDistribution()
+    {
+        // Arrange
+        var sessionId = Guid.NewGuid();
+        var session = new GameSession { Id = sessionId, Status = SessionStatus.SetupInProgress, ConnectionMode = "none" };
+
+        _sessionRepositoryMock.Setup(r => r.GetByIdAsync(sessionId)).ReturnsAsync(session);
+        _nodeRepositoryMock.Setup(r => r.GetBySessionIdAsync(sessionId)).ReturnsAsync(new List<MapNode>());
+
+        _osmDiscoveryServiceMock.Setup(r => r.GetRandomNodesAsync(It.IsAny<double>(), It.IsAny<double>(), It.IsAny<double>(), It.IsAny<int>(), It.IsAny<string>(), It.IsAny<double>()))
+            .ReturnsAsync(new List<DiscoveryPoint> { new DiscoveryPoint(0, 0) });
+
+        var request = new NodeGenerationRequest
+        {
+            SessionId = sessionId,
+            GameMode = "archipelago",
+            NodeCount = 10
+        };
+
+        // Act
+        await _service.GenerateNodesAsync(request);
+
+        // Assert
+        // In "archipelago" mode, it initially doesn't know the progression mode, so it does Hub + Outer uniform
+        _osmDiscoveryServiceMock.Verify(r => r.GetRandomNodesAsync(It.IsAny<double>(), It.IsAny<double>(), It.IsAny<double>(), It.IsAny<int>(), It.IsAny<string>(), It.IsAny<double>()), Times.Exactly(2));
+        _osmDiscoveryServiceMock.Verify(r => r.GetRandomNodesInWedgeAsync(It.IsAny<double>(), It.IsAny<double>(), It.IsAny<double>(), It.IsAny<double>(), It.IsAny<double>(), It.IsAny<int>(), It.IsAny<string>(), It.IsAny<double>()), Times.Never);
     }
 }

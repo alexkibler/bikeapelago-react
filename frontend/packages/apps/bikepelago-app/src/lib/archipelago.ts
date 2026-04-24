@@ -59,11 +59,10 @@ class ArchipelagoClient {
 
         conn.on(
           'OnChatMessage',
-          (message: { text: string; type: string; timestamp: string }) => {
+          (text: string, type: string) => {
             useArchipelagoStore.getState().addMessage({
-              text: message.text,
-              // @ts-expect-error message.type exists but type is string not ChatMessageType
-              type: message.type,
+              text: text,
+              type: type as 'system' | 'player' | 'item' | 'error',
             });
           },
         );
@@ -85,6 +84,17 @@ class ArchipelagoClient {
     })();
 
     return this.startingPromise;
+  }
+
+  async joinSessionOnly(sessionId: string) {
+    try {
+      const conn = await this.getOrCreateConnection();
+      this.currentSessionId = sessionId;
+      await conn.invoke('JoinSession', sessionId);
+      useArchipelagoStore.getState().setStatus('connected');
+    } catch (err) {
+      console.error('Failed to join session group:', err);
+    }
   }
 
   async connect(

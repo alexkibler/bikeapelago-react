@@ -1,0 +1,240 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using Bikeapelago.Api.Models;
+using Bikeapelago.Api.Repositories;
+using Bikeapelago.Api.Services;
+using Microsoft.Extensions.Logging;
+using Moq;
+using Xunit;
+using NetTopologySuite.Geometries;
+
+namespace Bikeapelago.Api.Tests.Unit;
+
+public class ItemExecutionServiceTests
+{
+    private readonly Mock<IMapNodeRepository> _nodeRepoMock;
+    private readonly Mock<IGameSessionRepository> _sessionRepoMock;
+    private readonly Mock<IOsmDiscoveryService> _osmDiscoveryMock;
+    private readonly Mock<IArchipelagoService> _archipelagoMock;
+    private readonly Mock<IProgressionEngineFactory> _engineFactoryMock;
+    private readonly Mock<IProgressionEngine> _mockEngine;
+    private readonly ItemExecutionService _service;
+
+    public ItemExecutionServiceTests()
+    {
+        _nodeRepoMock = new Mock<IMapNodeRepository>();
+        _sessionRepoMock = new Mock<IGameSessionRepository>();
+        _osmDiscoveryMock = new Mock<IOsmDiscoveryService>();
+        _archipelagoMock = new Mock<IArchipelagoService>();
+        _engineFactoryMock = new Mock<IProgressionEngineFactory>();
+        _mockEngine = new Mock<IProgressionEngine>();
+
+        _engineFactoryMock.Setup(f => f.CreateEngine(It.IsAny<string>())).Returns(_mockEngine.Object);
+
+        _service = new ItemExecutionService(
+            _nodeRepoMock.Object,
+            _sessionRepoMock.Object,
+            _osmDiscoveryMock.Object,
+            _archipelagoMock.Object,
+            _engineFactoryMock.Object,
+            Mock.Of<ILogger<ItemExecutionService>>());
+    }
+
+    [Fact]
+    public async Task ExecuteDroneAsync_InArchipelagoMode_ShouldCompleteChecksAndNotifyArchipelago()
+    {
+        // Arrange
+        var sessionId = Guid.NewGuid();
+        var nodeId = Guid.NewGuid();
+        var session = new GameSession { Id = sessionId, ConnectionMode = "archipelago", ReceivedItemIds = [ItemDefinitions.Drone] };
+        var node = new MapNode 
+        { 
+            Id = nodeId, 
+            SessionId = sessionId,
+            ApArrivalLocationId = 101,
+            ApPrecisionLocationId = 102,
+        };
+
+        _sessionRepoMock.Setup(r => r.GetByIdAsync(sessionId)).ReturnsAsync(session);
+        _nodeRepoMock.Setup(r => r.GetByIdAsync(nodeId)).ReturnsAsync(node);
+
+        // Act
+        var result = await _service.ExecuteDroneAsync(sessionId, nodeId);
+
+        // Assert
+        Assert.True(result);
+        
+        _mockEngine.Verify(e => e.CheckNodesAsync(sessionId, It.Is<List<NewlyCheckedNode>>(c => c.Any(x => x.Id == nodeId && x.ArrivalChecked && x.PrecisionChecked))), Times.Once);
+        _sessionRepoMock.Verify(r => r.UpdateAsync(session), Times.Once);
+    }
+
+    [Fact]
+    public async Task ExecuteDroneAsync_InSinglePlayerMode_ShouldCompleteChecksAndTriggerUnlock()
+    {
+        // Arrange
+        var sessionId = Guid.NewGuid();
+        var nodeId = Guid.NewGuid();
+        var session = new GameSession { Id = sessionId, ConnectionMode = "singleplayer", ReceivedItemIds = [ItemDefinitions.Drone] };
+        var node = new MapNode { Id = nodeId, SessionId = sessionId };
+
+        _sessionRepoMock.Setup(r => r.GetByIdAsync(sessionId)).ReturnsAsync(session);
+        _nodeRepoMock.Setup(r => r.GetByIdAsync(nodeId)).ReturnsAsync(node);
+
+        // Act
+        var result = await _service.ExecuteDroneAsync(sessionId, nodeId);
+
+        // Assert
+        Assert.True(result);
+        
+        _mockEngine.Verify(e => e.CheckNodesAsync(sessionId, It.Is<List<NewlyCheckedNode>>(c => c.Any(x => x.Id == nodeId && x.ArrivalChecked && x.PrecisionChecked))), Times.Once);
+        _sessionRepoMock.Verify(r => r.UpdateAsync(session), Times.Once);
+    }
+
+    [Fact]
+    public async Task ExecuteSignalAmplifierAsync_ShouldSetFlagOnSession()
+    {
+        // Arrange
+        var sessionId = Guid.NewGuid();
+        var session = new GameSession { Id = sessionId, SignalAmplifierActive = false, ReceivedItemIds = [ItemDefinitions.SignalAmplifier] };
+        _sessionRepoMock.Setup(r => r.GetByIdAsync(sessionId)).ReturnsAsync(session);
+
+        // Act
+        var result = await _service.ExecuteSignalAmplifierAsync(sessionId);
+
+        // Assert
+        Assert.True(result);
+        Assert.True(session.SignalAmplifierActive);
+        _sessionRepoMock.Verify(r => r.UpdateAsync(session), Times.Exactly(2));
+    }
+
+    [Fact]
+    public async Task ExecuteDetourAsync_ShouldRelocateNodeAndSetFlag()
+    {
+        // Arrange
+        var sessionId = Guid.NewGuid();
+        var nodeId = Guid.NewGuid();
+        var originalLoc = new Point(-79.9, 40.4) { SRID = 4326 };
+        var node = new MapNode { Id = nodeId, SessionId = sessionId, Location = originalLoc, RegionTag = "North" };
+        var session = new GameSession { Id = sessionId, CenterLat = 40.4, CenterLon = -79.9, Radius = 5000, ReceivedItemIds = [ItemDefinitions.Detour] };
+
+        _nodeRepoMock.Setup(r => r.GetByIdAsync(nodeId)).ReturnsAsync(node);
+        _sessionRepoMock.Setup(r => r.GetByIdAsync(sessionId)).ReturnsAsync(session);
+
+        var discoveryPoints = new List<DiscoveryPoint> { new DiscoveryPoint(-79.91, 40.41) }; // This is North-ish
+        _osmDiscoveryMock.Setup(r => r.GetRandomNodesAsync(It.IsAny<double>(), It.IsAny<double>(), It.IsAny<double>(), It.IsAny<int>(), It.IsAny<string>(), It.IsAny<double>()))
+            .ReturnsAsync(discoveryPoints);
+
+        // Act
+        var result = await _service.ExecuteDetourAsync(sessionId, nodeId);
+
+        // Assert
+        Assert.True(result);
+        Assert.True(node.HasBeenRelocated);
+        Assert.NotEqual(originalLoc.X, node.Location!.X);
+        _nodeRepoMock.Verify(r => r.UpdateAsync(node), Times.Once);
+        Assert.Equal(1, session.DetoursUsed);
+    }
+
+    [Fact]
+    public void GetActiveInventory_ShouldCalculateCorrectly()
+    {
+        // Arrange
+        var session = new GameSession 
+        { 
+            ReceivedItemIds = [ItemDefinitions.Detour, ItemDefinitions.Detour, ItemDefinitions.Drone],
+            DetoursUsed = 1,
+            DronesUsed = 0,
+            SignalAmplifiersUsed = 0
+        };
+
+        // Act
+        var activeDetours = _service.GetActiveInventory(session, ItemDefinitions.Detour);
+        var activeDrones = _service.GetActiveInventory(session, ItemDefinitions.Drone);
+        var activeSignalAmps = _service.GetActiveInventory(session, ItemDefinitions.SignalAmplifier);
+
+        // Assert
+        Assert.Equal(1, activeDetours); // 2 received - 1 used
+        Assert.Equal(1, activeDrones); // 1 received - 0 used
+        Assert.Equal(0, activeSignalAmps); // 0 received - 0 used
+    }
+
+    [Fact]
+    public async Task ExecuteDroneAsync_WhenNoActiveInventory_ShouldFail()
+    {
+        // Arrange
+        var sessionId = Guid.NewGuid();
+        var nodeId = Guid.NewGuid();
+        var session = new GameSession 
+        { 
+            Id = sessionId, 
+            ReceivedItemIds = [ItemDefinitions.Drone],
+            DronesUsed = 1 // All used
+        };
+        var node = new MapNode { Id = nodeId, SessionId = sessionId };
+
+        _sessionRepoMock.Setup(r => r.GetByIdAsync(sessionId)).ReturnsAsync(session);
+        _nodeRepoMock.Setup(r => r.GetByIdAsync(nodeId)).ReturnsAsync(node);
+
+        // Act
+        var result = await _service.ExecuteDroneAsync(sessionId, nodeId);
+
+        // Assert
+        Assert.False(result);
+        _mockEngine.Verify(e => e.CheckNodesAsync(It.IsAny<Guid>(), It.IsAny<List<NewlyCheckedNode>>()), Times.Never);
+        _sessionRepoMock.Verify(r => r.UpdateAsync(It.IsAny<GameSession>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task ExecuteDroneAsync_WhenNodeBelongsToDifferentSession_ShouldFailWithoutConsumingItem()
+    {
+        // Arrange
+        var sessionId = Guid.NewGuid();
+        var otherSessionId = Guid.NewGuid();
+        var nodeId = Guid.NewGuid();
+        var session = new GameSession { Id = sessionId, ReceivedItemIds = [ItemDefinitions.Drone] };
+        var node = new MapNode { Id = nodeId, SessionId = otherSessionId };
+
+        _sessionRepoMock.Setup(r => r.GetByIdAsync(sessionId)).ReturnsAsync(session);
+        _nodeRepoMock.Setup(r => r.GetByIdAsync(nodeId)).ReturnsAsync(node);
+
+        // Act
+        var result = await _service.ExecuteDroneAsync(sessionId, nodeId);
+
+        // Assert
+        Assert.False(result);
+        Assert.Equal(0, session.DronesUsed);
+        _mockEngine.Verify(e => e.CheckNodesAsync(It.IsAny<Guid>(), It.IsAny<List<NewlyCheckedNode>>()), Times.Never);
+        _sessionRepoMock.Verify(r => r.UpdateAsync(It.IsAny<GameSession>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task ExecuteDetourAsync_WhenNodeBelongsToDifferentSession_ShouldFailWithoutConsumingItem()
+    {
+        // Arrange
+        var sessionId = Guid.NewGuid();
+        var otherSessionId = Guid.NewGuid();
+        var nodeId = Guid.NewGuid();
+        var session = new GameSession { Id = sessionId, ReceivedItemIds = [ItemDefinitions.Detour] };
+        var node = new MapNode { Id = nodeId, SessionId = otherSessionId };
+
+        _sessionRepoMock.Setup(r => r.GetByIdAsync(sessionId)).ReturnsAsync(session);
+        _nodeRepoMock.Setup(r => r.GetByIdAsync(nodeId)).ReturnsAsync(node);
+
+        // Act
+        var result = await _service.ExecuteDetourAsync(sessionId, nodeId);
+
+        // Assert
+        Assert.False(result);
+        Assert.Equal(0, session.DetoursUsed);
+        _osmDiscoveryMock.Verify(r => r.GetRandomNodesAsync(
+            It.IsAny<double>(),
+            It.IsAny<double>(),
+            It.IsAny<double>(),
+            It.IsAny<int>(),
+            It.IsAny<string>(),
+            It.IsAny<double>()), Times.Never);
+        _sessionRepoMock.Verify(r => r.UpdateAsync(It.IsAny<GameSession>()), Times.Never);
+    }
+}

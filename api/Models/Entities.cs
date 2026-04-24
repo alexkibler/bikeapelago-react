@@ -64,11 +64,14 @@ public class GameSession
     [JsonPropertyName("received_item_ids")]
     public List<long> ReceivedItemIds { get; set; } = new();
 
-    [JsonPropertyName("mode")]
-    public string Mode { get; set; } = "bike";
+    [JsonPropertyName("connection_mode")]
+    public string ConnectionMode { get; set; } = "singleplayer"; // "archipelago" | "singleplayer"
+
+    [JsonPropertyName("transport_mode")]
+    public string TransportMode { get; set; } = "bike"; // "bike" | "walk"
 
     [JsonPropertyName("progression_mode")]
-    public string ProgressionMode { get; set; } = "None"; // "None", "Quadrant", "Radius", "Free"
+    public string? ProgressionMode { get; set; } // "quadrant" | "radius" | "free"
 
     [JsonPropertyName("north_pass_received")]
     public bool NorthPassReceived { get; set; }
@@ -82,11 +85,26 @@ public class GameSession
     [JsonPropertyName("west_pass_received")]
     public bool WestPassReceived { get; set; }
 
+    [JsonPropertyName("detours_used")]
+    public int DetoursUsed { get; set; } = 0;
+
+    [JsonPropertyName("drones_used")]
+    public int DronesUsed { get; set; } = 0;
+
+    [JsonPropertyName("signal_amplifiers_used")]
+    public int SignalAmplifiersUsed { get; set; } = 0;
+
     [JsonPropertyName("radius_step")]
     public int RadiusStep { get; set; } = 0; // 0=25%, 1=50%, 2=75%, 3=100%
 
     [JsonPropertyName("signal_amplifier_active")]
     public bool SignalAmplifierActive { get; set; }
+
+    [JsonPropertyName("macguffins_required")]
+    public int MacguffinsRequired { get; set; } = 0;
+
+    [JsonPropertyName("macguffins_collected")]
+    public int MacguffinsCollected { get; set; } = 0;
 
     [JsonPropertyName("status")]
     [JsonConverter(typeof(JsonStringEnumConverter))]
@@ -154,6 +172,18 @@ public class MapNode
 
     [JsonPropertyName("has_been_relocated")]
     public bool HasBeenRelocated { get; set; }
+
+    [JsonPropertyName("arrival_reward_item_id")]
+    public long? ArrivalRewardItemId { get; set; }
+
+    [JsonPropertyName("arrival_reward_item_name")]
+    public string? ArrivalRewardItemName { get; set; }
+
+    [JsonPropertyName("precision_reward_item_id")]
+    public long? PrecisionRewardItemId { get; set; }
+
+    [JsonPropertyName("precision_reward_item_name")]
+    public string? PrecisionRewardItemName { get; set; }
 
     [NotMapped]
     [JsonPropertyName("lat")]

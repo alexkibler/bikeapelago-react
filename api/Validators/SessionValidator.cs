@@ -11,49 +11,50 @@ namespace Bikeapelago.Api.Validators;
 /// </summary>
 public class SessionValidationResult
 {
-    /// <summary>The subset of requested nodes that passed all validation rules.</summary>
-    public List<MapNode> ValidNodes { get; init; } = [];
-
-    /// <summary>Human-readable validation failure reason, or null if validation passed.</summary>
+    public List<NewlyCheckedNode> ValidNodes { get; init; } = [];
     public string? Error { get; init; }
-
     public bool IsValid => Error == null && ValidNodes.Count > 0;
 }
 
-/// <summary>
-/// Validates session actions (e.g., node checking) against the current state.
-/// </summary>
 public class SessionValidator(ILogger<SessionValidator> logger)
 {
     private readonly ILogger<SessionValidator> _logger = logger;
 
-    public virtual SessionValidationResult ValidateNodeCheck(IEnumerable<MapNode> requestedNodes, Guid sessionId)
+    public virtual SessionValidationResult ValidateNodeCheck(IEnumerable<MapNode> dbNodes, IEnumerable<NewlyCheckedNode> requestedChecks, Guid sessionId)
     {
-        var nodes = requestedNodes.ToList();
+        var checks = requestedChecks.ToList();
+        var nodes = dbNodes.ToList();
 
-        if (nodes.Count == 0)
+        if (checks.Count == 0)
             return Fail("No valid nodes found to check.");
 
-        // Rule: node must be Available (not Hidden or already Checked)
-        var unavailable = nodes.Where(n => n.State != "Available").ToList();
-        if (unavailable.Count > 0)
+        var validChecks = new List<NewlyCheckedNode>();
+        var rejectedIds = new List<Guid>();
+
+        foreach (var check in checks)
         {
-            var ids = string.Join(", ", unavailable.Select(n => n.Id));
-            _logger.LogWarning(
-                "Session {SessionId}: {Count} node(s) rejected — not in Available state: {Ids}",
-                sessionId, unavailable.Count, ids);
+            var node = nodes.FirstOrDefault(n => n.Id == check.Id);
+            if (node == null || node.State != "Available")
+            {
+                rejectedIds.Add(check.Id);
+                continue;
+            }
+            validChecks.Add(check);
         }
 
-        var validNodes = nodes.Where(n => n.State == "Available").ToList();
-        if (validNodes.Count == 0)
+        if (rejectedIds.Count > 0)
+        {
+            _logger.LogWarning(
+                "Session {SessionId}: {Count} node(s) rejected — not found or not in Available state: {Ids}",
+                sessionId, rejectedIds.Count, string.Join(", ", rejectedIds));
+        }
+
+        if (validChecks.Count == 0)
             return Fail("None of the submitted nodes are in an Available state.");
 
-        // TODO: Validate that the uploaded .fit file's timestamp is > the generated .gpx file's timestamp.
-        // Requires storing the GPX generation timestamp in the database first.
-
-        return Ok(validNodes);
+        return Ok(validChecks);
     }
 
-    private static SessionValidationResult Ok(List<MapNode> nodes) => new() { ValidNodes = nodes };
+    private static SessionValidationResult Ok(List<NewlyCheckedNode> checks) => new() { ValidNodes = checks };
     private static SessionValidationResult Fail(string error) => new() { Error = error };
 }

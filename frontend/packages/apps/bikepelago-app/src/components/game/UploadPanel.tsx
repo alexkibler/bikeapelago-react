@@ -73,7 +73,7 @@ const UploadPanel = ({ sessionId }: { sessionId: string }) => {
                </div>
                {!loading && (
                  <button
-                   onClick={handleAnalyze}
+                   onClick={() => void handleAnalyze()}
                    className="px-6 py-2 bg-[var(--color-primary-hex)] hover:bg-[var(--color-primary-hover-hex)] rounded-lg text-sm font-bold text-white transition-colors"
                  >
                    Analyze Ride
@@ -124,7 +124,7 @@ const UploadPanel = ({ sessionId }: { sessionId: string }) => {
                   <div key={node.id} className="flex items-center gap-3 bg-[var(--color-success-hex)]/10 p-4 rounded-xl border border-[var(--color-success-hex)]/20 text-[var(--color-success-hex)]">
                      <CheckCircle2 className="w-5 h-5 shrink-0" />
                      <div className="flex flex-col">
-                        <span className="font-bold text-sm">Location {node.apLocationId}</span>
+                        <span className="font-bold text-sm">Location {node.apArrivalLocationId ?? node.ap_arrival_location_id}</span>
                         <span className="text-[10px] opacity-70">[{node.lat.toFixed(5)}, {node.lon.toFixed(5)}]</span>
                      </div>
                   </div>
@@ -146,7 +146,7 @@ const UploadPanel = ({ sessionId }: { sessionId: string }) => {
                Cancel
              </button>
              <button
-               onClick={handleConfirm}
+               onClick={() => void handleConfirm()}
                disabled={analysisResult.newlyCheckedNodes.length === 0 || loading}
                className="bg-[var(--color-success-hex)] hover:bg-[var(--color-success-hex)]/90 disabled:opacity-30 disabled:hover:bg-[var(--color-success-hex)] p-4 rounded-xl font-bold transition-all shadow-lg active:scale-[0.98] flex items-center justify-center gap-2 text-white"
              >

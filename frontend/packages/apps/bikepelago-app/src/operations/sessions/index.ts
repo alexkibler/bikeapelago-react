@@ -57,9 +57,8 @@ export function useCreateSession() {
   const clearKeys = useClearKeys();
 
   return useMutation({
-    mutationFn: async ({ id }: SessionUniqueWhere) => await createSessionRequest({
-      body: null,
-      pathParams: { id },
+    mutationFn: async (body: SessionCreateDataInput) => await createSessionRequest({
+      body,
     }),
     onSuccess: () => {
       clearKeys([['sessions']])

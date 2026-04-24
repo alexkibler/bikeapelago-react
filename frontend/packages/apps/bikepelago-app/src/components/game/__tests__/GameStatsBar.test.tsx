@@ -17,12 +17,17 @@ describe('GameStatsBar', () => {
     name: 'Test Session',
     ap_slot_name: 'Test Rider',
     ap_server_url: 'localhost:38281',
+    connection_mode: 'singleplayer',
+    transport_mode: 'bike',
     progression_mode: 'None',
     north_pass_received: false,
     east_pass_received: false,
     south_pass_received: false,
     west_pass_received: false,
-    radius_step: 0
+    radius_step: 0,
+    macguffins_required: 0,
+    macguffins_collected: 0,
+    status: 'Active',
   };
 
   const mockNodes: MapNode[] = [

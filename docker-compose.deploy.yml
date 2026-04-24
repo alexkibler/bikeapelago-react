@@ -29,7 +29,7 @@ services:
       Admin__Email: ${ADMIN_EMAIL}
       Admin__Password: ${ADMIN_PASSWORD}
       ConnectionStrings__PostGis: ${DEPLOY_POSTGIS_CONNSTR:-Host=postgis-bikeapelago-dev;Port=5432;Database=bikeapelago;Username=osm;Password=postgres}
-      ConnectionStrings__OsmDiscovery: ${DEPLOY_OSM_CONNSTR:-Host=postgis-osm-prod;Port=5432;Database=osm_discovery;Username=osm;Password=postgres}
+      ConnectionStrings__OsmDiscovery: ${DEPLOY_OSM_CONNSTR:-Host=postgis-osm;Port=5432;Database=osm_discovery;Username=osm;Password=postgres}
       AllowedOrigins__0: ${ALLOWED_ORIGIN_0:-https://bikeapelago.alexkibler.com}
       AllowedOrigins__1: ${ALLOWED_ORIGIN_1:-https://admin.bikeapelago.alexkibler.com}
     ports:

@@ -16,7 +16,7 @@ const Register = () => {
 
   // If already authenticated, go home
   useEffect(() => {
-    if (isValid) navigate('/');
+    if (isValid) void navigate('/');
   }, [isValid, navigate]);
 
   const handleRegister = async (e: React.FormEvent) => {
@@ -39,7 +39,7 @@ const Register = () => {
       }
 
       // After registration, redirect to login
-      navigate('/login', {
+      void navigate('/login', {
         state: { message: 'Registration successful! Please log in.' },
       });
     } catch (err: unknown) {
@@ -64,7 +64,7 @@ const Register = () => {
           </p>
         </div>
 
-        <form onSubmit={handleRegister} className='space-y-4'>
+        <form onSubmit={(e) => void handleRegister(e)} className='space-y-4'>
           {error && (
             <div className='p-4 bg-red-500/10 border border-red-500/20 rounded-2xl text-red-500 text-sm font-bold text-center'>
               {error}

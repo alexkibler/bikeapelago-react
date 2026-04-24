@@ -23,8 +23,9 @@ x-bikeapelago-frontend-prod-definition: &frontend-prod-definition
     API_HUBS_URL: ${API_HUBS_URL:-http://prod-bikeapelago-api:8080/hubs/}
 
 networks:
-  bikeapelago-prod:
-    name: bikeapelago-prod
+  bikeapelago:
+    name: bikeapelago
+    external: true
 
 volumes:
   bikeapelago_postgis_data:

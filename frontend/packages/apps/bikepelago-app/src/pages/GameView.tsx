@@ -5,6 +5,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 
 // Extracted Components
 import ArchipelagoReconnectDialog from '../components/game/ArchipelagoReconnectDialog';
+import VictoryModal from '../components/game/VictoryModal';
 import DebugBanner from '../components/game/DebugBanner';
 import GameStatsBar from '../components/game/GameStatsBar';
 import MapCanvas from '../components/game/MapCanvas';
@@ -47,6 +48,7 @@ const GameView = () => {
   const sessionNodesReq = useSessionNodesGet({ sessionId: id, syncVersion });
 
   const session = sessionReq.data;
+  const setSession = useGameStore((s) => s.setSession);
 
   const showReconnect = useMemo(() => {
     if (apStatus === 'error' && apError) {
@@ -61,6 +63,10 @@ const GameView = () => {
   }, [apStatus, apError, reconnectCanceled]);
 
   useEffect(() => {
+    if (session) setSession(session);
+  }, [session, setSession]);
+
+  useEffect(() => {
     if (sessionNodesReq.data) {
       setNodes(sessionNodesReq.data);
     }
@@ -68,14 +74,31 @@ const GameView = () => {
 
   useEffect(() => {
     if (session?.received_item_ids) {
+      const ITEM_MAP: Record<number, string> = {
+        802001: 'Macguffin',
+        802002: 'North Quadrant Pass',
+        802003: 'South Quadrant Pass',
+        802004: 'East Quadrant Pass',
+        802005: 'West Quadrant Pass',
+        802006: 'Progressive Radius Increase',
+        802010: 'Detour',
+        802011: 'Drone',
+        802012: 'Signal Amplifier',
+        802020: 'Fresh Air',
+        802021: 'Leg Cramp',
+        802022: 'Empty CO2',
+        802023: 'Kudos',
+        802024: 'Wheel Patch Kit'
+      };
+
       setReceivedItems(
         session.received_item_ids.map((itemId: number) => ({
           id: itemId,
-          name: `Item ${itemId}`,
+          name: ITEM_MAP[itemId] || `Item ${itemId}`,
         })),
       );
     }
-  }, [session]);
+  }, [session, setReceivedItems]);
 
   // Save new connection info to DB on successful reconnect
   useEffect(() => {
@@ -97,22 +120,26 @@ const GameView = () => {
         },
       },
     );
-  }, [apStatus, pendingConnection, session, toast, setPendingConnection]);
+  }, [apStatus, pendingConnection, session, sessionUpdate, toast, setPendingConnection]);
 
   // Activate Geolocation tracking
   useGeolocation();
 
   // Effect for Archipelago connection (depends only on session loading)
   useEffect(() => {
-    if (id && session?.ap_server_url && session?.ap_slot_name) {
-      archipelago.connect(id, session.ap_server_url, session.ap_slot_name);
+    if (id && session) {
+      if (session.ap_server_url && session.ap_slot_name) {
+        void archipelago.connect(id, session.ap_server_url, session.ap_slot_name);
+      } else {
+        void archipelago.joinSessionOnly(id);
+      }
     }
   }, [id, session]);
 
   // Handle cleanup on unmount or session ID change
   useEffect(() => {
     return () => {
-      archipelago.disconnect();
+      void archipelago.disconnect();
     };
   }, [id]);
 
@@ -124,9 +151,18 @@ const GameView = () => {
     let hasChanges = false;
 
     const updatedNodes = nodes.map((node) => {
-      if (checkedIdsSet.has(node.apLocationId) && node.state !== 'Checked') {
+      const arrivalChecked = checkedIdsSet.has(node.ap_arrival_location_id);
+      const precisionChecked = checkedIdsSet.has(node.ap_precision_location_id);
+      if ((arrivalChecked || precisionChecked) && node.state !== 'Checked') {
         hasChanges = true;
-        return { ...node, state: 'Checked' as const };
+        const isArrivalChecked = node.is_arrival_checked || arrivalChecked;
+        const isPrecisionChecked = node.is_precision_checked || precisionChecked;
+        return {
+          ...node,
+          is_arrival_checked: isArrivalChecked,
+          is_precision_checked: isPrecisionChecked,
+          state: isArrivalChecked && isPrecisionChecked ? 'Checked' as const : node.state,
+        };
       }
       return node;
     });
@@ -153,7 +189,7 @@ const GameView = () => {
           Session not found
         </p>
         <button
-          onClick={() => navigate('/')}
+          onClick={() => void navigate('/')}
           className='btn-orange px-6 py-2 rounded-lg font-bold'
         >
           Back to Sessions
@@ -168,13 +204,14 @@ const GameView = () => {
     initialSlot: session.ap_slot_name ?? '',
     onRetry: (url: string, slot: string, password: string) => {
       setPendingConnection({ url, slot });
-      archipelago.connect(id, url, slot, password);
+      void archipelago.connect(id, url, slot, password);
     },
     onCancel: () => setReconnectCanceled(true),
   };
 
   return (
     <div className='relative w-full h-full flex flex-col bg-[var(--color-surface-alt-hex)]'>
+      {session?.status === 'Completed' && <VictoryModal session={session} />}
       {showReconnect && <ArchipelagoReconnectDialog {...reconnectProps} />}
       <DebugBanner />
       <GameStatsBar session={session} nodes={nodes} />

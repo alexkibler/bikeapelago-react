@@ -156,4 +156,40 @@ public class SessionsControllerTests
         // Assert
         Assert.IsType<NoContentResult>(result);
     }
+
+    [Fact]
+    public async Task ExecuteDrone_WhenSessionBelongsToDifferentUser_ReturnsForbid()
+    {
+        var sessionId = Guid.NewGuid();
+        _sessionRepoMock.Setup(repo => repo.GetByIdAsync(sessionId))
+            .ReturnsAsync(new GameSession { Id = sessionId, UserId = Guid.NewGuid() });
+
+        var result = await _controller.ExecuteDrone(sessionId, Guid.NewGuid());
+
+        Assert.IsType<ForbidResult>(result);
+    }
+
+    [Fact]
+    public async Task DebugForceComplete_WhenSessionBelongsToDifferentUser_ReturnsForbid()
+    {
+        var sessionId = Guid.NewGuid();
+        _sessionRepoMock.Setup(repo => repo.GetByIdAsync(sessionId))
+            .ReturnsAsync(new GameSession { Id = sessionId, UserId = Guid.NewGuid() });
+
+        var result = await _controller.DebugForceComplete(sessionId);
+
+        Assert.IsType<ForbidResult>(result);
+    }
+
+    [Fact]
+    public async Task SetItemCount_WithNegativeCount_ReturnsBadRequest()
+    {
+        var result = await _controller.SetItemCount(
+            Guid.NewGuid(),
+            ItemDefinitions.Detour,
+            -1,
+            Mock.Of<IArchipelagoService>());
+
+        Assert.IsType<BadRequestObjectResult>(result);
+    }
 }

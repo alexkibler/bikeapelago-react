@@ -64,3 +64,4 @@ frontend/packages/apps/bikepelago-app/lint_output.txt
 *.gpx
 playwright-report/
 \n# Archipelago data\n*.apworld
+docker-compose.dev-db.yml

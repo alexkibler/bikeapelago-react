@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 
 import { ENDPOINTS, apiFetch } from '../lib/api';
-import type { FitAnalysisResult, MapNode } from '../types/game';
+import type { FitAnalysisResult, GameSession, MapNode } from '../types/game';
 
 export type GamePanel = 'chat' | 'upload' | 'route' | 'inventory' | null;
 
@@ -62,6 +62,9 @@ interface GameState {
 
   nodes: MapNode[];
   setNodes: (nodes: MapNode[]) => void;
+
+  session: GameSession | null;
+  setSession: (session: GameSession | null) => void;
 
   routeData: RouteData;
   setRouteData: (data: RouteData) => void;
@@ -140,6 +143,9 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   nodes: [],
   setNodes: (nodes) => set({ nodes }),
+
+  session: null,
+  setSession: (session) => set({ session }),
 
   routeData: {
     distance: 0,

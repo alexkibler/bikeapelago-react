@@ -36,7 +36,7 @@ public class SessionsControllerNodesTests
         _validator = new SessionValidator(Mock.Of<ILogger<SessionValidator>>());
 
         _engineFactory.Setup(f => f.CreateEngine(It.IsAny<string>())).Returns(_engine.Object);
-        _engine.Setup(e => e.CheckNodesAsync(It.IsAny<Guid>(), It.IsAny<List<MapNode>>()))
+        _engine.Setup(e => e.CheckNodesAsync(It.IsAny<Guid>(), It.IsAny<List<NewlyCheckedNode>>()))
             .Returns(Task.CompletedTask);
 
         _controller = new SessionsController(
@@ -52,7 +52,7 @@ public class SessionsControllerNodesTests
 
     private void SetupSession(string mode = "singleplayer") =>
         _sessionRepo.Setup(r => r.GetByIdAsync(_sessionId))
-            .ReturnsAsync(new GameSession { Id = _sessionId, Mode = mode });
+            .ReturnsAsync(new GameSession { Id = _sessionId, ConnectionMode = mode });
 
     // --- State validation ---
 
@@ -72,7 +72,7 @@ public class SessionsControllerNodesTests
         });
 
         Assert.IsType<UnprocessableEntityObjectResult>(result);
-        _engine.Verify(e => e.CheckNodesAsync(It.IsAny<Guid>(), It.IsAny<List<MapNode>>()), Times.Never());
+        _engine.Verify(e => e.CheckNodesAsync(It.IsAny<Guid>(), It.IsAny<List<NewlyCheckedNode>>()), Times.Never());
     }
 
     [Fact]
@@ -91,7 +91,7 @@ public class SessionsControllerNodesTests
         });
 
         Assert.IsType<UnprocessableEntityObjectResult>(result);
-        _engine.Verify(e => e.CheckNodesAsync(It.IsAny<Guid>(), It.IsAny<List<MapNode>>()), Times.Never());
+        _engine.Verify(e => e.CheckNodesAsync(It.IsAny<Guid>(), It.IsAny<List<NewlyCheckedNode>>()), Times.Never());
     }
 
     [Fact]
@@ -114,7 +114,7 @@ public class SessionsControllerNodesTests
         // Engine receives only the Available node
         _engine.Verify(e => e.CheckNodesAsync(
             _sessionId,
-            It.Is<List<MapNode>>(nodes => nodes.Count == 1 && nodes[0].Id == availableId)),
+            It.Is<List<NewlyCheckedNode>>(nodes => nodes.Count == 1 && nodes[0].Id == availableId)),
             Times.Once());
     }
 
@@ -138,7 +138,7 @@ public class SessionsControllerNodesTests
         Assert.IsType<AcceptedResult>(result);
         _engine.Verify(e => e.CheckNodesAsync(
             _sessionId,
-            It.Is<List<MapNode>>(nodes => nodes.Count == 2)),
+            It.Is<List<NewlyCheckedNode>>(nodes => nodes.Count == 2)),
             Times.Once());
     }
 
@@ -168,6 +168,6 @@ public class SessionsControllerNodesTests
             NodeIds = [Guid.NewGuid()]
         });
 
-        Assert.IsType<BadRequestObjectResult>(result);
+        Assert.IsType<UnprocessableEntityObjectResult>(result);
     }
 }

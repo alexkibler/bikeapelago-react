@@ -16,13 +16,14 @@ public class OverpassOsmDiscoveryService(HttpClient httpClient, ILogger<Overpass
 
     public async Task<List<DiscoveryPoint>> GetRandomNodesAsync(double lat, double lon, double radiusMeters, int count, string mode = "bike", double densityBias = 0.5)
     {
-        _logger.LogInformation("Fetching random nodes from Overpass API at {Lat},{Lon} radius {Radius}m, mode: {Mode}", lat, lon, radiusMeters, mode);
+        return await GetRandomNodesInWedgeAsync(lat, lon, radiusMeters, 0, 360, count, mode, densityBias);
+    }
+
+    public async Task<List<DiscoveryPoint>> GetRandomNodesInWedgeAsync(double lat, double lon, double radiusMeters, double startDeg, double endDeg, int count, string mode = "bike", double densityBias = 0.5)
+    {
+        _logger.LogInformation("Fetching random nodes from Overpass API at {Lat},{Lon} radius {Radius}m, wedge {Start}-{End}, mode: {Mode}", lat, lon, radiusMeters, startDeg, endDeg, mode);
 
         // Overpass QL to find nodes near the center point. 
-        // We'll filter for some bike-friendly tags.
-        // We request nodes within the radius and then we'll randomly sample locally.
-        // Query ways with bike-friendly highway tags, then get their member nodes.
-        // Nodes themselves don't carry highway tags in OSM — only the parent way does.
         var query = $"[out:json][timeout:25];way(around:{radiusMeters},{lat},{lon})[\"highway\"~\"cycleway|residential|tertiary|path|track|living_street\"];node(w);out body;";
         
         var response = await _httpClient.GetAsync($"{OverpassUrl}?data={Uri.EscapeDataString(query)}");
@@ -35,7 +36,15 @@ public class OverpassOsmDiscoveryService(HttpClient httpClient, ILogger<Overpass
         var allPoints = new List<DiscoveryPoint>();
         foreach (var element in elements.EnumerateArray())
         {
-            allPoints.Add(new DiscoveryPoint(element.GetProperty("lon").GetDouble(), element.GetProperty("lat").GetDouble()));
+            double pLat = element.GetProperty("lat").GetDouble();
+            double pLon = element.GetProperty("lon").GetDouble();
+
+            // Filter by wedge locally
+            double az = CalculateAzimuth(lat, lon, pLat, pLon);
+            if (IsInWedge(az, startDeg, endDeg))
+            {
+                allPoints.Add(new DiscoveryPoint(pLon, pLat));
+            }
         }
 
         // Shuffle and take 'count'
@@ -47,6 +56,25 @@ public class OverpassOsmDiscoveryService(HttpClient httpClient, ILogger<Overpass
         }
 
         return allPoints.GetRange(0, Math.Min(count, allPoints.Count));
+    }
+
+    private double CalculateAzimuth(double lat1, double lon1, double lat2, double lon2)
+    {
+        double lat1Rad = lat1 * Math.PI / 180.0;
+        double lat2Rad = lat2 * Math.PI / 180.0;
+        double dLonRad = (lon2 - lon1) * Math.PI / 180.0;
+
+        double y = Math.Sin(dLonRad) * Math.Cos(lat2Rad);
+        double x = Math.Cos(lat1Rad) * Math.Sin(lat2Rad) - Math.Sin(lat1Rad) * Math.Cos(lat2Rad) * Math.Cos(dLonRad);
+        double brng = Math.Atan2(y, x);
+        return (brng * 180.0 / Math.PI + 360.0) % 360.0;
+    }
+
+    private bool IsInWedge(double az, double start, double end)
+    {
+        if (Math.Abs(start - 0) < 0.01 && Math.Abs(end - 360) < 0.01) return true;
+        if (start < end) return az >= start && az <= end;
+        return az >= start || az <= end;
     }
 
     public Task<List<ValidateResult>> ValidateNodesAsync(ValidateRequest request)

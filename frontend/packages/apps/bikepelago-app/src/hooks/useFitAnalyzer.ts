@@ -35,7 +35,15 @@ export function useFitAnalyzer(
           avgSpeedKph: 15,
         },
         newlyCheckedNodes: [
-          { id: 'mock_node_1', apLocationId: 1001, lat: 40.7128, lon: -74.006 },
+          {
+            id: 'mock_node_1',
+            apArrivalLocationId: 1001,
+            apPrecisionLocationId: 1002,
+            arrivalChecked: true,
+            precisionChecked: true,
+            lat: 40.7128,
+            lon: -74.006,
+          },
         ],
       });
       setLoading(false);

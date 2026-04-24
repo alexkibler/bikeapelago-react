@@ -16,7 +16,7 @@ import { useNavigate } from 'react-router-dom';
 
 import Toggle from '../components/layout/Toggle';
 import { useDeleteAllSessions } from '../operations/sessions';
-import { getToken, useAuthStore } from '../store/authStore';
+import { getToken, useAuthStore, type User as AuthUser } from '../store/authStore';
 import { useDebugStore } from '../store/debugStore';
 import { toast } from '../store/toastStore';
 
@@ -59,7 +59,7 @@ const Settings = () => {
       });
       if (!res.ok) throw new Error('Failed to update username');
 
-      const updatedUser = await res.json();
+      const updatedUser = (await res.json()) as AuthUser;
       updateUser(updatedUser);
       setUsernameSuccess(true);
       setTimeout(() => setUsernameSuccess(false), 3000);
@@ -127,7 +127,7 @@ const Settings = () => {
       <header className='mb-12 flex items-center justify-between'>
         <div>
           <button
-            onClick={() => navigate(-1)}
+            onClick={() => void navigate(-1)}
             className='flex items-center gap-2 text-[var(--color-text-muted-hex)] hover:text-[var(--color-text-hex)] transition-colors mb-4 group'
           >
             <ArrowLeft className='w-4 h-4 group-hover:-translate-x-1 transition-transform' />
@@ -159,7 +159,7 @@ const Settings = () => {
             </div>
           </div>
 
-          <form onSubmit={handleUpdateUsername} className='space-y-4 max-w-md'>
+          <form onSubmit={(e) => void handleUpdateUsername(e)} className='space-y-4 max-w-md'>
             <div>
               <label className='block text-[10px] font-black uppercase tracking-widest text-[var(--color-text-muted-hex)] mb-2'>
                 Username
@@ -211,7 +211,7 @@ const Settings = () => {
             </div>
           </div>
 
-          <form onSubmit={handleUpdatePassword} className='space-y-4 max-w-md'>
+          <form onSubmit={(e) => void handleUpdatePassword(e)} className='space-y-4 max-w-md'>
             <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
               <div>
                 <label className='block text-[10px] font-black uppercase tracking-widest text-[var(--color-text-muted-hex)] mb-2'>

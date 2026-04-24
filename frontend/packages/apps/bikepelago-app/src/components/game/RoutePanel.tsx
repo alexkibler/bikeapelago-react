@@ -33,7 +33,7 @@ const NodeListItem = ({ node, selected, onClick }: { node: MapNode; selected: bo
       )}
     </span>
     <span className="text-[10px] font-mono text-[var(--color-text-subtle-hex)] w-12 group-hover:text-[var(--color-primary-hex)] transition-colors">
-      #{node.apLocationId || node.id.substring(0, 4)}
+      #{node.ap_arrival_location_id || node.id.substring(0, 4)}
     </span>
     <span className="text-sm text-[var(--color-text-muted-hex)] font-medium flex-1 truncate">
       {node.name}
@@ -131,7 +131,7 @@ const RoutePanel = ({ sessionId }: { sessionId: string }) => {
             if (isMobile && routeData.gpxString) {
               downloadGPX(routeData.gpxString);
             } else {
-              buildRoute(sessionId, turnByTurn);
+              void buildRoute(sessionId, turnByTurn);
             }
           }}
           disabled={isMobile ? (!canRoute && !routeData.gpxString) : (!canRoute || !!routeData.gpxString)}

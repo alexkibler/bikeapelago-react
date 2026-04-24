@@ -60,7 +60,7 @@ const AthleteProfile = () => {
 
   const handleSignOut = () => {
     logout();
-    navigate('/login');
+    void navigate('/login');
   };
 
   return (
@@ -71,7 +71,7 @@ const AthleteProfile = () => {
         </h1>
         {isEditing ? (
           <button
-            onClick={handleSave}
+            onClick={() => void handleSave()}
             disabled={saving}
             className='btn btn-orange btn-sm rounded-full px-6 gap-2'
           >

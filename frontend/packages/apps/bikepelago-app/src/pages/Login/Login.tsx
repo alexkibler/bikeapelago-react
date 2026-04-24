@@ -23,7 +23,7 @@ export function Login(): ReactElement {
 
   // If already authenticated, go home
   useEffect(() => {
-    if (isValid) navigate('/');
+    if (isValid) void navigate('/');
   }, [isValid, navigate]);
 
   const handleLogin = (e: FormEvent) => {
@@ -32,12 +32,12 @@ export function Login(): ReactElement {
     loginRequest.mutate(data, {
       onSuccess: (responseData) => {
         login(responseData.token, responseData.record);
-        navigate('/');
+        void navigate('/');
       },
       onError: (err) => {
         setError(err instanceof Error ? err.message : 'Invalid credentials.');
       }
-    })
+    });
   };
 
   const handleAutofill = () => {

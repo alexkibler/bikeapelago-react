@@ -29,6 +29,28 @@ public class SessionsController(
     private readonly IRouteBuilderService _routeBuilderService = routeBuilderService;
     private readonly IItemExecutionService _itemExecutionService = itemExecutionService;
 
+    private bool TryGetAuthenticatedUserId(out Guid userId)
+    {
+        userId = default;
+        var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        return !string.IsNullOrEmpty(userIdString) && Guid.TryParse(userIdString, out userId);
+    }
+
+    private async Task<(GameSession? Session, IActionResult? Error)> GetAuthorizedSessionResultAsync(Guid id)
+    {
+        if (!TryGetAuthenticatedUserId(out var userId))
+            return (null, Unauthorized(new { message = "Invalid token" }));
+
+        var session = await _sessionRepository.GetByIdAsync(id);
+        if (session == null)
+            return (null, NotFound(new { message = "Session not found." }));
+
+        if (session.UserId != userId)
+            return (null, Forbid());
+
+        return (session, null);
+    }
+
     [HttpGet]
     [Microsoft.AspNetCore.Authorization.Authorize]
     public async Task<IActionResult> GetSessions()
@@ -138,7 +160,7 @@ public class SessionsController(
             var session = new GameSession
             {
                 UserId = userId,
-                Mode = "singleplayer",
+                ConnectionMode = "singleplayer",
                 Status = SessionStatus.SetupInProgress,
                 Location = new NetTopologySuite.Geometries.Point(metrics.CenterLon, metrics.CenterLat) { SRID = 4326 },
                 Radius = (int)Math.Ceiling(metrics.MaxRadius)
@@ -391,7 +413,10 @@ public class SessionsController(
     public class CheckNodesRequest
     {
         [JsonPropertyName("nodeIds")]
-        public List<Guid> NodeIds { get; set; } = [];
+        public List<Guid>? NodeIds { get; set; }
+
+        [JsonPropertyName("nodes")]
+        public List<NewlyCheckedNode>? Nodes { get; set; }
     }
 
     [HttpPost("{id}/nodes/check")]
@@ -401,21 +426,100 @@ public class SessionsController(
         if (session == null)
             return NotFound(new { message = "Session not found." });
 
-        var nodes = await _nodeRepository.GetBySessionIdAsync(id);
-        var targetNodes = nodes.Where(n => request.NodeIds.Contains(n.Id)).ToList();
+        var dbNodes = await _nodeRepository.GetBySessionIdAsync(id);
+        
+        var checks = new List<NewlyCheckedNode>();
+        
+        if (request.Nodes != null && request.Nodes.Count > 0)
+        {
+            checks = request.Nodes;
+        }
+        else if (request.NodeIds != null && request.NodeIds.Count > 0)
+        {
+            // Fallback for older frontend clients sending just IDs
+            checks = request.NodeIds.Select(nodeId => new NewlyCheckedNode 
+            { 
+                Id = nodeId,
+                ArrivalChecked = true,
+                PrecisionChecked = true 
+            }).ToList();
+        }
 
-        var validation = _sessionValidator.ValidateNodeCheck(targetNodes, id);
+        var targetDbNodes = dbNodes.Where(n => checks.Any(c => c.Id == n.Id)).ToList();
+
+        var validation = _sessionValidator.ValidateNodeCheck(targetDbNodes, checks, id);
         if (!validation.IsValid)
         {
-            return validation.ValidNodes.Count == 0 && targetNodes.Count == 0
+            return validation.ValidNodes.Count == 0 && checks.Count == 0
                 ? BadRequest(new { message = validation.Error })
                 : UnprocessableEntity(new { message = validation.Error });
         }
 
-        var engine = _engineFactory.CreateEngine(session.Mode);
+        var engine = _engineFactory.CreateEngine(session.ConnectionMode);
         await engine.CheckNodesAsync(id, validation.ValidNodes);
 
         return Accepted(new { message = "Check request processed." });
+    }
+
+    [HttpPost("{id}/debug/force-complete")]
+    [Microsoft.AspNetCore.Authorization.Authorize]
+    public async Task<IActionResult> DebugForceComplete(Guid id)
+    {
+        if (!TryGetAuthenticatedUserId(out var userId))
+            return Unauthorized(new { message = "Invalid token" });
+
+        var session = await _sessionRepository.GetByIdAsync(id);
+        if (session == null)
+            return NotFound(new { message = "Session not found." });
+
+        if (session.UserId != userId)
+            return Forbid();
+
+        var allNodes = await _nodeRepository.GetBySessionIdAsync(id);
+        var nodesToUpdate = new List<MapNode>();
+
+        foreach (var node in allNodes)
+        {
+            bool changed = false;
+
+            if (!node.IsArrivalChecked)
+            {
+                node.IsArrivalChecked = true;
+                if (node.ArrivalRewardItemId.HasValue)
+                {
+                    session.ReceivedItemIds.Add(node.ArrivalRewardItemId.Value);
+                    if (node.ArrivalRewardItemId.Value == ItemDefinitions.Macguffin)
+                        session.MacguffinsCollected++;
+                }
+                changed = true;
+            }
+
+            if (!node.IsPrecisionChecked)
+            {
+                node.IsPrecisionChecked = true;
+                if (node.PrecisionRewardItemId.HasValue)
+                {
+                    session.ReceivedItemIds.Add(node.PrecisionRewardItemId.Value);
+                    if (node.PrecisionRewardItemId.Value == ItemDefinitions.Macguffin)
+                        session.MacguffinsCollected++;
+                }
+                changed = true;
+            }
+
+            if (changed)
+            {
+                node.State = "Checked";
+                nodesToUpdate.Add(node);
+            }
+        }
+
+        if (nodesToUpdate.Count > 0)
+            await _nodeRepository.UpdateRangeAsync(nodesToUpdate);
+
+        session.Status = SessionStatus.Completed;
+        await _sessionRepository.UpdateAsync(session);
+
+        return Ok(new { message = "Session force-completed." });
     }
 
     [HttpPost("/api/discovery/validate-nodes")]
@@ -431,6 +535,10 @@ public class SessionsController(
     [Microsoft.AspNetCore.Authorization.Authorize]
     public async Task<IActionResult> ExecuteDetour(Guid id, [FromQuery] Guid nodeId)
     {
+        var (_, error) = await GetAuthorizedSessionResultAsync(id);
+        if (error != null)
+            return error;
+
         var success = await _itemExecutionService.ExecuteDetourAsync(id, nodeId);
         return success ? Ok(new { message = "Detour executed successfully" }) : BadRequest(new { message = "Failed to execute Detour" });
     }
@@ -439,6 +547,10 @@ public class SessionsController(
     [Microsoft.AspNetCore.Authorization.Authorize]
     public async Task<IActionResult> ExecuteDrone(Guid id, [FromQuery] Guid nodeId)
     {
+        var (_, error) = await GetAuthorizedSessionResultAsync(id);
+        if (error != null)
+            return error;
+
         var success = await _itemExecutionService.ExecuteDroneAsync(id, nodeId);
         return success ? Ok(new { message = "Drone executed successfully" }) : BadRequest(new { message = "Failed to execute Drone" });
     }
@@ -447,7 +559,53 @@ public class SessionsController(
     [Microsoft.AspNetCore.Authorization.Authorize]
     public async Task<IActionResult> ExecuteSignalAmplifier(Guid id)
     {
+        var (_, error) = await GetAuthorizedSessionResultAsync(id);
+        if (error != null)
+            return error;
+
         var success = await _itemExecutionService.ExecuteSignalAmplifierAsync(id);
         return success ? Ok(new { message = "Signal Amplifier activated" }) : BadRequest(new { message = "Failed to activate Signal Amplifier" });
+    }
+
+    [HttpPost("{id}/debug/items")]
+    [Microsoft.AspNetCore.Authorization.Authorize]
+    public async Task<IActionResult> SetItemCount(Guid id, [FromQuery] long itemId, [FromQuery] int count, [FromServices] IArchipelagoService archipelagoService)
+    {
+        if (!TryGetAuthenticatedUserId(out var userId))
+            return Unauthorized(new { message = "Invalid token" });
+
+        if (count < 0 || count > 99)
+            return BadRequest(new { message = "count must be between 0 and 99" });
+
+        if (itemId == ItemDefinitions.Macguffin || !ItemDefinitions.ItemNames.ContainsKey(itemId))
+            return BadRequest(new { message = "Unsupported debug item" });
+
+        var session = await _sessionRepository.GetByIdAsync(id);
+        if (session == null || session.ConnectionMode != "singleplayer")
+            return BadRequest("Debug only available for singleplayer sessions");
+
+        if (session.UserId != userId)
+            return Forbid();
+
+        // Reset used count
+        if (itemId == ItemDefinitions.Detour) session.DetoursUsed = 0;
+        else if (itemId == ItemDefinitions.Drone) session.DronesUsed = 0;
+        else if (itemId == ItemDefinitions.SignalAmplifier) session.SignalAmplifiersUsed = 0;
+
+        // Remove all instances of this itemId
+        session.ReceivedItemIds.RemoveAll(x => x == itemId);
+
+        // Add back the desired number of instances
+        for (int i = 0; i < count; i++)
+        {
+            session.ReceivedItemIds.Add(itemId);
+        }
+
+        await _sessionRepository.UpdateAsync(session);
+        
+        // Force a sync to unlock nodes if it was a progression item
+        await archipelagoService.UpdateUnlockedNodesAsync(id, session.ReceivedItemIds.ToArray());
+
+        return Ok(new { message = $"Item {itemId} count set to {count}" });
     }
 }

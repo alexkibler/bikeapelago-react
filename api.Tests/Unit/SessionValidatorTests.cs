@@ -22,7 +22,7 @@ public class SessionValidatorTests
     public void ValidateNodeCheck_WithNoNodes_ReturnsError()
     {
         // Act
-        var result = _validator.ValidateNodeCheck(new List<MapNode>(), Guid.NewGuid());
+        var result = _validator.ValidateNodeCheck(new List<MapNode>(), new List<NewlyCheckedNode>(), Guid.NewGuid());
 
         // Assert
         Assert.False(result.IsValid);
@@ -39,9 +39,10 @@ public class SessionValidatorTests
             new() { Id = Guid.NewGuid(), State = "Hidden" },
             new() { Id = Guid.NewGuid(), State = "Checked" }
         };
+        var checks = nodes.Select(n => new NewlyCheckedNode { Id = n.Id }).ToList();
 
         // Act
-        var result = _validator.ValidateNodeCheck(nodes, Guid.NewGuid());
+        var result = _validator.ValidateNodeCheck(nodes, checks, Guid.NewGuid());
 
         // Assert
         Assert.False(result.IsValid);
@@ -62,9 +63,10 @@ public class SessionValidatorTests
             new() { Id = Guid.NewGuid(), State = "Checked" },
             new() { Id = id4, State = "Available" }
         };
+        var checks = nodes.Select(n => new NewlyCheckedNode { Id = n.Id }).ToList();
 
         // Act
-        var result = _validator.ValidateNodeCheck(nodes, Guid.NewGuid());
+        var result = _validator.ValidateNodeCheck(nodes, checks, Guid.NewGuid());
 
         // Assert
         Assert.True(result.IsValid);
@@ -83,9 +85,10 @@ public class SessionValidatorTests
             new() { Id = Guid.NewGuid(), State = "Available" },
             new() { Id = Guid.NewGuid(), State = "Available" }
         };
+        var checks = nodes.Select(n => new NewlyCheckedNode { Id = n.Id }).ToList();
 
         // Act
-        var result = _validator.ValidateNodeCheck(nodes, Guid.NewGuid());
+        var result = _validator.ValidateNodeCheck(nodes, checks, Guid.NewGuid());
 
         // Assert
         Assert.True(result.IsValid);

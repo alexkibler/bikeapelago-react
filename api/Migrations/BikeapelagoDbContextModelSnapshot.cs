@@ -95,10 +95,25 @@ namespace Bikeapelago.Api.Migrations
                         .HasColumnType("text")
                         .HasJsonPropertyName("ap_slot_name");
 
+                    b.Property<string>("ConnectionMode")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("text")
+                        .HasDefaultValue("singleplayer")
+                        .HasJsonPropertyName("connection_mode");
+
                     b.Property<string>("CreatedAt")
                         .IsRequired()
                         .HasColumnType("text")
                         .HasJsonPropertyName("created");
+
+                    b.Property<int>("DetoursUsed")
+                        .HasColumnType("integer")
+                        .HasJsonPropertyName("detours_used");
+
+                    b.Property<int>("DronesUsed")
+                        .HasColumnType("integer")
+                        .HasJsonPropertyName("drones_used");
 
                     b.Property<bool>("EastPassReceived")
                         .HasColumnType("boolean")
@@ -107,12 +122,13 @@ namespace Bikeapelago.Api.Migrations
                     b.Property<Point>("Location")
                         .HasColumnType("geometry (point)");
 
-                    b.Property<string>("Mode")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("text")
-                        .HasDefaultValue("bike")
-                        .HasJsonPropertyName("mode");
+                    b.Property<int>("MacguffinsCollected")
+                        .HasColumnType("integer")
+                        .HasJsonPropertyName("macguffins_collected");
+
+                    b.Property<int>("MacguffinsRequired")
+                        .HasColumnType("integer")
+                        .HasJsonPropertyName("macguffins_required");
 
                     b.Property<string>("Name")
                         .HasColumnType("text")
@@ -123,7 +139,6 @@ namespace Bikeapelago.Api.Migrations
                         .HasJsonPropertyName("north_pass_received");
 
                     b.Property<string>("ProgressionMode")
-                        .IsRequired()
                         .HasColumnType("text")
                         .HasJsonPropertyName("progression_mode");
 
@@ -140,6 +155,14 @@ namespace Bikeapelago.Api.Migrations
                         .HasColumnType("bigint[]")
                         .HasJsonPropertyName("received_item_ids");
 
+                    b.Property<bool>("SignalAmplifierActive")
+                        .HasColumnType("boolean")
+                        .HasJsonPropertyName("signal_amplifier_active");
+
+                    b.Property<int>("SignalAmplifiersUsed")
+                        .HasColumnType("integer")
+                        .HasJsonPropertyName("signal_amplifiers_used");
+
                     b.Property<bool>("SouthPassReceived")
                         .HasColumnType("boolean")
                         .HasJsonPropertyName("south_pass_received");
@@ -148,6 +171,13 @@ namespace Bikeapelago.Api.Migrations
                         .IsRequired()
                         .HasColumnType("text")
                         .HasJsonPropertyName("status");
+
+                    b.Property<string>("TransportMode")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("text")
+                        .HasDefaultValue("bike")
+                        .HasJsonPropertyName("transport_mode");
 
                     b.Property<string>("UpdatedAt")
                         .IsRequired()
@@ -184,6 +214,14 @@ namespace Bikeapelago.Api.Migrations
                         .HasColumnType("bigint")
                         .HasJsonPropertyName("ap_precision_location_id");
 
+                    b.Property<long?>("ArrivalRewardItemId")
+                        .HasColumnType("bigint")
+                        .HasJsonPropertyName("arrival_reward_item_id");
+
+                    b.Property<string>("ArrivalRewardItemName")
+                        .HasColumnType("text")
+                        .HasJsonPropertyName("arrival_reward_item_name");
+
                     b.Property<bool>("HasBeenRelocated")
                         .HasColumnType("boolean")
                         .HasJsonPropertyName("has_been_relocated");
@@ -208,6 +246,14 @@ namespace Bikeapelago.Api.Migrations
                         .IsRequired()
                         .HasColumnType("text")
                         .HasJsonPropertyName("osm_node_id");
+
+                    b.Property<long?>("PrecisionRewardItemId")
+                        .HasColumnType("bigint")
+                        .HasJsonPropertyName("precision_reward_item_id");
+
+                    b.Property<string>("PrecisionRewardItemName")
+                        .HasColumnType("text")
+                        .HasJsonPropertyName("precision_reward_item_name");
 
                     b.Property<string>("RegionTag")
                         .IsRequired()

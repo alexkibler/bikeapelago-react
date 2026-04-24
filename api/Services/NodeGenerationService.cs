@@ -16,7 +16,7 @@ public class NodeGenerationRequest
     public double CenterLon { get; set; }
     public double Radius { get; set; }
     public int NodeCount { get; set; } = 50;
-    public string Mode { get; set; } = "bike"; // "bike" or "walk"
+    public string TransportMode { get; set; } = "bike"; // "bike" or "walk"
     public string GameMode { get; set; } = "archipelago"; // "archipelago" or "singleplayer"
 
     // Controls how sub-target probes are distributed within the parent radius:
@@ -30,11 +30,13 @@ public class NodeGenerationService(
     IOsmDiscoveryService osmDiscoveryService,
     IMapNodeRepository nodeRepository,
     IGameSessionRepository sessionRepository,
+    SinglePlayerSeedGenerator singlePlayerSeedGenerator,
     ILogger<NodeGenerationService> logger) : INodeGenerationService
 {
     private readonly IOsmDiscoveryService _osmDiscoveryService = osmDiscoveryService;
     private readonly IMapNodeRepository _nodeRepository = nodeRepository;
     private readonly IGameSessionRepository _sessionRepository = sessionRepository;
+    private readonly SinglePlayerSeedGenerator _singlePlayerSeedGenerator = singlePlayerSeedGenerator;
     private readonly ILogger<NodeGenerationService> _logger = logger;
 
     public async Task<int> GenerateNodesAsync(NodeGenerationRequest request)
@@ -64,24 +66,12 @@ public class NodeGenerationService(
         session.ProgressionMode = request.GameMode; // Assuming GameMode maps to ProgressionMode
         session.Location = new NetTopologySuite.Geometries.Point(request.CenterLon, request.CenterLat) { SRID = 4326 };
         session.Radius = (int)request.Radius;
-        session.Mode = request.Mode;
+        session.TransportMode = request.TransportMode;
 
-        // 4. Fetch random nodes from PostGIS/OSM
-        // We'll fetch a larger pool and then distribute them
+        // 4. Distribution Strategy
         sw.Restart();
-        var points = await _osmDiscoveryService.GetRandomNodesAsync(
-            request.CenterLat,
-            request.CenterLon,
-            request.Radius,
-            request.NodeCount * 2, // Fetch more to allow for filtering/distribution
-            request.Mode,
-            request.DensityBias);
-        _logger.LogInformation("[generate] OsmDiscovery ({Count} points): {Ms}ms", points.Count, sw.ElapsedMilliseconds);
-
-        if (points.Count < request.NodeCount)
-            throw new Exception($"OSM Discovery returned only {points.Count} nodes, need {request.NodeCount}. Try increasing the radius.");
-
-        var selectedPoints = DistributeNodes(points, request.CenterLat, request.CenterLon, request.Radius, request.NodeCount, request.GameMode);
+        var selectedPoints = await DistributeNodesAsync(request);
+        _logger.LogInformation("[generate] Distribution: {Ms}ms", sw.ElapsedMilliseconds);
 
         // 5. Delete existing nodes
         sw.Restart();
@@ -93,14 +83,20 @@ public class NodeGenerationService(
         var mapNodes = selectedPoints.Select((nodeData, i) => new MapNode
         {
             SessionId = session.Id,
-            ApArrivalLocationId = 800000 + (2 * i + 1),
-            ApPrecisionLocationId = 800000 + (2 * i + 2),
+            ApArrivalLocationId = ItemDefinitions.StartId + (2 * i + 1),
+            ApPrecisionLocationId = ItemDefinitions.StartId + (2 * i + 2),
             OsmNodeId = $"osm-{request.SessionId}-{i + 1}",
             Name = $"Node {i + 1}",
             Location = new NetTopologySuite.Geometries.Point(nodeData.Point.Lon, nodeData.Point.Lat) { SRID = 4326 },
             State = nodeData.RegionTag == "Hub" ? "Available" : "Hidden",
             RegionTag = nodeData.RegionTag
         }).ToList();
+
+        if (session.ConnectionMode == "singleplayer")
+        {
+            _singlePlayerSeedGenerator.GenerateSeed(session, mapNodes);
+        }
+
         await _nodeRepository.CreateRangeAsync(mapNodes);
         _logger.LogInformation("[generate] BulkInsert ({Count} nodes): {Ms}ms", mapNodes.Count, sw.ElapsedMilliseconds);
 
@@ -120,64 +116,88 @@ public class NodeGenerationService(
         public string RegionTag { get; set; } = "Hub";
     }
 
-    private List<NodeDistribution> DistributeNodes(List<DiscoveryPoint> points, double centerLat, double centerLon, double maxRadius, int targetCount, string mode)
+    private async Task<List<NodeDistribution>> DistributeNodesAsync(NodeGenerationRequest request)
     {
         var result = new List<NodeDistribution>();
-        var hubRadius = maxRadius * 0.25;
+        var hubRadius = request.Radius * 0.25;
         
-        // 20% to Hub
-        int hubTarget = (int)(targetCount * 0.20);
-        var hubPoints = points
-            .Where(p => CalculateDistance(centerLat, centerLon, p.Lat, p.Lon) <= hubRadius)
-            .OrderBy(_ => Guid.NewGuid())
-            .Take(hubTarget)
-            .Select(p => new NodeDistribution { Point = p, RegionTag = "Hub" })
-            .ToList();
+        var seenPoints = new HashSet<(double, double)>();
+
+        // 1. Hub Distribution (20%)
+        int hubTarget = (int)(request.NodeCount * 0.20);
+        var hubPoints = await _osmDiscoveryService.GetRandomNodesAsync(
+            request.CenterLat, request.CenterLon, hubRadius, hubTarget, request.TransportMode, request.DensityBias);
         
-        result.AddRange(hubPoints);
-
-        var remainingPoints = points.Except(hubPoints.Select(h => h.Point)).ToList();
-        int quadrantTarget = (targetCount - hubPoints.Count) / 4;
-
-        if (mode.ToLower() == "quadrant")
+        foreach (var p in hubPoints)
         {
-            // North: 315 to 45
-            result.AddRange(FilterByAzimuth(remainingPoints, centerLat, centerLon, 315, 45, quadrantTarget, "North"));
-            // East: 45 to 135
-            result.AddRange(FilterByAzimuth(remainingPoints, centerLat, centerLon, 45, 135, quadrantTarget, "East"));
-            // South: 135 to 225
-            result.AddRange(FilterByAzimuth(remainingPoints, centerLat, centerLon, 135, 225, quadrantTarget, "South"));
-            // West: 225 to 315
-            result.AddRange(FilterByAzimuth(remainingPoints, centerLat, centerLon, 225, 315, quadrantTarget, "West"));
+            if (seenPoints.Add((p.Lat, p.Lon)))
+            {
+                // Strict check even for Hub-specific discovery
+                double dist = CalculateDistance(request.CenterLat, request.CenterLon, p.Lat, p.Lon);
+                result.Add(new NodeDistribution { Point = p, RegionTag = dist <= hubRadius ? "Hub" : GetRegionTag(CalculateAzimuth(request.CenterLat, request.CenterLon, p.Lat, p.Lon)) });
+            }
+        }
+
+        // 2. Quadrant/Outer Distribution
+        int remainingTarget = request.NodeCount - result.Count;
+        
+        if (request.GameMode.ToLower() == "quadrant")
+        {
+            int quadrantTarget = (int)Math.Ceiling(remainingTarget / 4.0);
+            var quadrants = new[] 
+            { 
+                (315.0, 45.0, "North"), (45.0, 135.0, "East"), 
+                (135.0, 225.0, "South"), (225.0, 315.0, "West") 
+            };
+
+            foreach (var q in quadrants)
+            {
+                var qPoints = await _osmDiscoveryService.GetRandomNodesInWedgeAsync(
+                    request.CenterLat, request.CenterLon, request.Radius, q.Item1, q.Item2, quadrantTarget, request.TransportMode, request.DensityBias);
+                
+                foreach (var p in qPoints)
+                {
+                    if (!seenPoints.Add((p.Lat, p.Lon))) continue;
+                    
+                    // Final safety check: if it somehow fell into the Hub, tag it as Hub
+                    double dist = CalculateDistance(request.CenterLat, request.CenterLon, p.Lat, p.Lon);
+                    string tag = dist <= hubRadius ? "Hub" : q.Item3;
+                    result.Add(new NodeDistribution { Point = p, RegionTag = tag });
+                }
+            }
         }
         else
         {
-            // For Radius or Free mode, just distribute the rest uniformly but tag them by quadrant anyway 
-            // for potential "The Detour" consistency if needed, or just tag as "Outer".
-            // Actually, let's keep region tags for "The Detour" logic.
-            var outerNodes = remainingPoints
-                .OrderBy(_ => Guid.NewGuid())
-                .Take(targetCount - result.Count)
-                .Select(p => {
-                    double az = CalculateAzimuth(centerLat, centerLon, p.Lat, p.Lon);
-                    string tag = GetRegionTag(az);
-                    return new NodeDistribution { Point = p, RegionTag = tag };
-                });
-            result.AddRange(outerNodes);
+            var outerPoints = await _osmDiscoveryService.GetRandomNodesAsync(
+                request.CenterLat, request.CenterLon, request.Radius, remainingTarget + 10, request.TransportMode, request.DensityBias);
+            
+            foreach (var p in outerPoints)
+            {
+                if (!seenPoints.Add((p.Lat, p.Lon))) continue;
+                if (result.Count >= request.NodeCount) break;
+
+                double dist = CalculateDistance(request.CenterLat, request.CenterLon, p.Lat, p.Lon);
+                if (dist <= hubRadius)
+                {
+                    result.Add(new NodeDistribution { Point = p, RegionTag = "Hub" });
+                }
+                else
+                {
+                    double az = CalculateAzimuth(request.CenterLat, request.CenterLon, p.Lat, p.Lon);
+                    result.Add(new NodeDistribution { Point = p, RegionTag = GetRegionTag(az) });
+                }
+            }
         }
 
-        return result;
+        return result.Take(request.NodeCount).ToList();
     }
 
-    private List<NodeDistribution> FilterByAzimuth(List<DiscoveryPoint> points, double lat1, double lon1, double startDeg, double endDeg, int count, string tag)
+    private string GetRegionTag(double az)
     {
-        return points
-            .Select(p => new { Point = p, Azimuth = CalculateAzimuth(lat1, lon1, p.Lat, p.Lon) })
-            .Where(x => IsInWedge(x.Azimuth, startDeg, endDeg))
-            .OrderBy(_ => Guid.NewGuid())
-            .Take(count)
-            .Select(x => new NodeDistribution { Point = x.Point, RegionTag = tag })
-            .ToList();
+        if (IsInWedge(az, 315, 45)) return "North";
+        if (IsInWedge(az, 45, 135)) return "East";
+        if (IsInWedge(az, 135, 225)) return "South";
+        return "West";
     }
 
     private bool IsInWedge(double az, double start, double end)
@@ -196,14 +216,6 @@ public class NodeGenerationService(
         double x = Math.Cos(lat1Rad) * Math.Sin(lat2Rad) - Math.Sin(lat1Rad) * Math.Cos(lat2Rad) * Math.Cos(dLonRad);
         double brng = Math.Atan2(y, x);
         return (brng * 180.0 / Math.PI + 360.0) % 360.0;
-    }
-
-    private string GetRegionTag(double az)
-    {
-        if (IsInWedge(az, 315, 45)) return "North";
-        if (IsInWedge(az, 45, 135)) return "East";
-        if (IsInWedge(az, 135, 225)) return "South";
-        return "West";
     }
 
     private static double CalculateDistance(double lat1, double lon1, double lat2, double lon2)

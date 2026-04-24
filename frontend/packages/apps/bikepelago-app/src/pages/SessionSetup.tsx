@@ -134,7 +134,7 @@ const SessionSetup = () => {
         center_lon: number;
         ap_server_url?: string;
         ap_slot_name?: string;
-        mode: string;
+        connection_mode: string;
         progression_mode: string;
       } = {
         user: user?.id ?? '',
@@ -143,7 +143,7 @@ const SessionSetup = () => {
         radius: radius, // the selected radius allows the DB save to succeed cleanly now!
         center_lat: center[0],
         center_lon: center[1],
-        mode: mode,
+        connection_mode: mode,
         progression_mode: progressionMode,
       };
 
@@ -189,7 +189,7 @@ const SessionSetup = () => {
           radius,
           nodeCount: mode === 'singleplayer' ? nodeCount : undefined,
           gameMode: mode === 'singleplayer' ? progressionMode : mode,
-          mode: travelMode,
+          transportMode: travelMode,
         }),
       });
 
@@ -470,7 +470,7 @@ const SessionSetup = () => {
 
             {/* Start Button */}
             <button
-              onClick={handleGenerate}
+              onClick={() => void handleGenerate()}
               disabled={isGenerating}
               className='w-full btn btn-orange btn-lg h-14 rounded-2xl gap-3 font-black uppercase tracking-widest text-xs'
             >
