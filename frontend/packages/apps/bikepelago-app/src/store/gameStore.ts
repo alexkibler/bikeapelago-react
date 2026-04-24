@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 
 import { ENDPOINTS, apiFetch } from '../lib/api';
-import type { FitAnalysisResult, MapNode } from '../types/game';
+import type { FitAnalysisResult, GameSession, MapNode } from '../types/game';
 
 export type GamePanel = 'chat' | 'upload' | 'route' | 'inventory' | null;
 
@@ -63,8 +63,8 @@ interface GameState {
   nodes: MapNode[];
   setNodes: (nodes: MapNode[]) => void;
 
-  session: any | null; // Using any for brevity since type is imported in game.ts
-  setSession: (session: any | null) => void;
+  session: GameSession | null;
+  setSession: (session: GameSession | null) => void;
 
   routeData: RouteData;
   setRouteData: (data: RouteData) => void;

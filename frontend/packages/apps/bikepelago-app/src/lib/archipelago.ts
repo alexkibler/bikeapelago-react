@@ -62,8 +62,7 @@ class ArchipelagoClient {
           (text: string, type: string) => {
             useArchipelagoStore.getState().addMessage({
               text: text,
-              // @ts-expect-error type is string
-              type: type as any,
+              type: type as 'system' | 'player' | 'item' | 'error',
             });
           },
         );

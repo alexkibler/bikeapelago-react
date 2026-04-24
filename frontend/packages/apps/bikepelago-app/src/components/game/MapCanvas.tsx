@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, ZoomControl, Polyline, Circle, Polygon } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -80,7 +80,7 @@ const ProgressionOverlay = ({ session }: { session: GameSession }) => {
     const step = 5; // degrees
     
     // Normalize angles
-    let start = startDeg;
+    const start = startDeg;
     let end = endDeg;
     if (end <= start) end += 360;
 
@@ -120,7 +120,7 @@ const ProgressionOverlay = ({ session }: { session: GameSession }) => {
   const getArcPoints = (startDeg: number, endDeg: number, r: number): [number, number][] => {
     const points: [number, number][] = [];
     const step = 5;
-    let start = startDeg;
+    const start = startDeg;
     let end = endDeg;
     if (end <= start) end += 360;
     for (let a = start; a <= end; a += step) {
