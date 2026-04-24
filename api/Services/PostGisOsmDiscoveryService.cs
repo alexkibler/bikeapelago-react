@@ -70,29 +70,48 @@ public class PostGisOsmDiscoveryService : IOsmDiscoveryService
             _logger.LogInformation("Queued {JobCount} cache jobs: {JobIds}", jobIds.Count, string.Join(", ", jobIds));
         }
 
-        // Step 4: Generate random sub-targets spread across the full radius.
-        // Sub-radius scales with parent radius so probes don't overlap on small areas
-        // or under-sample on large ones. 2.5x probe count gives buffer for empty probes
-        // (rivers, parks, etc.) without dictating connection count.
-        double subRadiusMeters = Math.Clamp(radiusMeters * 0.1, 200, 1500);
-        int subTargetCount = (int)Math.Ceiling(count * 2.5);
-
-        var subTargets = GenerateRandomPointsInCircle(lat, lon, radiusMeters, subTargetCount, densityBias);
-        _logger.LogInformation(
-            "Running single unnest query with {ProbeCount} sub-targets (r={SubRadius}m each)",
-            subTargetCount, subRadiusMeters);
-
+        List<DiscoveryPoint> allNodes;
         var fetchSw = System.Diagnostics.Stopwatch.StartNew();
-        var allNodes = await FetchNodesForSubTargetsAsync(subTargets, subRadiusMeters, mode);
+
+        // Step 4: Fetch nodes - either from cache (fast) or live query (slow)
+        if (uncachedCells.Count == 0 && cachedCells.Count > 0)
+        {
+            _logger.LogInformation("🚀 Cache HIT: Fetching nodes from {CellCount} grid cells", cachedCells.Count);
+            allNodes = await _gridCache.GetCachedNodesAsync(cachedCells, mode);
+        }
+        else
+        {
+            // Fallback to live query for any missing coverage
+            _logger.LogInformation(
+                "⚠️ Cache {Status}: Running live unnest query for {Radius}m radius",
+                cachedCells.Count == 0 ? "MISS" : "PARTIAL", radiusMeters);
+
+            // Generate random sub-targets spread across the full radius.
+            // Sub-radius scales with parent radius so probes don't overlap on small areas
+            // or under-sample on large ones. 2.5x probe count gives buffer for empty probes
+            // (rivers, parks, etc.) without dictating connection count.
+            double subRadiusMeters = Math.Clamp(radiusMeters * 0.1, 200, 1500);
+            int subTargetCount = (int)Math.Ceiling(count * 2.5);
+
+            var subTargets = GenerateRandomPointsInCircle(lat, lon, radiusMeters, subTargetCount, densityBias);
+            _logger.LogInformation(
+                "Probing {ProbeCount} sub-targets (r={SubRadius}m each)",
+                subTargetCount, subRadiusMeters);
+
+            allNodes = await FetchNodesForSubTargetsAsync(subTargets, subRadiusMeters, mode);
+        }
         fetchSw.Stop();
 
+        // Step 5: Filter and Sample
         var filteredNodes = allNodes
             .Where(p => CalculateDistance(lat, lon, p.Lat, p.Lon) <= radiusMeters)
             .ToList();
 
         var shuffled = filteredNodes.OrderBy(_ => Random.Shared.Next()).Take(count).ToList();
 
-        _logger.LogInformation("Unnest query returned {Total} unique candidates ({Filtered} inside radius) in {Ms}ms", allNodes.Count, filteredNodes.Count, fetchSw.ElapsedMilliseconds);
+        _logger.LogInformation(
+            "Discovery returned {Total} unique candidates ({Filtered} inside radius) in {Ms}ms", 
+            allNodes.Count, filteredNodes.Count, fetchSw.ElapsedMilliseconds);
 
         totalSw.Stop();
         _logger.LogInformation("GetRandomNodesAsync total time: {Ms}ms", totalSw.ElapsedMilliseconds);
