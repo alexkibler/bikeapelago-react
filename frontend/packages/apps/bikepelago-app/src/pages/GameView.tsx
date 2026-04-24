@@ -120,7 +120,7 @@ const GameView = () => {
         },
       },
     );
-  }, [apStatus, pendingConnection, session, toast, setPendingConnection]);
+  }, [apStatus, pendingConnection, session, sessionUpdate, toast, setPendingConnection]);
 
   // Activate Geolocation tracking
   useGeolocation();
@@ -129,9 +129,9 @@ const GameView = () => {
   useEffect(() => {
     if (id && session) {
       if (session.ap_server_url && session.ap_slot_name) {
-        archipelago.connect(id, session.ap_server_url, session.ap_slot_name);
+        void archipelago.connect(id, session.ap_server_url, session.ap_slot_name);
       } else {
-        archipelago.joinSessionOnly(id);
+        void archipelago.joinSessionOnly(id);
       }
     }
   }, [id, session]);
@@ -139,7 +139,7 @@ const GameView = () => {
   // Handle cleanup on unmount or session ID change
   useEffect(() => {
     return () => {
-      archipelago.disconnect();
+      void archipelago.disconnect();
     };
   }, [id]);
 
@@ -151,9 +151,18 @@ const GameView = () => {
     let hasChanges = false;
 
     const updatedNodes = nodes.map((node) => {
-      if (checkedIdsSet.has(node.apLocationId) && node.state !== 'Checked') {
+      const arrivalChecked = checkedIdsSet.has(node.ap_arrival_location_id);
+      const precisionChecked = checkedIdsSet.has(node.ap_precision_location_id);
+      if ((arrivalChecked || precisionChecked) && node.state !== 'Checked') {
         hasChanges = true;
-        return { ...node, state: 'Checked' as const };
+        const isArrivalChecked = node.is_arrival_checked || arrivalChecked;
+        const isPrecisionChecked = node.is_precision_checked || precisionChecked;
+        return {
+          ...node,
+          is_arrival_checked: isArrivalChecked,
+          is_precision_checked: isPrecisionChecked,
+          state: isArrivalChecked && isPrecisionChecked ? 'Checked' as const : node.state,
+        };
       }
       return node;
     });
@@ -180,7 +189,7 @@ const GameView = () => {
           Session not found
         </p>
         <button
-          onClick={() => navigate('/')}
+          onClick={() => void navigate('/')}
           className='btn-orange px-6 py-2 rounded-lg font-bold'
         >
           Back to Sessions
@@ -195,7 +204,7 @@ const GameView = () => {
     initialSlot: session.ap_slot_name ?? '',
     onRetry: (url: string, slot: string, password: string) => {
       setPendingConnection({ url, slot });
-      archipelago.connect(id, url, slot, password);
+      void archipelago.connect(id, url, slot, password);
     },
     onCancel: () => setReconnectCanceled(true),
   };

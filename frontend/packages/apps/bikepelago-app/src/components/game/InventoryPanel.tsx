@@ -1,4 +1,4 @@
-import { useState, KeyboardEvent } from 'react';
+import { useState, type KeyboardEvent } from 'react';
 import { useParams } from 'react-router-dom';
 import { useGameStore } from '../../store/gameStore';
 import { useArchipelagoStore } from '../../store/archipelagoStore';
@@ -28,10 +28,13 @@ const InventoryPanel = () => {
     RADIUS_INC: { name: 'Progressive Radius Increase', id: 802006 },
   };
 
-  // Count items
-  const detourCount = receivedItems.filter(i => i.name === ITEMS.DETOUR.name || i.name === 'Location Swap').length;
-  const droneCount = receivedItems.filter(i => i.name === ITEMS.DRONE.name).length;
-  const signalAmpCount = receivedItems.filter(i => i.name === ITEMS.SIGNAL_AMPLIFIER.name).length;
+  const receivedCount = (itemId: number) => receivedItems.filter(i => i.id === itemId).length;
+  const activeCount = (itemId: number, used: number | undefined) => Math.max(0, receivedCount(itemId) - (used ?? 0));
+
+  // Count active, unused items.
+  const detourCount = activeCount(ITEMS.DETOUR.id, session?.detours_used);
+  const droneCount = activeCount(ITEMS.DRONE.id, session?.drones_used);
+  const signalAmpCount = activeCount(ITEMS.SIGNAL_AMPLIFIER.id, session?.signal_amplifiers_used);
 
   const handleUseDetour = async () => {
     if (!sessionId || selectedNodeIds.size !== 1) {
@@ -104,7 +107,7 @@ const InventoryPanel = () => {
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>, itemId: number) => {
     if (e.key === 'Enter') {
-      handleDebugUpdate(itemId, e.currentTarget.value);
+      void handleDebugUpdate(itemId, e.currentTarget.value);
       e.currentTarget.blur();
     }
   };
@@ -127,7 +130,7 @@ const InventoryPanel = () => {
         <input
           type="number"
           defaultValue={count}
-          onBlur={(e) => handleDebugUpdate(itemId, e.target.value)}
+          onBlur={(e) => void handleDebugUpdate(itemId, e.target.value)}
           onKeyDown={(e) => handleKeyDown(e, itemId)}
           className="w-12 bg-[var(--color-surface-hex)] border border-[var(--color-border-hex)] rounded text-right px-1 font-mono text-sm focus:outline-none focus:ring-1 focus:ring-orange-500"
         />
@@ -162,7 +165,7 @@ const InventoryPanel = () => {
           </div>
           {detourCount > 0 && (
             <button 
-              onClick={handleUseDetour}
+              onClick={() => void handleUseDetour()}
               disabled={isUsing || selectedNodeIds.size !== 1}
               className="w-full py-2 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-600 text-white text-xs font-bold rounded-lg transition-colors flex items-center justify-center gap-2"
             >
@@ -187,7 +190,7 @@ const InventoryPanel = () => {
           </div>
           {droneCount > 0 && (
             <button 
-              onClick={handleUseDrone}
+              onClick={() => void handleUseDrone()}
               disabled={isUsing || selectedNodeIds.size !== 1}
               className="w-full py-2 bg-purple-500 hover:bg-purple-600 disabled:bg-gray-600 text-white text-xs font-bold rounded-lg transition-colors flex items-center justify-center gap-2"
             >
@@ -212,7 +215,7 @@ const InventoryPanel = () => {
           </div>
           {signalAmpCount > 0 && (
             <button 
-              onClick={handleUseSignalAmplifier}
+              onClick={() => void handleUseSignalAmplifier()}
               disabled={isUsing}
               className="w-full py-2 bg-orange-500 hover:bg-orange-600 disabled:bg-gray-600 text-white text-xs font-bold rounded-lg transition-colors"
             >
@@ -228,7 +231,7 @@ const InventoryPanel = () => {
             {[ITEMS.PASS_NORTH, ITEMS.PASS_EAST, ITEMS.PASS_SOUTH, ITEMS.PASS_WEST, ITEMS.RADIUS_INC].map(item => (
               <div key={item.id} className="bg-[rgb(var(--color-surface-overlay))] p-3 rounded-lg border border-[var(--color-border-hex)] flex items-center justify-between">
                 <span className="text-xs font-bold text-[var(--color-text-muted-hex)]">{item.name}</span>
-                <ItemCount count={receivedItems.filter(i => i.name === item.name).length} itemId={item.id} />
+                <ItemCount count={receivedCount(item.id)} itemId={item.id} />
               </div>
             ))}
           </div>

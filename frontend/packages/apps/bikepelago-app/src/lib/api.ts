@@ -42,8 +42,8 @@ export async function apiFetch<T>(
   if (!response.ok) {
     let message = `API request failed with status ${response.status}`;
     try {
-      const errorData = await response.json();
-      message = errorData.message || message;
+      const errorData = (await response.json()) as { message?: unknown };
+      message = typeof errorData.message === 'string' ? errorData.message : message;
     } catch {
       // If JSON parsing fails, we use the default status message
     }

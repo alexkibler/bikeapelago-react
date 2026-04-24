@@ -30,7 +30,7 @@ const NewGame = () => {
       params.set('slotName', slotName);
     }
 
-    navigate(`/setup-session?${params.toString()}`);
+    void navigate(`/setup-session?${params.toString()}`);
   };
 
   return (

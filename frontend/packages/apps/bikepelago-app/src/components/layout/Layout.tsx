@@ -18,7 +18,7 @@ const Layout = ({ children }: LayoutProps) => {
 
   useEffect(() => {
     if (!isValid && location.pathname !== '/login' && location.pathname !== '/register') {
-      navigate('/login');
+      void navigate('/login');
     }
   }, [isValid, location.pathname, navigate]);
 

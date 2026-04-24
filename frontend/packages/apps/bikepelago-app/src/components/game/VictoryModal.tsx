@@ -19,14 +19,14 @@ const VictoryModal = ({ session }: VictoryModalProps) => {
     const end = Date.now() + duration;
 
     const frame = () => {
-      confetti({
+      void confetti({
         particleCount: 3,
         angle: 60,
         spread: 55,
         origin: { x: 0 },
         colors: ['#f97316', '#facc15', '#22c55e', '#3b82f6', '#a855f7'],
       });
-      confetti({
+      void confetti({
         particleCount: 3,
         angle: 120,
         spread: 55,
@@ -72,7 +72,7 @@ const VictoryModal = ({ session }: VictoryModalProps) => {
         </div>
 
         <button
-          onClick={() => navigate('/')}
+          onClick={() => void navigate('/')}
           className="w-full py-3 rounded-xl font-bold text-sm bg-[var(--color-primary-hex)] text-white hover:opacity-90 transition-opacity"
         >
           Back to Sessions

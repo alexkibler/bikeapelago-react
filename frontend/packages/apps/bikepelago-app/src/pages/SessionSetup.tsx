@@ -470,7 +470,7 @@ const SessionSetup = () => {
 
             {/* Start Button */}
             <button
-              onClick={handleGenerate}
+              onClick={() => void handleGenerate()}
               disabled={isGenerating}
               className='w-full btn btn-orange btn-lg h-14 rounded-2xl gap-3 font-black uppercase tracking-widest text-xs'
             >

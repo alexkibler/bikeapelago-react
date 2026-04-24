@@ -29,6 +29,28 @@ public class SessionsController(
     private readonly IRouteBuilderService _routeBuilderService = routeBuilderService;
     private readonly IItemExecutionService _itemExecutionService = itemExecutionService;
 
+    private bool TryGetAuthenticatedUserId(out Guid userId)
+    {
+        userId = default;
+        var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        return !string.IsNullOrEmpty(userIdString) && Guid.TryParse(userIdString, out userId);
+    }
+
+    private async Task<(GameSession? Session, IActionResult? Error)> GetAuthorizedSessionResultAsync(Guid id)
+    {
+        if (!TryGetAuthenticatedUserId(out var userId))
+            return (null, Unauthorized(new { message = "Invalid token" }));
+
+        var session = await _sessionRepository.GetByIdAsync(id);
+        if (session == null)
+            return (null, NotFound(new { message = "Session not found." }));
+
+        if (session.UserId != userId)
+            return (null, Forbid());
+
+        return (session, null);
+    }
+
     [HttpGet]
     [Microsoft.AspNetCore.Authorization.Authorize]
     public async Task<IActionResult> GetSessions()
@@ -440,11 +462,18 @@ public class SessionsController(
     }
 
     [HttpPost("{id}/debug/force-complete")]
+    [Microsoft.AspNetCore.Authorization.Authorize]
     public async Task<IActionResult> DebugForceComplete(Guid id)
     {
+        if (!TryGetAuthenticatedUserId(out var userId))
+            return Unauthorized(new { message = "Invalid token" });
+
         var session = await _sessionRepository.GetByIdAsync(id);
         if (session == null)
             return NotFound(new { message = "Session not found." });
+
+        if (session.UserId != userId)
+            return Forbid();
 
         var allNodes = await _nodeRepository.GetBySessionIdAsync(id);
         var nodesToUpdate = new List<MapNode>();
@@ -506,6 +535,10 @@ public class SessionsController(
     [Microsoft.AspNetCore.Authorization.Authorize]
     public async Task<IActionResult> ExecuteDetour(Guid id, [FromQuery] Guid nodeId)
     {
+        var (_, error) = await GetAuthorizedSessionResultAsync(id);
+        if (error != null)
+            return error;
+
         var success = await _itemExecutionService.ExecuteDetourAsync(id, nodeId);
         return success ? Ok(new { message = "Detour executed successfully" }) : BadRequest(new { message = "Failed to execute Detour" });
     }
@@ -514,6 +547,10 @@ public class SessionsController(
     [Microsoft.AspNetCore.Authorization.Authorize]
     public async Task<IActionResult> ExecuteDrone(Guid id, [FromQuery] Guid nodeId)
     {
+        var (_, error) = await GetAuthorizedSessionResultAsync(id);
+        if (error != null)
+            return error;
+
         var success = await _itemExecutionService.ExecuteDroneAsync(id, nodeId);
         return success ? Ok(new { message = "Drone executed successfully" }) : BadRequest(new { message = "Failed to execute Drone" });
     }
@@ -522,6 +559,10 @@ public class SessionsController(
     [Microsoft.AspNetCore.Authorization.Authorize]
     public async Task<IActionResult> ExecuteSignalAmplifier(Guid id)
     {
+        var (_, error) = await GetAuthorizedSessionResultAsync(id);
+        if (error != null)
+            return error;
+
         var success = await _itemExecutionService.ExecuteSignalAmplifierAsync(id);
         return success ? Ok(new { message = "Signal Amplifier activated" }) : BadRequest(new { message = "Failed to activate Signal Amplifier" });
     }
@@ -530,9 +571,21 @@ public class SessionsController(
     [Microsoft.AspNetCore.Authorization.Authorize]
     public async Task<IActionResult> SetItemCount(Guid id, [FromQuery] long itemId, [FromQuery] int count, [FromServices] IArchipelagoService archipelagoService)
     {
+        if (!TryGetAuthenticatedUserId(out var userId))
+            return Unauthorized(new { message = "Invalid token" });
+
+        if (count < 0 || count > 99)
+            return BadRequest(new { message = "count must be between 0 and 99" });
+
+        if (itemId == ItemDefinitions.Macguffin || !ItemDefinitions.ItemNames.ContainsKey(itemId))
+            return BadRequest(new { message = "Unsupported debug item" });
+
         var session = await _sessionRepository.GetByIdAsync(id);
         if (session == null || session.ConnectionMode != "singleplayer")
             return BadRequest("Debug only available for singleplayer sessions");
+
+        if (session.UserId != userId)
+            return Forbid();
 
         // Reset used count
         if (itemId == ItemDefinitions.Detour) session.DetoursUsed = 0;

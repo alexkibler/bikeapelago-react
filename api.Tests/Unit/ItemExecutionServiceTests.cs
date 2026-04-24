@@ -185,4 +185,56 @@ public class ItemExecutionServiceTests
         _mockEngine.Verify(e => e.CheckNodesAsync(It.IsAny<Guid>(), It.IsAny<List<NewlyCheckedNode>>()), Times.Never);
         _sessionRepoMock.Verify(r => r.UpdateAsync(It.IsAny<GameSession>()), Times.Never);
     }
+
+    [Fact]
+    public async Task ExecuteDroneAsync_WhenNodeBelongsToDifferentSession_ShouldFailWithoutConsumingItem()
+    {
+        // Arrange
+        var sessionId = Guid.NewGuid();
+        var otherSessionId = Guid.NewGuid();
+        var nodeId = Guid.NewGuid();
+        var session = new GameSession { Id = sessionId, ReceivedItemIds = [ItemDefinitions.Drone] };
+        var node = new MapNode { Id = nodeId, SessionId = otherSessionId };
+
+        _sessionRepoMock.Setup(r => r.GetByIdAsync(sessionId)).ReturnsAsync(session);
+        _nodeRepoMock.Setup(r => r.GetByIdAsync(nodeId)).ReturnsAsync(node);
+
+        // Act
+        var result = await _service.ExecuteDroneAsync(sessionId, nodeId);
+
+        // Assert
+        Assert.False(result);
+        Assert.Equal(0, session.DronesUsed);
+        _mockEngine.Verify(e => e.CheckNodesAsync(It.IsAny<Guid>(), It.IsAny<List<NewlyCheckedNode>>()), Times.Never);
+        _sessionRepoMock.Verify(r => r.UpdateAsync(It.IsAny<GameSession>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task ExecuteDetourAsync_WhenNodeBelongsToDifferentSession_ShouldFailWithoutConsumingItem()
+    {
+        // Arrange
+        var sessionId = Guid.NewGuid();
+        var otherSessionId = Guid.NewGuid();
+        var nodeId = Guid.NewGuid();
+        var session = new GameSession { Id = sessionId, ReceivedItemIds = [ItemDefinitions.Detour] };
+        var node = new MapNode { Id = nodeId, SessionId = otherSessionId };
+
+        _sessionRepoMock.Setup(r => r.GetByIdAsync(sessionId)).ReturnsAsync(session);
+        _nodeRepoMock.Setup(r => r.GetByIdAsync(nodeId)).ReturnsAsync(node);
+
+        // Act
+        var result = await _service.ExecuteDetourAsync(sessionId, nodeId);
+
+        // Assert
+        Assert.False(result);
+        Assert.Equal(0, session.DetoursUsed);
+        _osmDiscoveryMock.Verify(r => r.GetRandomNodesAsync(
+            It.IsAny<double>(),
+            It.IsAny<double>(),
+            It.IsAny<double>(),
+            It.IsAny<int>(),
+            It.IsAny<string>(),
+            It.IsAny<double>()), Times.Never);
+        _sessionRepoMock.Verify(r => r.UpdateAsync(It.IsAny<GameSession>()), Times.Never);
+    }
 }

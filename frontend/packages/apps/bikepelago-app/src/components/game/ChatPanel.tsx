@@ -22,7 +22,7 @@ const ChatPanel = () => {
     if (!inputValue.trim()) return;
 
     if (connectionStatus === 'connected') {
-      archipelago.say(inputValue.trim());
+      void archipelago.say(inputValue.trim());
       setInputValue('');
     }
   };

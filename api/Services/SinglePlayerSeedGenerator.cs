@@ -154,16 +154,16 @@ public class SinglePlayerSeedGenerator(ILogger<SinglePlayerSeedGenerator> logger
         strictProgressionItems = strictProgressionItems.OrderBy(_ => rng.Next()).ToList();
         fillerItems            = fillerItems.OrderBy(_ => rng.Next()).ToList();
 
-        // ── Phase 1: Assumed Fill (strict progression items only) ─────────────
-        _logger.LogInformation("Phase 1 - Assumed Fill: Placing {Count} progression item(s).", strictProgressionItems.Count);
+        // ── Phase 1: Forward Fill (strict progression items only) ─────────────
+        // Place each progression item only in locations reachable with items already
+        // placed before it. This prevents pass/radius/reveal cycles that are valid
+        // under assumed-fill simulation but impossible from an empty inventory.
+        _logger.LogInformation("Phase 1 - Forward Fill: Placing {Count} progression item(s).", strictProgressionItems.Count);
 
+        var placementInventory = new List<long>();
         foreach (var itemToPlace in strictProgressionItems)
         {
-            // Simulated inventory: everything except the one item we are currently placing.
-            // Using a List so radius-mode duplicate counts survive the Where filter.
-            var simulatedInventory = strictProgressionItems.Where(i => i != itemToPlace).ToList();
-
-            var reachableNodes = evaluator.GetReachableNodes(nodes, simulatedInventory);
+            var reachableNodes = evaluator.GetReachableNodes(nodes, placementInventory);
 
             var emptySlots = new List<(MapNode Node, bool IsArrival)>();
             foreach (var node in reachableNodes)
@@ -189,6 +189,8 @@ public class SinglePlayerSeedGenerator(ILogger<SinglePlayerSeedGenerator> logger
                 slot.Node.PrecisionRewardItemId   = itemToPlace;
                 slot.Node.PrecisionRewardItemName = ItemDefinitions.GetItemName(itemToPlace);
             }
+
+            placementInventory.Add(itemToPlace);
         }
 
         // ── Phase 2: Forward Playthrough (Sphere Mapping) ─────────────────────

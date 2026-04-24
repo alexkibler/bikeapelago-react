@@ -21,7 +21,7 @@ const Sidebar = () => {
   const handleLogout = (e: React.FormEvent) => {
     e.preventDefault();
     logout();
-    navigate('/login');
+    void navigate('/login');
   };
 
   return (

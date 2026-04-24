@@ -36,14 +36,7 @@ public class ItemExecutionService(
         var session = await _sessionRepository.GetByIdAsync(sessionId);
         var node = await _nodeRepository.GetByIdAsync(nodeId);
 
-        if (session == null || node == null || node.State == "Checked") return false;
-
-        // Ensure user has a Detour item
-        if (!await ConsumeItemAsync(session, ItemDefinitions.Detour)) 
-        {
-            _logger.LogWarning("Attempted to use Detour without any Detour items in session {SessionId}", sessionId);
-            return false;
-        }
+        if (session == null || node == null || node.SessionId != sessionId || node.State == "Checked") return false;
 
         _logger.LogInformation("Executing Detour for node {NodeId} ({RegionTag}) in session {SessionId}", nodeId, node.RegionTag, sessionId);
 
@@ -99,6 +92,13 @@ public class ItemExecutionService(
 
         if (replacementPoint != null)
         {
+            // Ensure user has a Detour item after we know the action can succeed.
+            if (!await ConsumeItemAsync(session, ItemDefinitions.Detour)) 
+            {
+                _logger.LogWarning("Attempted to use Detour without any Detour items in session {SessionId}", sessionId);
+                return false;
+            }
+
             double dist = CalculateDistance(session.CenterLat ?? 0, session.CenterLon ?? 0, replacementPoint.Lat, replacementPoint.Lon);
             double az = CalculateAzimuth(session.CenterLat ?? 0, session.CenterLon ?? 0, replacementPoint.Lat, replacementPoint.Lon);
             
@@ -141,7 +141,7 @@ public class ItemExecutionService(
     {
         var session = await _sessionRepository.GetByIdAsync(sessionId);
         var node = await _nodeRepository.GetByIdAsync(nodeId);
-        if (session == null || node == null || (node.IsArrivalChecked && node.IsPrecisionChecked)) return false;
+        if (session == null || node == null || node.SessionId != sessionId || (node.IsArrivalChecked && node.IsPrecisionChecked)) return false;
 
         // Ensure user has a Drone item
         if (!await ConsumeItemAsync(session, ItemDefinitions.Drone))

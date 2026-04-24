@@ -66,14 +66,14 @@ const DebugBanner = () => {
       </span>
       <div className="flex items-center gap-4">
         <button
-          onClick={handleForceComplete}
+          onClick={() => void handleForceComplete()}
           disabled={completing || !session}
           className="text-[11px] font-black uppercase tracking-widest text-black underline underline-offset-2 hover:opacity-60 transition-opacity disabled:opacity-40 disabled:no-underline"
         >
           {completing ? 'Completing…' : 'Force Complete'}
         </button>
         <button
-          onClick={handleClearAll}
+          onClick={() => void handleClearAll()}
           disabled={clearing || availableNodes.length === 0}
           className="text-[11px] font-black uppercase tracking-widest text-black underline underline-offset-2 hover:opacity-60 transition-opacity disabled:opacity-40 disabled:no-underline"
         >
