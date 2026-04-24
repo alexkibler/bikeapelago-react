@@ -17,7 +17,8 @@ public class SessionsController(
     IFitAnalysisService fitAnalysisService,
     IProgressionEngineFactory engineFactory,
     SessionValidator sessionValidator,
-    IRouteBuilderService routeBuilderService) : ControllerBase
+    IRouteBuilderService routeBuilderService,
+    IItemExecutionService itemExecutionService) : ControllerBase
 {
     private readonly IGameSessionRepository _sessionRepository = sessionRepository;
     private readonly IMapNodeRepository _nodeRepository = nodeRepository;
@@ -26,6 +27,7 @@ public class SessionsController(
     private readonly IProgressionEngineFactory _engineFactory = engineFactory;
     private readonly SessionValidator _sessionValidator = sessionValidator;
     private readonly IRouteBuilderService _routeBuilderService = routeBuilderService;
+    private readonly IItemExecutionService _itemExecutionService = itemExecutionService;
 
     [HttpGet]
     [Microsoft.AspNetCore.Authorization.Authorize]
@@ -147,7 +149,8 @@ public class SessionsController(
             var mapNodes = interpolatedPath.Select((p, i) => new MapNode
             {
                 SessionId = createdSession.Id,
-                ApLocationId = 800000 + (i + 1),
+                ApArrivalLocationId = 800000 + (2 * i + 1),
+                ApPrecisionLocationId = 800000 + (2 * i + 2),
                 OsmNodeId = $"route-{createdSession.Id}-{i + 1}",
                 Name = $"Route Node {i + 1}",
                 Location = new NetTopologySuite.Geometries.Point(p.Lon, p.Lat) { SRID = 4326 },
@@ -320,12 +323,20 @@ public class SessionsController(
             var availableNodes = (await _nodeRepository.GetBySessionIdAsync(id))
                                 .Where(n => n.State == "Available");
 
+            double multiplier = session.SignalAmplifierActive ? 2.0 : 1.0;
+
             using var stream = file.OpenReadStream();
-            var result = _fitAnalysisService.AnalyzeFitFile(stream, availableNodes);
+            var result = _fitAnalysisService.AnalyzeFitFile(stream, availableNodes, multiplier);
 
             if (result.Path.Count == 0)
             {
                 return BadRequest("No GPS data found in FIT file");
+            }
+
+            if (session.SignalAmplifierActive)
+            {
+                session.SignalAmplifierActive = false;
+                await _sessionRepository.UpdateAsync(session);
             }
 
             return Ok(result);
@@ -414,5 +425,29 @@ public class SessionsController(
     {
         var results = await discoveryService.ValidateNodesAsync(request);
         return Ok(results);
+    }
+
+    [HttpPost("{id}/items/detour")]
+    [Microsoft.AspNetCore.Authorization.Authorize]
+    public async Task<IActionResult> ExecuteDetour(Guid id, [FromQuery] Guid nodeId)
+    {
+        var success = await _itemExecutionService.ExecuteDetourAsync(id, nodeId);
+        return success ? Ok(new { message = "Detour executed successfully" }) : BadRequest(new { message = "Failed to execute Detour" });
+    }
+
+    [HttpPost("{id}/items/drone")]
+    [Microsoft.AspNetCore.Authorization.Authorize]
+    public async Task<IActionResult> ExecuteDrone(Guid id, [FromQuery] Guid nodeId)
+    {
+        var success = await _itemExecutionService.ExecuteDroneAsync(id, nodeId);
+        return success ? Ok(new { message = "Drone executed successfully" }) : BadRequest(new { message = "Failed to execute Drone" });
+    }
+
+    [HttpPost("{id}/items/signal-amplifier")]
+    [Microsoft.AspNetCore.Authorization.Authorize]
+    public async Task<IActionResult> ExecuteSignalAmplifier(Guid id)
+    {
+        var success = await _itemExecutionService.ExecuteSignalAmplifierAsync(id);
+        return success ? Ok(new { message = "Signal Amplifier activated" }) : BadRequest(new { message = "Failed to activate Signal Amplifier" });
     }
 }

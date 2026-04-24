@@ -20,7 +20,10 @@ namespace Bikeapelago.Api.Models
     public class NewlyCheckedNode
     {
         public Guid Id { get; set; }
-        public long ApLocationId { get; set; }
+        public long ApArrivalLocationId { get; set; }
+        public long ApPrecisionLocationId { get; set; }
+        public bool ArrivalChecked { get; set; }
+        public bool PrecisionChecked { get; set; }
         public double Lat { get; set; }
         public double Lon { get; set; }
     }

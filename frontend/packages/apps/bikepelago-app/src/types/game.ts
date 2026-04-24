@@ -6,7 +6,12 @@ export interface MapNode {
   lat: number;
   lon: number;
   state: NodeState;
-  apLocationId: number;
+  ap_arrival_location_id: number;
+  ap_precision_location_id: number;
+  region_tag: string;
+  is_arrival_checked: boolean;
+  is_precision_checked: boolean;
+  has_been_relocated: boolean;
 }
 
 export interface GameSession {
@@ -19,6 +24,12 @@ export interface GameSession {
   center_lon?: number;
   radius?: number;
   received_item_ids?: number[];
+  progression_mode: string;
+  north_pass_received: boolean;
+  east_pass_received: boolean;
+  south_pass_received: boolean;
+  west_pass_received: boolean;
+  radius_step: number;
 }
 
 export interface PathPoint {
@@ -36,7 +47,10 @@ export interface RideStats {
 
 export interface NewlyCheckedNode {
   id: string;
-  apLocationId?: number;
+  apArrivalLocationId?: number;
+  apPrecisionLocationId?: number;
+  arrivalChecked: boolean;
+  precisionChecked: boolean;
   lat: number;
   lon: number;
 }

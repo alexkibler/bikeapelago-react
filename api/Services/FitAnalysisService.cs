@@ -11,7 +11,7 @@ namespace Bikeapelago.Api.Services
     {
         private const double SemicircleToDegree = 180.0 / 2147483648.0;
 
-        public FitAnalysisResult AnalyzeFitFile(Stream fitStream, IEnumerable<MapNode>? availableNodes = null)
+        public FitAnalysisResult AnalyzeFitFile(Stream fitStream, IEnumerable<MapNode>? availableNodes = null, double radiusMultiplier = 1.0)
         {
             var result = new FitAnalysisResult();
             var decode = new Decode();
@@ -83,41 +83,59 @@ namespace Bikeapelago.Api.Services
             // Calculate Reached Nodes (if availableNodes are provided)
             if (availableNodes != null)
             {
-                result.NewlyCheckedNodes = FindReachedNodes(result.Path, availableNodes);
+                result.NewlyCheckedNodes = FindReachedNodes(result.Path, availableNodes, radiusMultiplier);
             }
 
             return result;
         }
 
-        public static List<NewlyCheckedNode> FindReachedNodes(List<PathPoint> path, IEnumerable<MapNode> availableNodes)
+        public static List<NewlyCheckedNode> FindReachedNodes(List<PathPoint> path, IEnumerable<MapNode> availableNodes, double radiusMultiplier = 1.0)
         {
+            double arrivalRadius = 100.0 * radiusMultiplier;
+            double precisionRadius = 25.0 * radiusMultiplier;
             var reached = new List<NewlyCheckedNode>();
+
             foreach (var node in availableNodes)
             {
                 if (node.Lat == null || node.Lon == null) continue;
 
-                bool isReached = false;
+                // Optimization: If both are already checked, skip
+                if (node.IsArrivalChecked && node.IsPrecisionChecked) continue;
+
+                bool newlyArrival = false;
+                bool newlyPrecision = false;
+
                 foreach (var point in path)
                 {
                     // Basic bounding box pre-filter (0.01 degrees ~1.1km)
-                    // Skips the expensive Haversine formula for points that are clearly far away.
                     if (Math.Abs(node.Lat.Value - point.Lat) > 0.01 || 
                         Math.Abs(node.Lon.Value - point.Lon) > 0.01)
                         continue;
 
-                    if (GetDistance(node.Lat.Value, node.Lon.Value, point.Lat, point.Lon) <= 30) // 30 meters
+                    double dist = GetDistance(node.Lat.Value, node.Lon.Value, point.Lat, point.Lon);
+
+                    if (!node.IsArrivalChecked && dist <= arrivalRadius)
                     {
-                        isReached = true;
-                        break;
+                        newlyArrival = true;
                     }
+                    if (!node.IsPrecisionChecked && dist <= precisionRadius)
+                    {
+                        newlyPrecision = true;
+                    }
+
+                    if ((node.IsArrivalChecked || newlyArrival) && (node.IsPrecisionChecked || newlyPrecision))
+                        break;
                 }
 
-                if (isReached)
+                if (newlyArrival || newlyPrecision)
                 {
                     reached.Add(new NewlyCheckedNode
                     {
                         Id = node.Id,
-                        ApLocationId = node.ApLocationId,
+                        ApArrivalLocationId = node.ApArrivalLocationId,
+                        ApPrecisionLocationId = node.ApPrecisionLocationId,
+                        ArrivalChecked = newlyArrival,
+                        PrecisionChecked = newlyPrecision,
                         Lat = node.Lat.Value,
                         Lon = node.Lon.Value
                     });

@@ -32,15 +32,26 @@ class StartingNodes(Range):
     default = 3
 
 
+class ProgressionMode(Choice):
+    """How the player's progression is gated."""
+    display_name = "Progression Mode"
+    option_quadrant = 0
+    option_radius = 1
+    option_free = 2
+    default = 0
+
+
 @dataclass
 class BikeapelagoOptions(PerGameCommonOptions):
     check_count: CheckCount
     goal_type: GoalType
     starting_nodes: StartingNodes
+    progression_mode: ProgressionMode
 
 
 bikeapelago_options: typing.Dict[str, type] = {
     "check_count": CheckCount,
     "goal_type": GoalType,
     "starting_nodes": StartingNodes,
+    "progression_mode": ProgressionMode,
 }

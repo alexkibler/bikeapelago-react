@@ -1,31 +1,45 @@
 from typing import Dict, NamedTuple
-
 from BaseClasses import Item, ItemClassification
-
 
 class ItemData(NamedTuple):
     code: int
     classification: ItemClassification
 
-
 class BikeapelagoItem(Item):
     game: str = "Bikeapelago"
-
-
-# We will dynamically generate the items based on check_count, but we need a base mapping.
-# For simplicity, we can define a large enough pool or generate it dynamically in __init__.py.
-# However, Archipelago expects a static item_name_to_id mapping.
-# Let's assume a maximum of 1000 checks for now.
 
 MAX_CHECKS = 2000
 START_ID = 800000
 
+# Base item table
 item_table: Dict[str, ItemData] = {
-    f"Node Unlock {i}": ItemData(START_ID + i, ItemClassification.progression)
-    for i in range(1, MAX_CHECKS + 1)
+    # Progression Items
+    "North Quadrant Pass": ItemData(START_ID + 2001, ItemClassification.progression),
+    "East Quadrant Pass": ItemData(START_ID + 2002, ItemClassification.progression),
+    "South Quadrant Pass": ItemData(START_ID + 2003, ItemClassification.progression),
+    "West Quadrant Pass": ItemData(START_ID + 2004, ItemClassification.progression),
+    "Progressive Radius Increase": ItemData(START_ID + 2005, ItemClassification.progression),
+    
+    # Useful Items
+    "Detour": ItemData(START_ID + 2010, ItemClassification.useful),
+    "Drone": ItemData(START_ID + 2011, ItemClassification.useful),
+    "Signal Amplifier": ItemData(START_ID + 2012, ItemClassification.useful),
+    
+    # Filler Items
+    "Fresh Air": ItemData(START_ID + 2100, ItemClassification.filler),
+    "Leg Cramp": ItemData(START_ID + 2101, ItemClassification.filler),
+    "Empty CO2 Cartridge": ItemData(START_ID + 2102, ItemClassification.filler),
+    "Kudos": ItemData(START_ID + 2103, ItemClassification.filler),
+    "Sense of Accomplishment": ItemData(START_ID + 2104, ItemClassification.filler),
+    "Sunburn": ItemData(START_ID + 2105, ItemClassification.filler),
+    
+    "Victory": ItemData(START_ID + 3000, ItemClassification.progression)
 }
-item_table["Victory"] = ItemData(START_ID + MAX_CHECKS + 1, ItemClassification.progression)
-item_table["Wheel Patch Kit"] = ItemData(START_ID + MAX_CHECKS + 2, ItemClassification.filler)
-item_table["Location Swap"] = ItemData(START_ID + MAX_CHECKS + 3, ItemClassification.useful)
 
-LOCATION_SWAP_RATIO = 0.1
+# Add dynamic Node Reveals
+for i in range(1, MAX_CHECKS + 1):
+    item_table[f"Node {i} Reveal"] = ItemData(START_ID + 4000 + i, ItemClassification.progression)
+
+# For backward compatibility or internal reference
+item_table["Wheel Patch Kit"] = ItemData(START_ID + 2106, ItemClassification.filler)
+item_table["Location Swap"] = item_table["Detour"]

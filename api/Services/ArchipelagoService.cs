@@ -43,10 +43,30 @@ public class ArchipelagoService(IHubContext<ArchipelagoHub> hubContext, ILogger<
         var nodesToUpdate = new List<MapNode>();
         foreach (var node in nodes)
         {
-            if (node.State != "Checked" && checkedLocationIds.Contains(node.ApLocationId))
+            var arrivalChecked = checkedLocationIds.Contains(node.ApArrivalLocationId);
+            var precisionChecked = checkedLocationIds.Contains(node.ApPrecisionLocationId);
+            
+            bool nodeChanged = false;
+            if (arrivalChecked && !node.IsArrivalChecked)
             {
-                _logger.LogTrace("Syncing Node {NodeId} ({Name}) to Checked state from Archipelago Location {LocationId}", node.Id, node.Name, node.ApLocationId);
-                node.State = "Checked";
+                node.IsArrivalChecked = true;
+                nodeChanged = true;
+            }
+            if (precisionChecked && !node.IsPrecisionChecked)
+            {
+                node.IsPrecisionChecked = true;
+                nodeChanged = true;
+            }
+
+            if (nodeChanged)
+            {
+                // If either is checked, and state is not already "Checked", we might want to mark it as checked
+                // for the sake of the legacy UI, but technically it's a dual-state now.
+                if (node.IsArrivalChecked && node.IsPrecisionChecked)
+                {
+                    node.State = "Checked";
+                }
+                
                 nodesToUpdate.Add(node);
                 changed = true;
             }
@@ -55,7 +75,7 @@ public class ArchipelagoService(IHubContext<ArchipelagoHub> hubContext, ILogger<
         if (changed)
         {
             await nodeRepository.UpdateRangeAsync(nodesToUpdate);
-            _logger.LogInformation("Updated DB for Session {SessionId}: {Count} nodes marked as Checked based on Archipelago sync", sessionId, checkedLocationIds.Length);
+            _logger.LogInformation("Updated DB for Session {SessionId}: {Count} nodes updated based on Archipelago sync", sessionId, nodesToUpdate.Count);
         }
     }
 
@@ -65,17 +85,32 @@ public class ArchipelagoService(IHubContext<ArchipelagoHub> hubContext, ILogger<
 
         using var scope = _scopeFactory.CreateScope();
         var nodeRepository = scope.ServiceProvider.GetRequiredService<IMapNodeRepository>();
+        var sessionRepository = scope.ServiceProvider.GetRequiredService<IGameSessionRepository>();
+
+        var session = await sessionRepository.GetByIdAsync(sessionId);
+        if (session == null) return;
 
         var nodes = await nodeRepository.GetBySessionIdAsync(sessionId);
         var changed = false;
 
+        // Sync Progression States in Session
+        bool sessionChanged = false;
+        if (!session.NorthPassReceived && receivedItemIds.Any(id => IsItemNamed(sessionId, id, "North Quadrant Pass"))) { session.NorthPassReceived = true; sessionChanged = true; }
+        if (!session.EastPassReceived && receivedItemIds.Any(id => IsItemNamed(sessionId, id, "East Quadrant Pass"))) { session.EastPassReceived = true; sessionChanged = true; }
+        if (!session.SouthPassReceived && receivedItemIds.Any(id => IsItemNamed(sessionId, id, "South Quadrant Pass"))) { session.SouthPassReceived = true; sessionChanged = true; }
+        if (!session.WestPassReceived && receivedItemIds.Any(id => IsItemNamed(sessionId, id, "West Quadrant Pass"))) { session.WestPassReceived = true; sessionChanged = true; }
+        
+        int radiusIncreases = receivedItemIds.Count(id => IsItemNamed(sessionId, id, "Progressive Radius Increase"));
+        if (radiusIncreases > session.RadiusStep) { session.RadiusStep = radiusIncreases; sessionChanged = true; }
+
+        if (sessionChanged) await sessionRepository.UpdateAsync(session);
+
         var nodesToUpdate = new List<MapNode>();
         foreach (var node in nodes)
         {
-            // If the item ID matches the node's ApLocationId, we unlock it
-            if (node.State == "Hidden" && receivedItemIds.Contains(node.ApLocationId))
+            if (node.State == "Hidden" && IsNodeUnlocked(session, node, receivedItemIds))
             {
-                _logger.LogInformation("Unlocking Node {NodeId} ({Name}) because item {ItemId} was received", node.Id, node.Name, node.ApLocationId);
+                _logger.LogInformation("Unlocking Node {NodeId} ({Name}) because progression requirements met or reveal item received", node.Id, node.Name);
                 node.State = "Available";
                 nodesToUpdate.Add(node);
                 changed = true;
@@ -88,6 +123,69 @@ public class ArchipelagoService(IHubContext<ArchipelagoHub> hubContext, ILogger<
             _logger.LogInformation("Updated DB for Session {SessionId}: Nodes made Available based on items", sessionId);
             await _hubContext.Clients.Group(sessionId.ToString()).SendAsync("OnSyncRequired");
         }
+    }
+
+    private bool IsItemNamed(Guid sessionId, long itemId, string name)
+    {
+        if (_sessions.TryGetValue(sessionId, out var session))
+        {
+            return session.Items.GetItemName(itemId) == name;
+        }
+        return false;
+    }
+
+    private bool IsNodeUnlocked(GameSession session, MapNode node, long[] receivedItemIds)
+    {
+        // Hub is always available
+        if (node.RegionTag == "Hub") return true;
+
+        if (session.ProgressionMode == "quadrant")
+        {
+            return node.RegionTag switch
+            {
+                "North" => session.NorthPassReceived,
+                "East" => session.EastPassReceived,
+                "South" => session.SouthPassReceived,
+                "West" => session.WestPassReceived,
+                _ => true
+            };
+        }
+        else if (session.ProgressionMode == "radius")
+        {
+            if (node.Lat == null || node.Lon == null || session.CenterLat == null || session.CenterLon == null) return true;
+            
+            double dist = CalculateDistance(session.CenterLat.Value, session.CenterLon.Value, node.Lat.Value, node.Lon.Value);
+            double maxRadius = session.Radius ?? 5000;
+            
+            double allowedRadius = (session.RadiusStep) switch
+            {
+                0 => maxRadius * 0.25,
+                1 => maxRadius * 0.50,
+                2 => maxRadius * 0.75,
+                3 => maxRadius,
+                _ => maxRadius
+            };
+            
+            return dist <= allowedRadius;
+        }
+        else if (session.ProgressionMode == "free")
+        {
+            // Node Reveal 1-to-1
+            return receivedItemIds.Any(id => IsItemNamed(session.Id, id, $"{node.Name} Reveal"));
+        }
+
+        return true;
+    }
+
+    private static double CalculateDistance(double lat1, double lon1, double lat2, double lon2)
+    {
+        double r = 6371000;
+        double phi1 = lat1 * Math.PI / 180;
+        double phi2 = lat2 * Math.PI / 180;
+        double dphi = (lat2 - lat1) * Math.PI / 180;
+        double dlambda = (lon2 - lon1) * Math.PI / 180;
+        double a = Math.Sin(dphi / 2) * Math.Sin(dphi / 2) + Math.Cos(phi1) * Math.Cos(phi2) * Math.Sin(dlambda / 2) * Math.Sin(dlambda / 2);
+        return r * 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
     }
 
     public async Task ConnectAsync(Guid sessionId, string url, string slotName, string? password = null)
