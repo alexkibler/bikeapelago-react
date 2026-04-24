@@ -4,8 +4,6 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Navigation } from 'lucide-react';
 import { useGameStore } from '../../store/gameStore';
-import { useDebugStore } from '../../store/debugStore';
-import { getToken } from '../../store/authStore';
 import { downloadGPX } from '../../lib/geoUtils';
 import Stat from '../layout/Stat';
 import type { GameSession, MapNode, NodeState } from '../../types/game';
@@ -213,33 +211,7 @@ const MapCanvas = ({ session, nodes }: MapCanvasProps) => {
   const setCustomOrigin = useGameStore(s => s.setCustomOrigin);
   const selectedNodeIds = useGameStore(s => s.selectedNodeIds);
   const toggleSelectedNode = useGameStore(s => s.toggleSelectedNode);
-  const setNodes = useGameStore(s => s.setNodes);
-  const debugMode = useDebugStore(s => s.debugMode);
-
-  const [pendingDebugNodeId, setPendingDebugNodeId] = useState<string | null>(null);
-
   const mapRef = useRef<L.Map | null>(null);
-
-  const handleDebugCheck = async (node: MapNode) => {
-    if (!debugMode || node.state !== 'Available' || pendingDebugNodeId) return;
-    setPendingDebugNodeId(node.id);
-    try {
-      const token = getToken();
-      const res = await fetch(`/api/sessions/${session.id}/nodes/check`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({ nodeIds: [node.id] }),
-      });
-      if (res.ok) {
-        setNodes(nodes.map(n => n.id === node.id ? { ...n, state: 'Checked' as const } : n));
-      }
-    } finally {
-      setPendingDebugNodeId(null);
-    }
-  };
 
   const locateUser = () => {
     if (userLocation && mapRef.current) {
@@ -283,9 +255,6 @@ const MapCanvas = ({ session, nodes }: MapCanvasProps) => {
           const inRouteMode = activePanel === 'route';
           const inInventoryMode = activePanel === 'inventory';
           
-          // Debug-clickable only when debug mode is on and NOT in another interaction mode
-          const debugClickable = debugMode && !inRouteMode && !inInventoryMode && node.state === 'Available' && pendingDebugNodeId !== node.id;
-          
           // Available nodes are selectable when either Route or Inventory panel is open
           const canSelect = (inRouteMode || inInventoryMode) && node.state === 'Available';
 
@@ -294,18 +263,13 @@ const MapCanvas = ({ session, nodes }: MapCanvasProps) => {
                 L.DomEvent.stopPropagation(e);
                 toggleSelectedNode(node.id);
               }
-            : debugClickable
-              ? (e: L.LeafletMouseEvent) => {
-                  L.DomEvent.stopPropagation(e);
-                  handleDebugCheck(node);
-                }
-              : undefined;
+            : undefined;
 
           return (
             <Marker
               key={node.id}
               position={[node.lat, node.lon]}
-              icon={getMarkerIcon(node.state, debugClickable || canSelect, isSelected)}
+              icon={getMarkerIcon(node.state, canSelect, isSelected)}
               title={node.name}
               eventHandlers={handleClick ? { click: handleClick } : undefined}
             />

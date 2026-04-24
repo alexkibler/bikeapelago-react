@@ -2,7 +2,8 @@ import { useState, KeyboardEvent } from 'react';
 import { useParams } from 'react-router-dom';
 import { useGameStore } from '../../store/gameStore';
 import { useArchipelagoStore } from '../../store/archipelagoStore';
-import { Package, RefreshCw, Crosshair, Radio, CheckCircle2, ShieldAlert } from 'lucide-react';
+import { useDebugStore } from '../../store/debugStore';
+import { Package, RefreshCw, Crosshair, Radio, CheckCircle2 } from 'lucide-react';
 import { apiFetch, ENDPOINTS } from '../../lib/api';
 import { useToast } from '../../hooks/useToast';
 
@@ -13,7 +14,7 @@ const InventoryPanel = () => {
   const { receivedItems } = useArchipelagoStore();
   const toast = useToast();
   const [isUsing, setIsUsing] = useState(false);
-  const [debugMode, setDebugMode] = useState(false);
+  const debugMode = useDebugStore(s => s.debugMode);
 
   // Define useful item names and IDs
   const ITEMS = {
@@ -142,15 +143,6 @@ const InventoryPanel = () => {
           <Package className="w-5 h-5 text-[var(--color-primary-hex)]" />
           <h2 className="panel-title">Inventory</h2>
         </div>
-        {session?.connection_mode === 'singleplayer' && (
-          <button 
-            onClick={() => setDebugMode(!debugMode)}
-            className={`p-1.5 rounded-lg transition-colors ${debugMode ? 'bg-orange-500 text-white' : 'text-[var(--color-text-subtle-hex)] hover:bg-[rgb(var(--color-surface-overlay))]'}`}
-            title="Toggle Debug Mode"
-          >
-            <ShieldAlert className="w-4 h-4" />
-          </button>
-        )}
       </div>
 
       <div className="space-y-4">

@@ -56,7 +56,7 @@ public class SinglePlayerSeedGeneratorTests
             .Concat(nodes.Select(n => n.PrecisionRewardItemId!.Value))
             .ToList();
             
-        Assert.Contains(ItemDefinitions.Goal, allAssignedItems);
+        Assert.Contains(ItemDefinitions.Macguffin, allAssignedItems);
         Assert.Contains(ItemDefinitions.NorthPass, allAssignedItems);
         Assert.Contains(ItemDefinitions.SouthPass, allAssignedItems);
         Assert.Contains(ItemDefinitions.EastPass, allAssignedItems);

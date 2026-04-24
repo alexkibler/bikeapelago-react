@@ -23,8 +23,15 @@ public class ReachabilityEvaluator
         _progressionMode = progressionMode;
     }
 
-    public List<MapNode> GetReachableNodes(IEnumerable<MapNode> allNodes, HashSet<long> inventory)
+    // Accepts IEnumerable<long> so callers may pass either a HashSet<long> (O(1) Contains)
+    // for normal use, or a List<long> (supports duplicates) for sphere-mapping simulations
+    // where duplicate item IDs (e.g. multiple ProgressiveRadiusIncrease) must be counted.
+    public List<MapNode> GetReachableNodes(IEnumerable<MapNode> allNodes, IEnumerable<long> inventory)
     {
+        // Materialise once so we can query it multiple ways efficiently.
+        var inventoryList = inventory as IList<long> ?? inventory.ToList();
+        var inventorySet  = inventoryList as ISet<long> ?? inventoryList.ToHashSet();
+
         var reachable = new List<MapNode>();
 
         foreach (var node in allNodes)
@@ -46,16 +53,17 @@ public class ReachabilityEvaluator
                 double az = CalculateAzimuth(_centerLat, _centerLon, node.Lat.Value, node.Lon.Value);
                 string tag = GetRegionTag(az);
 
-                if (tag == "North" && inventory.Contains(ItemDefinitions.NorthPass)) reachable.Add(node);
-                else if (tag == "East" && inventory.Contains(ItemDefinitions.EastPass)) reachable.Add(node);
-                else if (tag == "South" && inventory.Contains(ItemDefinitions.SouthPass)) reachable.Add(node);
-                else if (tag == "West" && inventory.Contains(ItemDefinitions.WestPass)) reachable.Add(node);
+                if (tag == "North" && inventorySet.Contains(ItemDefinitions.NorthPass)) reachable.Add(node);
+                else if (tag == "East" && inventorySet.Contains(ItemDefinitions.EastPass)) reachable.Add(node);
+                else if (tag == "South" && inventorySet.Contains(ItemDefinitions.SouthPass)) reachable.Add(node);
+                else if (tag == "West" && inventorySet.Contains(ItemDefinitions.WestPass)) reachable.Add(node);
             }
             else if (_progressionMode == "radius")
             {
-                int increases = inventory.Count(i => i == ItemDefinitions.ProgressiveRadiusIncrease);
+                // Use inventoryList so duplicate IDs are counted correctly.
+                int increases = inventoryList.Count(i => i == ItemDefinitions.ProgressiveRadiusIncrease);
                 double allowedRadius = _hubRadius * (increases + 1);
-                
+
                 if (dist <= allowedRadius)
                 {
                     reachable.Add(node);
@@ -64,7 +72,7 @@ public class ReachabilityEvaluator
             else if (_progressionMode == "free")
             {
                 long revealId = ItemDefinitions.StartId + (node.ApArrivalLocationId - ItemDefinitions.StartId);
-                if (inventory.Contains(revealId))
+                if (inventorySet.Contains(revealId))
                 {
                     reachable.Add(node);
                 }
@@ -116,93 +124,171 @@ public class SinglePlayerSeedGenerator(ILogger<SinglePlayerSeedGenerator> logger
             throw new Exception("Session missing required geographic metrics for generation.");
 
         var evaluator = new ReachabilityEvaluator(
-            session.CenterLat.Value, 
-            session.CenterLon.Value, 
-            session.Radius.Value, 
+            session.CenterLat.Value,
+            session.CenterLon.Value,
+            session.Radius.Value,
             session.ProgressionMode);
 
         var itemDeck = ItemPoolFactory.GenerateItemPool(nodes, session.ProgressionMode, session);
-        
-        // Separate progression items from filler/useful
-        var progressionItemsInDeck = new List<long>();
-        var nonProgressionItems = new List<long>();
+
+        // ── Bucket the item deck ──────────────────────────────────────────────
+        // strictProgressionItems: passes, radius increases, node reveals — go through Assumed Fill.
+        // macguffinItems:         placed last-in-first-out by sphere depth (Phase 3).
+        // fillerItems:            randomly scattered into remaining slots (Phase 4).
+        var strictProgressionItems = new List<long>();
+        var macguffinItems         = new List<long>();
+        var fillerItems            = new List<long>();
 
         foreach (var item in itemDeck)
         {
-            if (ItemDefinitions.GetItemType(item) == ItemType.Progression || ItemDefinitions.GetItemType(item) == ItemType.NodeReveal)
-            {
-                progressionItemsInDeck.Add(item);
-            }
+            if (item == ItemDefinitions.Macguffin)
+                macguffinItems.Add(item);
+            else if (ItemDefinitions.GetItemType(item) == ItemType.Progression ||
+                     ItemDefinitions.GetItemType(item) == ItemType.NodeReveal)
+                strictProgressionItems.Add(item);
             else
-            {
-                nonProgressionItems.Add(item);
-            }
+                fillerItems.Add(item);
         }
 
         var rng = new Random();
-        progressionItemsInDeck = progressionItemsInDeck.OrderBy(_ => rng.Next()).ToList();
+        strictProgressionItems = strictProgressionItems.OrderBy(_ => rng.Next()).ToList();
+        fillerItems            = fillerItems.OrderBy(_ => rng.Next()).ToList();
 
-        _logger.LogInformation("Assumed Fill: Placing {Count} progression items.", progressionItemsInDeck.Count);
+        // ── Phase 1: Assumed Fill (strict progression items only) ─────────────
+        _logger.LogInformation("Phase 1 - Assumed Fill: Placing {Count} progression item(s).", strictProgressionItems.Count);
 
-        // 1. Assumed Fill
-        foreach (var itemToPlace in progressionItemsInDeck)
+        foreach (var itemToPlace in strictProgressionItems)
         {
-            // Simulated inventory: everything EXCEPT the item we are currently trying to place
-            var simulatedInventory = new HashSet<long>(progressionItemsInDeck.Where(i => i != itemToPlace));
+            // Simulated inventory: everything except the one item we are currently placing.
+            // Using a List so radius-mode duplicate counts survive the Where filter.
+            var simulatedInventory = strictProgressionItems.Where(i => i != itemToPlace).ToList();
 
-            // Find all nodes reachable with that simulated inventory
             var reachableNodes = evaluator.GetReachableNodes(nodes, simulatedInventory);
 
-            // Find an empty slot in those reachable nodes
             var emptySlots = new List<(MapNode Node, bool IsArrival)>();
             foreach (var node in reachableNodes)
             {
-                if (!node.ArrivalRewardItemId.HasValue) emptySlots.Add((node, true));
+                if (!node.ArrivalRewardItemId.HasValue)   emptySlots.Add((node, true));
                 if (!node.PrecisionRewardItemId.HasValue) emptySlots.Add((node, false));
             }
 
             if (emptySlots.Count == 0)
             {
-                _logger.LogError("Assumed Fill Failed! No empty reachable slots for item {Item}", itemToPlace);
+                _logger.LogError("Phase 1 Failed! No empty reachable slots for item {Item}", itemToPlace);
                 throw new Exception("Seed generation failed due to logic softlock.");
             }
 
-            // Pick a random slot
             var slot = emptySlots[rng.Next(emptySlots.Count)];
-
             if (slot.IsArrival)
             {
-                slot.Node.ArrivalRewardItemId = itemToPlace;
+                slot.Node.ArrivalRewardItemId   = itemToPlace;
                 slot.Node.ArrivalRewardItemName = ItemDefinitions.GetItemName(itemToPlace);
             }
             else
             {
-                slot.Node.PrecisionRewardItemId = itemToPlace;
+                slot.Node.PrecisionRewardItemId   = itemToPlace;
                 slot.Node.PrecisionRewardItemName = ItemDefinitions.GetItemName(itemToPlace);
             }
-
-            // Once placed, we "remove" it from our list of items left to place,
-            // which effectively adds it permanently to our base assumed inventory
-            // for subsequent iterations. (We do this implicitly by continuing the loop).
         }
 
-        // 2. Fast Fill
-        _logger.LogInformation("Fast Fill: Placing {Count} remaining items.", nonProgressionItems.Count);
+        // ── Phase 2: Forward Playthrough (Sphere Mapping) ─────────────────────
+        // Walk through the graph exactly as a player would, collecting progression
+        // items as they become reachable, and record the sphere level of every node.
+        // Uses a List<long> inventory so duplicate item IDs (e.g. radius increases)
+        // are counted correctly during the simulation.
+        _logger.LogInformation("Phase 2 - Sphere Mapping: Calculating logic spheres.");
+
+        var nodeSphereLevel  = new Dictionary<Guid, int>();
+        var sphereInventory  = new List<long>();   // allows duplicates for correct Count() queries
+        var processedNodeIds = new HashSet<Guid>();
+        int currentSphere    = 0;
+
+        while (true)
+        {
+            var reachable = evaluator.GetReachableNodes(nodes, sphereInventory);
+            var newNodes  = reachable.Where(n => !processedNodeIds.Contains(n.Id)).ToList();
+
+            if (newNodes.Count == 0) break;
+
+            foreach (var node in newNodes)
+            {
+                nodeSphereLevel[node.Id] = currentSphere;
+                processedNodeIds.Add(node.Id);
+
+                // Collect progression items found in this sphere.
+                // Macguffins are intentionally excluded — they do not unlock new areas.
+                if (node.ArrivalRewardItemId.HasValue && node.ArrivalRewardItemId.Value != ItemDefinitions.Macguffin)
+                {
+                    var t = ItemDefinitions.GetItemType(node.ArrivalRewardItemId.Value);
+                    if (t == ItemType.Progression || t == ItemType.NodeReveal)
+                        sphereInventory.Add(node.ArrivalRewardItemId.Value);
+                }
+                if (node.PrecisionRewardItemId.HasValue && node.PrecisionRewardItemId.Value != ItemDefinitions.Macguffin)
+                {
+                    var t = ItemDefinitions.GetItemType(node.PrecisionRewardItemId.Value);
+                    if (t == ItemType.Progression || t == ItemType.NodeReveal)
+                        sphereInventory.Add(node.PrecisionRewardItemId.Value);
+                }
+            }
+
+            currentSphere++;
+        }
+
+        _logger.LogInformation(
+            "Phase 2 Complete: Mapped {NodeCount} node(s) across {Spheres} sphere(s).",
+            nodeSphereLevel.Count, currentSphere);
+
+        // ── Phase 3: Late-Sphere Macguffin Placement ──────────────────────────
+        // Gather every still-empty slot, annotate with its node's sphere level,
+        // then sort deepest-first so Macguffins land in the hardest-to-reach locations.
+        _logger.LogInformation("Phase 3 - Macguffin Placement: Placing {Count} Macguffin(s).", macguffinItems.Count);
+
+        var emptySlotsBySphere = new List<(MapNode Node, bool IsArrival, int Sphere)>();
+        foreach (var node in nodes)
+        {
+            int sphere = nodeSphereLevel.TryGetValue(node.Id, out var s) ? s : 0;
+            if (!node.ArrivalRewardItemId.HasValue)   emptySlotsBySphere.Add((node, true,  sphere));
+            if (!node.PrecisionRewardItemId.HasValue) emptySlotsBySphere.Add((node, false, sphere));
+        }
+
+        // Descending sphere level — shuffle within same level for variety.
+        emptySlotsBySphere = emptySlotsBySphere
+            .OrderByDescending(e => e.Sphere)
+            .ThenBy(_ => rng.Next())
+            .ToList();
+
+        for (int i = 0; i < macguffinItems.Count && i < emptySlotsBySphere.Count; i++)
+        {
+            var (node, isArrival, _) = emptySlotsBySphere[i];
+            if (isArrival)
+            {
+                node.ArrivalRewardItemId   = macguffinItems[i];
+                node.ArrivalRewardItemName = ItemDefinitions.GetItemName(macguffinItems[i]);
+            }
+            else
+            {
+                node.PrecisionRewardItemId   = macguffinItems[i];
+                node.PrecisionRewardItemName = ItemDefinitions.GetItemName(macguffinItems[i]);
+            }
+        }
+
+        // ── Phase 4: Fast Fill ─────────────────────────────────────────────────
+        _logger.LogInformation("Phase 4 - Fast Fill: Placing {Count} filler item(s).", fillerItems.Count);
         int fillerIndex = 0;
 
         foreach (var node in nodes)
         {
-            if (!node.ArrivalRewardItemId.HasValue && fillerIndex < nonProgressionItems.Count)
+            if (!node.ArrivalRewardItemId.HasValue && fillerIndex < fillerItems.Count)
             {
-                long item = nonProgressionItems[fillerIndex++];
-                node.ArrivalRewardItemId = item;
-                node.ArrivalRewardItemName = ItemDefinitions.GetItemName(item);
+                node.ArrivalRewardItemId   = fillerItems[fillerIndex];
+                node.ArrivalRewardItemName = ItemDefinitions.GetItemName(fillerItems[fillerIndex]);
+                fillerIndex++;
             }
-            if (!node.PrecisionRewardItemId.HasValue && fillerIndex < nonProgressionItems.Count)
+            if (!node.PrecisionRewardItemId.HasValue && fillerIndex < fillerItems.Count)
             {
-                long item = nonProgressionItems[fillerIndex++];
-                node.PrecisionRewardItemId = item;
-                node.PrecisionRewardItemName = ItemDefinitions.GetItemName(item);
+                node.PrecisionRewardItemId   = fillerItems[fillerIndex];
+                node.PrecisionRewardItemName = ItemDefinitions.GetItemName(fillerItems[fillerIndex]);
+                fillerIndex++;
             }
         }
     }
