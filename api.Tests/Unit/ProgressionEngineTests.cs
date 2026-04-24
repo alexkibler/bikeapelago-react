@@ -33,8 +33,8 @@ public class SinglePlayerProgressionEngineTests
         // Arrange
         var nodes = new List<MapNode>
         {
-            new() { Id = Guid.NewGuid(), SessionId = _sessionId, ApLocationId = 1, State = "Available" },
-            new() { Id = Guid.NewGuid(), SessionId = _sessionId, ApLocationId = 2, State = "Available" },
+            new() { Id = Guid.NewGuid(), SessionId = _sessionId, ApArrivalLocationId = 1, State = "Available" },
+            new() { Id = Guid.NewGuid(), SessionId = _sessionId, ApArrivalLocationId = 2, State = "Available" },
         };
         // UnlockNextAsync will need to list all session nodes each call
         _mockNodeRepo.Setup(r => r.GetBySessionIdAsync(_sessionId)).ReturnsAsync([]);
@@ -52,8 +52,8 @@ public class SinglePlayerProgressionEngineTests
     public async Task CheckNodesAsync_SkipsAlreadyCheckedNodes()
     {
         // Arrange
-        var alreadyChecked = new MapNode { Id = Guid.NewGuid(), SessionId = _sessionId, ApLocationId = 1, State = "Checked" };
-        var newNode = new MapNode { Id = Guid.NewGuid(), SessionId = _sessionId, ApLocationId = 2, State = "Available" };
+        var alreadyChecked = new MapNode { Id = Guid.NewGuid(), SessionId = _sessionId, ApArrivalLocationId = 1, State = "Checked" };
+        var newNode = new MapNode { Id = Guid.NewGuid(), SessionId = _sessionId, ApArrivalLocationId = 2, State = "Available" };
 
         _mockNodeRepo.Setup(r => r.GetBySessionIdAsync(_sessionId)).ReturnsAsync([]);
 
@@ -62,7 +62,7 @@ public class SinglePlayerProgressionEngineTests
 
         // Assert — only the newly-checked node goes into UpdateRangeAsync
         _mockNodeRepo.Verify(r => r.UpdateRangeAsync(
-            It.Is<IEnumerable<MapNode>>(n => n.Count() == 1 && n.First().ApLocationId == 2)),
+            It.Is<IEnumerable<MapNode>>(n => n.Count() == 1 && n.First().ApArrivalLocationId == 2)),
             Times.Once());
     }
 
@@ -72,7 +72,7 @@ public class SinglePlayerProgressionEngineTests
         // Arrange
         var nodes = new List<MapNode>
         {
-            new() { Id = Guid.NewGuid(), SessionId = _sessionId, ApLocationId = 1, State = "Checked" },
+            new() { Id = Guid.NewGuid(), SessionId = _sessionId, ApArrivalLocationId = 1, State = "Checked" },
         };
 
         // Act
@@ -89,8 +89,8 @@ public class SinglePlayerProgressionEngineTests
         // Arrange — 2 newly checked nodes → UnlockNextAsync should be called twice
         var nodes = new List<MapNode>
         {
-            new() { Id = Guid.NewGuid(), SessionId = _sessionId, ApLocationId = 1, State = "Available" },
-            new() { Id = Guid.NewGuid(), SessionId = _sessionId, ApLocationId = 2, State = "Available" },
+            new() { Id = Guid.NewGuid(), SessionId = _sessionId, ApArrivalLocationId = 1, State = "Available" },
+            new() { Id = Guid.NewGuid(), SessionId = _sessionId, ApArrivalLocationId = 2, State = "Available" },
         };
 
         // Each UnlockNextAsync call fetches nodes; return empty so it no-ops cleanly
@@ -106,12 +106,12 @@ public class SinglePlayerProgressionEngineTests
     // --- UnlockNextAsync ---
 
     [Fact]
-    public async Task UnlockNextAsync_UnlocksLowestApLocationIdHiddenNode()
+    public async Task UnlockNextAsync_UnlocksLowestApArrivalLocationIdHiddenNode()
     {
         // Arrange
-        var hidden1 = new MapNode { Id = Guid.NewGuid(), SessionId = _sessionId, ApLocationId = 802, State = "Hidden" };
-        var hidden2 = new MapNode { Id = Guid.NewGuid(), SessionId = _sessionId, ApLocationId = 801, State = "Hidden" };
-        var available = new MapNode { Id = Guid.NewGuid(), SessionId = _sessionId, ApLocationId = 800, State = "Available" };
+        var hidden1 = new MapNode { Id = Guid.NewGuid(), SessionId = _sessionId, ApArrivalLocationId = 802, State = "Hidden" };
+        var hidden2 = new MapNode { Id = Guid.NewGuid(), SessionId = _sessionId, ApArrivalLocationId = 801, State = "Hidden" };
+        var available = new MapNode { Id = Guid.NewGuid(), SessionId = _sessionId, ApArrivalLocationId = 800, State = "Available" };
 
         _mockNodeRepo.Setup(r => r.GetBySessionIdAsync(_sessionId))
             .ReturnsAsync([hidden1, hidden2, available]);
@@ -119,9 +119,9 @@ public class SinglePlayerProgressionEngineTests
         // Act
         await _engine.UnlockNextAsync(_sessionId);
 
-        // Assert — only the node with the lowest ApLocationId (801) is updated
-        _mockNodeRepo.Verify(r => r.UpdateAsync(It.Is<MapNode>(n => n.ApLocationId == 801 && n.State == "Available")), Times.Once());
-        _mockNodeRepo.Verify(r => r.UpdateAsync(It.Is<MapNode>(n => n.ApLocationId == 802)), Times.Never());
+        // Assert — only the node with the lowest ApArrivalLocationId (801) is updated
+        _mockNodeRepo.Verify(r => r.UpdateAsync(It.Is<MapNode>(n => n.ApArrivalLocationId == 801 && n.State == "Available")), Times.Once());
+        _mockNodeRepo.Verify(r => r.UpdateAsync(It.Is<MapNode>(n => n.ApArrivalLocationId == 802)), Times.Never());
     }
 
     [Fact]
@@ -163,8 +163,8 @@ public class ArchipelagoProgressionEngineTests
         // Arrange
         var nodes = new List<MapNode>
         {
-            new() { Id = Guid.NewGuid(), ApLocationId = 800001 },
-            new() { Id = Guid.NewGuid(), ApLocationId = 800002 },
+            new() { Id = Guid.NewGuid(), ApArrivalLocationId = 800001, ApPrecisionLocationId = 800002, IsArrivalChecked = true, IsPrecisionChecked = true },
+            new() { Id = Guid.NewGuid(), ApArrivalLocationId = 800003, ApPrecisionLocationId = 800004, IsArrivalChecked = true },
         };
 
         _mockApService.Setup(s => s.CheckLocationsAsync(_sessionId, It.IsAny<long[]>()))
@@ -176,7 +176,7 @@ public class ArchipelagoProgressionEngineTests
         // Assert
         _mockApService.Verify(s => s.CheckLocationsAsync(
             _sessionId,
-            It.Is<long[]>(ids => ids.SequenceEqual(new long[] { 800001, 800002 }))),
+            It.Is<long[]>(ids => ids.OrderBy(x => x).SequenceEqual(new long[] { 800001, 800002, 800003 }))),
             Times.Once());
     }
 
@@ -186,8 +186,8 @@ public class ArchipelagoProgressionEngineTests
         // Arrange
         var nodes = new List<MapNode>
         {
-            new() { Id = Guid.NewGuid(), ApLocationId = 800001, State = "Checked" },
-            new() { Id = Guid.NewGuid(), ApLocationId = 800002, State = "Available" },
+            new() { Id = Guid.NewGuid(), ApArrivalLocationId = 800001, IsArrivalChecked = true },
+            new() { Id = Guid.NewGuid(), ApArrivalLocationId = 800003, IsArrivalChecked = false },
         };
 
         _mockNodeRepo.Setup(r => r.GetBySessionIdAsync(_sessionId)).ReturnsAsync(nodes);
@@ -210,7 +210,7 @@ public class ArchipelagoProgressionEngineTests
         // Arrange
         var nodes = new List<MapNode>
         {
-            new() { ApLocationId = 800001, State = "Available" },
+            new() { ApArrivalLocationId = 800001, State = "Available" },
         };
 
         _mockNodeRepo.Setup(r => r.GetBySessionIdAsync(_sessionId)).ReturnsAsync(nodes);

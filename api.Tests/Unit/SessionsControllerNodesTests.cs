@@ -46,7 +46,8 @@ public class SessionsControllerNodesTests
             null!, // IFitAnalysisService
             _engineFactory.Object,
             _validator,
-            null!); // IMapboxRoutingService
+            null!, // IRouteBuilderService
+            Mock.Of<IItemExecutionService>());
     }
 
     private void SetupSession(string mode = "singleplayer") =>

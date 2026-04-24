@@ -9,6 +9,11 @@ export const ENDPOINTS = {
     REGISTER: `${API_BASE}/auth/register`,
     ME: `${API_BASE}/auth/me`,
   },
+  ITEMS: {
+    DETOUR: (sessionId: string) => `${API_BASE}/sessions/${sessionId}/items/detour`,
+    DRONE: (sessionId: string) => `${API_BASE}/sessions/${sessionId}/items/drone`,
+    SIGNAL_AMPLIFIER: (sessionId: string) => `${API_BASE}/sessions/${sessionId}/items/signal-amplifier`,
+  }
 };
 
 export async function apiFetch<T>(

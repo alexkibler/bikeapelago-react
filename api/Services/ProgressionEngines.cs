@@ -27,7 +27,7 @@ public class SinglePlayerProgressionEngine(
         var nodes = await _nodeRepository.GetBySessionIdAsync(sessionId);
         var nextNode = nodes
             .Where(n => n.State == "Hidden")
-            .OrderBy(n => n.ApLocationId)
+            .OrderBy(n => n.ApArrivalLocationId)
             .FirstOrDefault();
 
         if (nextNode != null)
@@ -69,11 +69,17 @@ public class ArchipelagoProgressionEngine(IArchipelagoService archipelagoService
         _logger.LogInformation("Archipelago progression trigger for session {SessionId}", sessionId);
 
         var nodes = await _nodeRepository.GetBySessionIdAsync(sessionId);
-        var checkedNodes = nodes.Where(n => n.State == "Checked").ToList();
-
-        if (checkedNodes.Count > 0)
+        var locationsToCheck = new List<long>();
+        
+        foreach (var node in nodes)
         {
-            var locationIds = checkedNodes.Select(n => n.ApLocationId).ToArray();
+            if (node.IsArrivalChecked) locationsToCheck.Add(node.ApArrivalLocationId);
+            if (node.IsPrecisionChecked) locationsToCheck.Add(node.ApPrecisionLocationId);
+        }
+
+        if (locationsToCheck.Count > 0)
+        {
+            var locationIds = locationsToCheck.Distinct().ToArray();
             _logger.LogInformation("Sending {Count} checked locations to Archipelago for Session {SessionId}", locationIds.Length, sessionId);
             await _archipelagoService.CheckLocationsAsync(sessionId, locationIds);
         }
@@ -85,9 +91,19 @@ public class ArchipelagoProgressionEngine(IArchipelagoService archipelagoService
 
     public async Task CheckNodesAsync(Guid sessionId, List<MapNode> targetNodes)
     {
-        var locationIds = targetNodes.Select(n => n.ApLocationId).ToArray();
-        _logger.LogInformation("Sending {Count} location(s) to Archipelago for Session {SessionId}", locationIds.Length, sessionId);
-        await _archipelagoService.CheckLocationsAsync(sessionId, locationIds);
+        var locationsToCheck = new List<long>();
+        foreach (var node in targetNodes)
+        {
+            if (node.IsArrivalChecked) locationsToCheck.Add(node.ApArrivalLocationId);
+            if (node.IsPrecisionChecked) locationsToCheck.Add(node.ApPrecisionLocationId);
+        }
+
+        if (locationsToCheck.Count > 0)
+        {
+            var locationIds = locationsToCheck.Distinct().ToArray();
+            _logger.LogInformation("Sending {Count} location(s) to Archipelago for Session {SessionId}", locationIds.Length, sessionId);
+            await _archipelagoService.CheckLocationsAsync(sessionId, locationIds);
+        }
     }
 }
 

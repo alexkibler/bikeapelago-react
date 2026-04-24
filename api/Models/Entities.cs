@@ -67,6 +67,27 @@ public class GameSession
     [JsonPropertyName("mode")]
     public string Mode { get; set; } = "bike";
 
+    [JsonPropertyName("progression_mode")]
+    public string ProgressionMode { get; set; } = "None"; // "None", "Quadrant", "Radius", "Free"
+
+    [JsonPropertyName("north_pass_received")]
+    public bool NorthPassReceived { get; set; }
+
+    [JsonPropertyName("east_pass_received")]
+    public bool EastPassReceived { get; set; }
+
+    [JsonPropertyName("south_pass_received")]
+    public bool SouthPassReceived { get; set; }
+
+    [JsonPropertyName("west_pass_received")]
+    public bool WestPassReceived { get; set; }
+
+    [JsonPropertyName("radius_step")]
+    public int RadiusStep { get; set; } = 0; // 0=25%, 1=50%, 2=75%, 3=100%
+
+    [JsonPropertyName("signal_amplifier_active")]
+    public bool SignalAmplifierActive { get; set; }
+
     [JsonPropertyName("status")]
     [JsonConverter(typeof(JsonStringEnumConverter))]
     public SessionStatus Status { get; set; } = SessionStatus.SetupInProgress;
@@ -107,8 +128,11 @@ public class MapNode
     [JsonPropertyName("name")]
     public string Name { get; set; } = string.Empty;
 
-    [JsonPropertyName("ap_location_id")]
-    public long ApLocationId { get; set; }
+    [JsonPropertyName("ap_arrival_location_id")]
+    public long ApArrivalLocationId { get; set; }
+
+    [JsonPropertyName("ap_precision_location_id")]
+    public long ApPrecisionLocationId { get; set; }
 
     [JsonPropertyName("osm_node_id")]
     public string OsmNodeId { get; set; } = string.Empty;
@@ -116,8 +140,20 @@ public class MapNode
     [JsonIgnore] // Use DTO for JSON serialization of Point
     public Point? Location { get; set; }
 
+    [JsonPropertyName("region_tag")]
+    public string RegionTag { get; set; } = "Hub"; // "Hub", "North", "East", "South", "West"
+
     [JsonPropertyName("state")]
     public string State { get; set; } = "Hidden"; // "Hidden" | "Available" | "Checked"
+
+    [JsonPropertyName("is_arrival_checked")]
+    public bool IsArrivalChecked { get; set; }
+
+    [JsonPropertyName("is_precision_checked")]
+    public bool IsPrecisionChecked { get; set; }
+
+    [JsonPropertyName("has_been_relocated")]
+    public bool HasBeenRelocated { get; set; }
 
     [NotMapped]
     [JsonPropertyName("lat")]

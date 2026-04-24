@@ -5,5 +5,5 @@ namespace Bikeapelago.Api.Services;
 
 public interface IFitAnalysisService
 {
-    Models.FitAnalysisResult AnalyzeFitFile(Stream fitStream, IEnumerable<Models.MapNode>? availableNodes = null);
+    Models.FitAnalysisResult AnalyzeFitFile(Stream fitStream, IEnumerable<Models.MapNode>? availableNodes = null, double radiusMultiplier = 1.0);
 }

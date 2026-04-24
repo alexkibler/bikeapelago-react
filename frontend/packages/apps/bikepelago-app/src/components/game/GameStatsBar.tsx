@@ -10,9 +10,9 @@ interface GameStatsBarProps {
 const GameStatsBar = ({ session, nodes }: GameStatsBarProps) => {
   const { status, error } = useArchipelagoStore();
   const [showStatsInfo, setShowStatsInfo] = useState(false);
-  const checked = nodes.filter(n => n.state === 'Checked').length;
-  const available = nodes.filter(n => n.state === 'Available').length;
-  const hidden = nodes.filter(n => n.state === 'Hidden').length;
+  const arrivalChecked = nodes.filter(n => n.is_arrival_checked).length;
+  const precisionChecked = nodes.filter(n => n.is_precision_checked).length;
+  const totalPossibleChecks = nodes.length * 2;
 
   const statusColor = status === 'connected' ? 'bg-[var(--color-success-hex)] shadow-[0_0_8px_rgba(var(--color-success),0.5)]' :
                       status === 'connecting' ? 'bg-[var(--color-warning-hex)] animate-pulse' :
@@ -30,9 +30,27 @@ const GameStatsBar = ({ session, nodes }: GameStatsBarProps) => {
       )}
       <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-[var(--color-border-hex)] bg-[rgb(var(--color-surface-overlay))] relative group min-w-0">
         <div className={`w-2 h-2 rounded-full flex-shrink-0 ${statusColor}`}></div>
-        <span className="text-xs font-medium text-[var(--color-text-muted-hex)] truncate">
-          {session?.name || session?.ap_seed_name || 'Unnamed Session'} • {session?.ap_slot_name || 'Local Rider'}
-        </span>
+        <div className="flex flex-col min-w-0">
+          <span className="text-[10px] font-bold text-[var(--color-text-muted-hex)] truncate leading-none mb-1">
+            {session?.name || session?.ap_seed_name || 'Unnamed Session'}
+          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-medium text-[var(--color-text-subtle-hex)] truncate leading-none">
+              {session?.ap_slot_name || 'Local Rider'}
+            </span>
+            {session?.progression_mode === 'quadrant' && (
+              <div className="flex gap-0.5">
+                <div className={`w-1.5 h-1.5 rounded-full ${session.north_pass_received ? 'bg-blue-500' : 'bg-gray-700'}`} title="North"></div>
+                <div className={`w-1.5 h-1.5 rounded-full ${session.east_pass_received ? 'bg-blue-500' : 'bg-gray-700'}`} title="East"></div>
+                <div className={`w-1.5 h-1.5 rounded-full ${session.south_pass_received ? 'bg-blue-500' : 'bg-gray-700'}`} title="South"></div>
+                <div className={`w-1.5 h-1.5 rounded-full ${session.west_pass_received ? 'bg-blue-500' : 'bg-gray-700'}`} title="West"></div>
+              </div>
+            )}
+            {session?.progression_mode === 'radius' && (
+              <span className="text-[10px] text-orange-500 font-bold leading-none">R{session.radius_step}</span>
+            )}
+          </div>
+        </div>
         {error && (
           <div className="absolute top-full left-0 mt-2 p-2 bg-[var(--color-error-hex)]/90 border border-[var(--color-error-hex)] rounded text-[10px] text-[var(--color-text-hex)] opacity-0 group-hover:opacity-100 transition-opacity z-50 w-48">
             {error}
@@ -47,14 +65,13 @@ const GameStatsBar = ({ session, nodes }: GameStatsBarProps) => {
           aria-label="Toggle node statistics"
           aria-expanded={showStatsInfo}
         >
-          <div className="flex items-baseline gap-1" title="Hidden Locations">
-            <span className="text-[var(--color-text-hex)] leading-none text-sm">{hidden}</span>
+          <div className="flex items-baseline gap-1" title="Arrival Checks">
+            <span className="text-[var(--color-primary-hex)] leading-none text-sm">{arrivalChecked}</span>
+            <span className="text-[10px] text-[var(--color-text-subtle-hex)]">/ {nodes.length}</span>
           </div>
-          <div className="flex items-baseline gap-1" title="Available Locations">
-            <span className="text-[var(--color-primary-hex)] leading-none text-sm">{available}</span>
-          </div>
-          <div className="flex items-baseline gap-1" title="Checked Locations">
-            <span className="text-[var(--color-success-hex)] leading-none text-sm">{checked}</span>
+          <div className="flex items-baseline gap-1" title="Precision Checks">
+            <span className="text-[var(--color-success-hex)] leading-none text-sm">{precisionChecked}</span>
+            <span className="text-[10px] text-[var(--color-text-subtle-hex)]">/ {nodes.length}</span>
           </div>
         </button>
 
@@ -63,24 +80,26 @@ const GameStatsBar = ({ session, nodes }: GameStatsBarProps) => {
             <div className="flex flex-col">
               <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--color-border-hex)]/50">
                 <div className="flex items-center gap-2">
-                  <div className="w-2.5 h-2.5 rounded-full bg-[var(--color-text-hex)]"></div>
-                  <span className="text-[10px] font-bold text-[var(--color-text-muted-hex)] tracking-wider uppercase">Hidden</span>
+                  <div className="w-2.5 h-2.5 rounded-full bg-[var(--color-primary-hex)]"></div>
+                  <span className="text-[10px] font-bold text-[var(--color-text-muted-hex)] tracking-wider uppercase">Arrival (100m)</span>
                 </div>
-                <span className="text-[var(--color-text-hex)] font-bold">{hidden}</span>
+                <span className="text-[var(--color-primary-hex)] font-bold">{arrivalChecked}</span>
               </div>
               <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--color-border-hex)]/50">
                 <div className="flex items-center gap-2">
-                  <div className="w-2.5 h-2.5 rounded-full bg-[var(--color-primary-hex)]"></div>
-                  <span className="text-[10px] font-bold text-[var(--color-text-muted-hex)] tracking-wider uppercase">Available</span>
-                </div>
-                <span className="text-[var(--color-primary-hex)] font-bold">{available}</span>
-              </div>
-              <div className="flex items-center justify-between px-4 py-3">
-                <div className="flex items-center gap-2">
                   <div className="w-2.5 h-2.5 rounded-full bg-[var(--color-success-hex)]"></div>
-                  <span className="text-[10px] font-bold text-[var(--color-text-muted-hex)] tracking-wider uppercase">Checked</span>
+                  <span className="text-[10px] font-bold text-[var(--color-text-muted-hex)] tracking-wider uppercase">Precision (25m)</span>
                 </div>
-                <span className="text-[var(--color-success-hex)] font-bold">{checked}</span>
+                <span className="text-[var(--color-success-hex)] font-bold">{precisionChecked}</span>
+              </div>
+              <div className="px-4 py-2 bg-[var(--color-surface-alt-hex)]">
+                <div className="flex justify-between items-center mb-1">
+                  <span className="text-[8px] font-bold text-[var(--color-text-subtle-hex)] uppercase tracking-widest">Total Seed Progress</span>
+                  <span className="text-[10px] font-mono text-[var(--color-text-muted-hex)]">{Math.round((arrivalChecked + precisionChecked) / totalPossibleChecks * 100)}%</span>
+                </div>
+                <div className="w-full bg-gray-800 rounded-full h-1">
+                  <div className="bg-[var(--color-success-hex)] h-1 rounded-full" style={{ width: `${(arrivalChecked + precisionChecked) / totalPossibleChecks * 100}%` }}></div>
+                </div>
               </div>
             </div>
           </div>

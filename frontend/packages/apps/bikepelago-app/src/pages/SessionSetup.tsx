@@ -82,6 +82,7 @@ const SessionSetup = () => {
   const [address, setAddress] = useState('');
   const [nodeCount, setNodeCount] = useState(mode === 'archipelago' ? 50 : 25);
   const [travelMode, setTravelMode] = useState<'bike' | 'walk'>('bike');
+  const [progressionMode, setProgressionMode] = useState<string>('quadrant');
 
   // UI State
   const [isGenerating, setIsGenerating] = useState(false);
@@ -134,6 +135,7 @@ const SessionSetup = () => {
         ap_server_url?: string;
         ap_slot_name?: string;
         mode: string;
+        progression_mode: string;
       } = {
         user: user?.id ?? '',
         name: sessionName,
@@ -142,6 +144,7 @@ const SessionSetup = () => {
         center_lat: center[0],
         center_lon: center[1],
         mode: mode,
+        progression_mode: progressionMode,
       };
 
       if (mode === 'archipelago') {
@@ -185,7 +188,7 @@ const SessionSetup = () => {
           centerLon: center[1],
           radius,
           nodeCount: mode === 'singleplayer' ? nodeCount : undefined,
-          gameMode: mode,
+          gameMode: mode === 'singleplayer' ? progressionMode : mode,
           mode: travelMode,
         }),
       });
@@ -381,7 +384,72 @@ const SessionSetup = () => {
               </div>
             </div>
 
-            {/* Progress */}
+            {/* Progression Mode */}
+            {mode === 'singleplayer' && (
+              <div className='space-y-4 pt-4 border-t border-[var(--color-border-hex)]'>
+                <div className='flex justify-between items-center'>
+                  <label className='text-xs font-black uppercase tracking-widest text-[var(--color-text-subtle-hex)]'>
+                    Progression Mode
+                  </label>
+                </div>
+                <div className='grid grid-cols-1 gap-2'>
+                  <button
+                    type='button'
+                    onClick={() => setProgressionMode('quadrant')}
+                    className={`flex items-center gap-3 p-3 rounded-xl border-2 transition-all ${
+                      progressionMode === 'quadrant'
+                        ? 'border-orange-500 bg-orange-500/5 text-orange-500'
+                        : 'border-[var(--color-border-hex)] bg-[var(--color-surface-alt-hex)] text-[var(--color-text-muted-hex)] hover:border-[var(--color-border-strong-hex)]'
+                    }`}
+                  >
+                    <div className='grid grid-cols-2 gap-0.5 w-4 h-4'>
+                      <div className='bg-current opacity-40 rounded-sm'></div>
+                      <div className='bg-current rounded-sm'></div>
+                      <div className='bg-current opacity-40 rounded-sm'></div>
+                      <div className='bg-current opacity-40 rounded-sm'></div>
+                    </div>
+                    <div className='text-left'>
+                      <p className='font-bold text-xs'>Quadrant Mode</p>
+                      <p className='text-[9px] opacity-70'>Unlock wedges of the map</p>
+                    </div>
+                  </button>
+                  <button
+                    type='button'
+                    onClick={() => setProgressionMode('radius')}
+                    className={`flex items-center gap-3 p-3 rounded-xl border-2 transition-all ${
+                      progressionMode === 'radius'
+                        ? 'border-orange-500 bg-orange-500/5 text-orange-500'
+                        : 'border-[var(--color-border-hex)] bg-[var(--color-surface-alt-hex)] text-[var(--color-text-muted-hex)] hover:border-[var(--color-border-strong-hex)]'
+                    }`}
+                  >
+                    <div className='relative w-4 h-4 border-2 border-current rounded-full flex items-center justify-center'>
+                      <div className='w-1 h-1 bg-current rounded-full'></div>
+                    </div>
+                    <div className='text-left'>
+                      <p className='font-bold text-xs'>Radius Mode</p>
+                      <p className='text-[9px] opacity-70'>Expand outward from center</p>
+                    </div>
+                  </button>
+                  <button
+                    type='button'
+                    onClick={() => setProgressionMode('free')}
+                    className={`flex items-center gap-3 p-3 rounded-xl border-2 transition-all ${
+                      progressionMode === 'free'
+                        ? 'border-orange-500 bg-orange-500/5 text-orange-500'
+                        : 'border-[var(--color-border-hex)] bg-[var(--color-surface-alt-hex)] text-[var(--color-text-muted-hex)] hover:border-[var(--color-border-strong-hex)]'
+                    }`}
+                  >
+                    <Search className='w-4 h-4' />
+                    <div className='text-left'>
+                      <p className='font-bold text-xs'>Free Mode</p>
+                      <p className='text-[9px] opacity-70'>Nodes revealed one-by-one</p>
+                    </div>
+                  </button>
+                </div>
+              </div>
+            )}
+
+                {/* Progress */}
             {isGenerating && (
               <div className='space-y-2 pt-4 border-t border-[var(--color-border-hex)] animate-in fade-in duration-300'>
                 <div className='flex justify-between text-xs mb-1'>
