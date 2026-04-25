@@ -32,6 +32,7 @@ services:
       ConnectionStrings__OsmDiscovery: ${DEPLOY_OSM_CONNSTR:-Host=postgis-osm;Port=5432;Database=osm_discovery;Username=osm;Password=postgres}
       AllowedOrigins__0: ${ALLOWED_ORIGIN_0:-https://bikeapelago.alexkibler.com}
       AllowedOrigins__1: ${ALLOWED_ORIGIN_1:-https://admin.bikeapelago.alexkibler.com}
+      AllowedOrigins__2: ${ALLOWED_ORIGIN_2:-capacitor://localhost}
     ports:
       - "5054:5054"
     networks:

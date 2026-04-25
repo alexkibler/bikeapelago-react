@@ -67,7 +67,7 @@ function App() {
 
   return (
     <Router>
-      <DataFetchProvider handleUnauthorized={handleUnauthorized} token={token ?? null}>
+      <DataFetchProvider handleUnauthorized={handleUnauthorized} token={token ?? null} baseUrl={import.meta.env.VITE_PUBLIC_API_URL as string | undefined}>
         <Layout>
           <AppRoutes />
         </Layout>

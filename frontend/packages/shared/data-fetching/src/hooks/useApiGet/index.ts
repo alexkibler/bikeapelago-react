@@ -7,12 +7,13 @@ export function useApiGet<
   TResponse,
   TSearchParams extends Record<string, string> | void | undefined = void
 >(): QueryRequestCallback<TResponse, TSearchParams> {
-  const { handleUnauthorized, token } = useDataFetchProviderCtx();
+  const { handleUnauthorized, token, baseUrl } = useDataFetchProviderCtx();
 
   const request: QueryRequestCallback<TResponse, TSearchParams> = useCallback(async (url: string, {
     searchParams: _searchParams,
     signal
   }: QueryRequestCallbackArgs<TSearchParams>) => {
+    url = baseUrl ? `${baseUrl}${url}` : url;
     const headers = {
       'Content-Type': 'application/json',
       ...(token ? { 'Authorization': `Bearer ${token}` } : {})

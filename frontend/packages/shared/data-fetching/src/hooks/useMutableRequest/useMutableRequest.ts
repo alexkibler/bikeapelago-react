@@ -10,13 +10,14 @@ function useApiMutableRequest<
   TResponse,
   TSearchParams extends Record<string, string> | void | undefined = void
 >(method: MethodType): MutationRequestCallback<TBody, TResponse, TSearchParams> {
-  const { handleUnauthorized, token } = useDataFetchProviderCtx();
+  const { handleUnauthorized, token, baseUrl } = useDataFetchProviderCtx();
 
   const request: MutationRequestCallback<TBody, TResponse, TSearchParams> = useCallback(async (url: string, {
     body,
     searchParams: _searchParams,
     signal
   }: MutationRequestCallbackArgs<TBody, TSearchParams>) => {
+    url = baseUrl ? `${baseUrl}${url}` : url;
     const headers = {
       'Content-Type': 'application/json',
       ...(token ? { 'Authorization': `Bearer ${token}` } : {})
