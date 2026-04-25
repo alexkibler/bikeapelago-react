@@ -33,11 +33,11 @@ function App() {
       if (canGoBack) {
         window.history.back();
       } else {
-        CapApp.exitApp();
+        void CapApp.exitApp();
       }
     });
     return () => {
-      listenerPromise.then(handle => handle.remove());
+      void listenerPromise.then(handle => handle.remove());
     };
   }, []);
 

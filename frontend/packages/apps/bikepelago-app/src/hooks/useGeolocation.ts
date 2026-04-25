@@ -52,7 +52,7 @@ export function useGeolocation() {
       );
     };
 
-    start();
+    void start();
 
     return () => {
       cancelled = true;
