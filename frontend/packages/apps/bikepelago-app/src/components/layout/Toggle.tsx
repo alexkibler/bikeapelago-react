@@ -1,3 +1,5 @@
+import { useId } from 'react';
+
 interface ToggleProps {
   id?: string;
   label?: string;
@@ -7,11 +9,25 @@ interface ToggleProps {
   className?: string;
 }
 
-const Toggle = ({ id, label, checked, onCheckedChange, disabled = false, className = '' }: ToggleProps) => {
+const Toggle = ({ id: providedId, label, checked, onCheckedChange, disabled = false, className = '' }: ToggleProps) => {
+  const generatedId = useId();
+  const id = providedId ?? generatedId;
+
+  const handleLabelClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (!disabled) {
+      onCheckedChange(!checked);
+      document.getElementById(id)?.focus();
+    }
+  };
+
   return (
     <div className={`flex items-center justify-between ${className}`}>
       {label && (
-        <label htmlFor={id} className='text-xs font-bold uppercase tracking-wider text-[var(--color-text-subtle-hex)] cursor-pointer'>
+        <label
+          htmlFor={id}
+          onClick={handleLabelClick}
+          className='text-xs font-bold uppercase tracking-wider text-[var(--color-text-subtle-hex)] cursor-pointer'>
           {label}
         </label>
       )}
