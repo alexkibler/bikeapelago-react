@@ -19,7 +19,7 @@ public class OverpassOsmDiscoveryService(HttpClient httpClient, ILogger<Overpass
         return await GetRandomNodesInWedgeAsync(lat, lon, radiusMeters, 0, 360, count, mode, densityBias);
     }
 
-    public async Task<List<DiscoveryPoint>> GetRandomNodesInWedgeAsync(double lat, double lon, double radiusMeters, double startDeg, double endDeg, int count, string mode = "bike", double densityBias = 0.5)
+    public async Task<List<DiscoveryPoint>> GetRandomNodesInWedgeAsync(double lat, double lon, double radiusMeters, double startDeg, double endDeg, int count, string mode = "bike", double densityBias = 0.5, double minRadiusMeters = 0.0)
     {
         _logger.LogInformation("Fetching random nodes from Overpass API at {Lat},{Lon} radius {Radius}m, wedge {Start}-{End}, mode: {Mode}", lat, lon, radiusMeters, startDeg, endDeg, mode);
 

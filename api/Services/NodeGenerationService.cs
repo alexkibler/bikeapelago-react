@@ -153,7 +153,7 @@ public class NodeGenerationService(
             foreach (var q in quadrants)
             {
                 var qPoints = await _osmDiscoveryService.GetRandomNodesInWedgeAsync(
-                    request.CenterLat, request.CenterLon, request.Radius, q.Item1, q.Item2, quadrantTarget, request.TransportMode, request.DensityBias);
+                    request.CenterLat, request.CenterLon, request.Radius, q.Item1, q.Item2, quadrantTarget, request.TransportMode, request.DensityBias, hubRadius);
                 
                 foreach (var p in qPoints)
                 {

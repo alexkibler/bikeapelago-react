@@ -44,9 +44,9 @@ public class OsmDiscoveryService : IOsmDiscoveryService
         return _impl.GetRandomNodesAsync(lat, lon, radiusMeters, count, mode, densityBias);
     }
 
-    public Task<List<DiscoveryPoint>> GetRandomNodesInWedgeAsync(double lat, double lon, double radiusMeters, double startDeg, double endDeg, int count, string mode = "bike", double densityBias = 0.5)
+    public Task<List<DiscoveryPoint>> GetRandomNodesInWedgeAsync(double lat, double lon, double radiusMeters, double startDeg, double endDeg, int count, string mode = "bike", double densityBias = 0.5, double minRadiusMeters = 0.0)
     {
-        return _impl.GetRandomNodesInWedgeAsync(lat, lon, radiusMeters, startDeg, endDeg, count, mode, densityBias);
+        return _impl.GetRandomNodesInWedgeAsync(lat, lon, radiusMeters, startDeg, endDeg, count, mode, densityBias, minRadiusMeters);
     }
 
     public Task<List<ValidateResult>> ValidateNodesAsync(ValidateRequest request)
@@ -61,7 +61,7 @@ public class OsmDiscoveryService : IOsmDiscoveryService
             return GetRandomNodesInWedgeAsync(lat, lon, radiusMeters, 0, 360, count, mode, densityBias);
         }
 
-        public Task<List<DiscoveryPoint>> GetRandomNodesInWedgeAsync(double lat, double lon, double radiusMeters, double startDeg, double endDeg, int count, string mode = "bike", double densityBias = 0.5)
+        public Task<List<DiscoveryPoint>> GetRandomNodesInWedgeAsync(double lat, double lon, double radiusMeters, double startDeg, double endDeg, int count, string mode = "bike", double densityBias = 0.5, double minRadiusMeters = 0.0)
         {
             var mockPoints = new List<DiscoveryPoint>();
             var random = Random.Shared;
