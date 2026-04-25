@@ -1,6 +1,7 @@
 import { getToken, handleUnauthorized } from '../store/authStore';
 
-export const API_BASE = '/api';
+const API_ORIGIN = (import.meta.env.VITE_PUBLIC_API_URL as string | undefined) ?? '';
+export const API_BASE = `${API_ORIGIN}/api`;
 
 export const ENDPOINTS = {
   SESSIONS: `${API_BASE}/sessions`,

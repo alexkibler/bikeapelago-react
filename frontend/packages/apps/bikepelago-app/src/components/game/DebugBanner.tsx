@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useDebugStore } from '../../store/debugStore';
 import { useGameStore } from '../../store/gameStore';
+import { API_BASE } from '../../lib/api';
 import { getToken } from '../../store/authStore';
 
 const DebugBanner = () => {
@@ -21,7 +22,7 @@ const DebugBanner = () => {
     setCompleting(true);
     try {
       const token = getToken();
-      const res = await fetch(`/api/sessions/${session.id}/debug/force-complete`, {
+      const res = await fetch(`${API_BASE}/sessions/${session.id}/debug/force-complete`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -42,7 +43,7 @@ const DebugBanner = () => {
     setClearing(true);
     try {
       const token = getToken();
-      const res = await fetch(`/api/sessions/${session.id}/nodes/check`, {
+      const res = await fetch(`${API_BASE}/sessions/${session.id}/nodes/check`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

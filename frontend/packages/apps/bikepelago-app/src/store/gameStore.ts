@@ -145,7 +145,15 @@ export const useGameStore = create<GameState>((set, get) => ({
   setNodes: (nodes) => set({ nodes }),
 
   session: null,
-  setSession: (session) => set({ session }),
+  setSession: (session) => set({
+    session,
+    routeData: { distance: 0, elevation: 0, polyline: [] },
+    waypoints: [],
+    selectedNodeIds: new Set<string>(),
+    customOrigin: null,
+    pendingMapClick: null,
+    routingError: null,
+  }),
 
   routeData: {
     distance: 0,
