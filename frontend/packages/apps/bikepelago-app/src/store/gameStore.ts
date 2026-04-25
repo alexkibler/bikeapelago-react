@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 
 import { ENDPOINTS, apiFetch } from '../lib/api';
+import { useArchipelagoStore } from './archipelagoStore';
 import type { FitAnalysisResult, GameSession, MapNode } from '../types/game';
 
 export type GamePanel = 'chat' | 'upload' | 'route' | 'inventory' | null;
@@ -86,6 +87,8 @@ interface GameState {
 
   syncVersion: number;
   triggerSync: () => void;
+
+  reset: () => void;
 }
 
 export const useGameStore = create<GameState>((set, get) => ({
@@ -145,15 +148,21 @@ export const useGameStore = create<GameState>((set, get) => ({
   setNodes: (nodes) => set({ nodes }),
 
   session: null,
-  setSession: (session) => set({
-    session,
-    routeData: { distance: 0, elevation: 0, polyline: [] },
-    waypoints: [],
-    selectedNodeIds: new Set<string>(),
-    customOrigin: null,
-    pendingMapClick: null,
-    routingError: null,
-  }),
+  setSession: (session) => {
+    useArchipelagoStore.getState().reset();
+    set({
+      session,
+      nodes: [],
+      activePanel: null,
+      analysisResult: null,
+      routeData: { distance: 0, elevation: 0, polyline: [] },
+      waypoints: [],
+      selectedNodeIds: new Set<string>(),
+      customOrigin: null,
+      pendingMapClick: null,
+      routingError: null,
+    });
+  },
 
   routeData: {
     distance: 0,
@@ -252,4 +261,23 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   syncVersion: 0,
   triggerSync: () => set((state) => ({ syncVersion: state.syncVersion + 1 })),
+
+  reset: () => {
+    useArchipelagoStore.getState().reset();
+    set({
+      activePanel: null,
+      waypoints: [],
+      selectedNodeIds: new Set<string>(),
+      customOrigin: null,
+      pendingMapClick: null,
+      nodes: [],
+      session: null,
+      routeData: { distance: 0, elevation: 0, polyline: [] },
+      isRouting: false,
+      routingError: null,
+      analysisResult: null,
+      userLocation: null,
+      syncVersion: 0,
+    });
+  },
 }));

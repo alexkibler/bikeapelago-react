@@ -14,6 +14,7 @@ import { Login } from './pages/Login';
 import Register from './pages/Register';
 import About from './pages/About';
 import Settings from './pages/Settings';
+import { resetStores } from './lib/resetStores';
 import { handleUnauthorized, useAuthStore } from './store/authStore';
 import { useFitFileOpen } from './hooks/useFitFileOpen';
 import { DataFetchProvider } from '@bikeapelago/shared-data-fetching';
@@ -67,7 +68,7 @@ function App() {
 
   return (
     <Router>
-      <DataFetchProvider handleUnauthorized={handleUnauthorized} token={token ?? null} baseUrl={import.meta.env.VITE_PUBLIC_API_URL as string | undefined}>
+      <DataFetchProvider handleUnauthorized={() => { resetStores(); handleUnauthorized(); }} token={token ?? null} baseUrl={import.meta.env.VITE_PUBLIC_API_URL as string | undefined}>
         <Layout>
           <AppRoutes />
         </Layout>

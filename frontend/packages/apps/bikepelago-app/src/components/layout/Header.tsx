@@ -1,4 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom';
+import { resetStores } from '../../lib/resetStores';
 import { useAuthStore } from '../../store/authStore';
 import { LogOut } from 'lucide-react';
 import ThemeToggle from './ThemeToggle';
@@ -8,6 +9,7 @@ const Header = () => {
   const { user, logout } = useAuthStore();
 
   const handleLogout = () => {
+    resetStores();
     logout();
     void navigate('/login');
   };

@@ -4,6 +4,7 @@ import { Camera, ChevronRight, Edit3, LogOut, Save, User } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 import { API_BASE } from '../lib/api';
+import { resetStores } from '../lib/resetStores';
 import { getToken, useAuthStore } from '../store/authStore';
 
 const AthleteProfile = () => {
@@ -60,6 +61,7 @@ const AthleteProfile = () => {
   };
 
   const handleSignOut = () => {
+    resetStores();
     logout();
     void navigate('/login');
   };
