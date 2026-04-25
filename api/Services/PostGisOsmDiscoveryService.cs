@@ -52,19 +52,19 @@ public class PostGisOsmDiscoveryService : IOsmDiscoveryService
         return await GetRandomNodesInWedgeAsync(lat, lon, radiusMeters, 0, 360, count, mode, densityBias);
     }
 
-    public async Task<List<DiscoveryPoint>> GetRandomNodesInWedgeAsync(double lat, double lon, double radiusMeters, double startDeg, double endDeg, int count, string mode = "bike", double densityBias = 0.5)
+    public async Task<List<DiscoveryPoint>> GetRandomNodesInWedgeAsync(double lat, double lon, double radiusMeters, double startDeg, double endDeg, int count, string mode = "bike", double densityBias = 0.5, double minRadiusMeters = 0.0)
     {
         _logger.LogInformation("Fetching random nodes from PostGIS at {Lat},{Lon} radius {Radius}m, wedge {Start}-{End}, mode: {Mode}", lat, lon, radiusMeters, startDeg, endDeg, mode);
         var totalSw = System.Diagnostics.Stopwatch.StartNew();
 
         // Step 1: Get grid cells covering this radius
         var gridCells = _gridCache.GetCoveringGridCells(lat, lon, radiusMeters);
-        
+
         // Step 2: Filter cells that are at least partially in the wedge to save cache probes
         var wedgeCells = gridCells.Where(c => {
              // For simplicity, just check the cell corners
              // In a perfect world we'd check if the cell polygon intersects the wedge
-             return true; 
+             return true;
         }).ToList();
 
         // Step 3: Check cache status
@@ -84,11 +84,11 @@ public class PostGisOsmDiscoveryService : IOsmDiscoveryService
         }
         else
         {
-            // Probing specifically within the wedge
+            // Probing specifically within the wedge, starting beyond minRadiusMeters
             double subRadiusMeters = Math.Clamp(radiusMeters * 0.1, 200, 1500);
             int subTargetCount = (int)Math.Ceiling(count * 2.5);
 
-            var subTargets = GenerateRandomPointsInWedge(lat, lon, radiusMeters, startDeg, endDeg, subTargetCount, densityBias);
+            var subTargets = GenerateRandomPointsInWedge(lat, lon, radiusMeters, startDeg, endDeg, subTargetCount, densityBias, minRadiusMeters);
             allNodes = await FetchNodesForSubTargetsAsync(subTargets, subRadiusMeters, mode);
         }
 
@@ -97,6 +97,7 @@ public class PostGisOsmDiscoveryService : IOsmDiscoveryService
             .Where(p => {
                 double dist = CalculateDistance(lat, lon, p.Lat, p.Lon);
                 if (dist > radiusMeters) return false;
+                if (dist < minRadiusMeters) return false;
                 double az = CalculateAzimuth(lat, lon, p.Lat, p.Lon);
                 return IsInWedge(az, startDeg, endDeg);
             })
@@ -128,19 +129,24 @@ public class PostGisOsmDiscoveryService : IOsmDiscoveryService
         return az >= start || az <= end;
     }
 
-    internal static List<DiscoveryPoint> GenerateRandomPointsInWedge(double centerLat, double centerLon, double radiusMeters, double startDeg, double endDeg, int count, double densityBias = 0.5)
+    internal static List<DiscoveryPoint> GenerateRandomPointsInWedge(double centerLat, double centerLon, double radiusMeters, double startDeg, double endDeg, int count, double densityBias = 0.5, double minRadiusMeters = 0.0)
     {
         var points = new List<DiscoveryPoint>(count);
 
         double normalizedStart = NormalizeDegrees(startDeg);
         double normalizedEnd = NormalizeDegrees(endDeg);
         double sweepDeg = normalizedEnd - normalizedStart;
-        
+
         if (sweepDeg <= 0) sweepDeg += 360;
+
+        double outerRange = radiusMeters - minRadiusMeters;
 
         for (int i = 0; i < count; i++)
         {
-            double distance = Math.Pow(Random.Shared.NextDouble(), densityBias) * radiusMeters;
+            // Apply density bias to the outer ring [minRadius, maxRadius], not from zero.
+            // This ensures probes are concentrated in the target zone and not wasted
+            // in an area already covered by the hub query.
+            double distance = minRadiusMeters + Math.Pow(Random.Shared.NextDouble(), densityBias) * outerRange;
             double bearing = NormalizeDegrees(normalizedStart + Random.Shared.NextDouble() * sweepDeg);
             points.Add(ProjectPoint(centerLat, centerLon, distance, bearing));
         }

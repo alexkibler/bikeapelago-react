@@ -20,7 +20,7 @@ public class PbfOsmDiscoveryService(ILogger<PbfOsmDiscoveryService> logger, stri
         return await GetRandomNodesInWedgeAsync(lat, lon, radiusMeters, 0, 360, count, mode, densityBias);
     }
 
-    public async Task<List<DiscoveryPoint>> GetRandomNodesInWedgeAsync(double lat, double lon, double radiusMeters, double startDeg, double endDeg, int count, string mode = "bike", double densityBias = 0.5)
+    public async Task<List<DiscoveryPoint>> GetRandomNodesInWedgeAsync(double lat, double lon, double radiusMeters, double startDeg, double endDeg, int count, string mode = "bike", double densityBias = 0.5, double minRadiusMeters = 0.0)
     {
         _logger.LogInformation("Streaming random nodes from PBF file at {Path} near {Lat},{Lon} radius {Radius}m, wedge {Start}-{End}, mode: {Mode}", _pbfPath, lat, lon, radiusMeters, startDeg, endDeg, mode);
 

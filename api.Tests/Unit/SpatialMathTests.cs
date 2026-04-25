@@ -162,6 +162,83 @@ public class SpatialMathTests
         }
     }
 
+    // ── All four quadrant wedges ───────────────────────────────────────────
+
+    [Theory]
+    [InlineData(315, 45,  "North")]
+    [InlineData(45,  135, "East")]
+    [InlineData(135, 225, "South")]
+    [InlineData(225, 315, "West")]
+    public void GenerateRandomPointsInWedge_AllQuadrants_AllPointsWithinWedge(double start, double end, string _)
+    {
+        var points = PostGisOsmDiscoveryService.GenerateRandomPointsInWedge(
+            CenterLat, CenterLon, 50_000, start, end, count: 500);
+
+        Assert.Equal(500, points.Count);
+        foreach (var p in points)
+        {
+            double az = CalculateAzimuth(CenterLat, CenterLon, p.Lat, p.Lon);
+            Assert.True(IsInWedge(az, start, end),
+                $"{_} quadrant: point at azimuth {az:F2} is not within [{start},{end}]");
+        }
+    }
+
+    // ── minRadiusMeters ───────────────────────────────────────────────────
+
+    [Fact]
+    public void GenerateRandomPointsInWedge_WithMinRadius_NoPointWithinMinRadius()
+    {
+        const double minRadius = 3_000;
+        const double maxRadius = 12_000;
+
+        var points = PostGisOsmDiscoveryService.GenerateRandomPointsInWedge(
+            CenterLat, CenterLon, maxRadius, 45, 135, count: 1000, densityBias: 0.5, minRadiusMeters: minRadius);
+
+        foreach (var p in points)
+        {
+            double dist = HaversineMeters(CenterLat, CenterLon, p.Lat, p.Lon);
+            Assert.True(dist >= minRadius * 0.99,
+                $"Point at distance {dist:F0}m is inside the forbidden hub zone (minRadius={minRadius}m)");
+        }
+    }
+
+    [Fact]
+    public void GenerateRandomPointsInWedge_WithMinRadius_AllPointsWithinMaxRadius()
+    {
+        const double minRadius = 3_000;
+        const double maxRadius = 12_000;
+
+        var points = PostGisOsmDiscoveryService.GenerateRandomPointsInWedge(
+            CenterLat, CenterLon, maxRadius, 45, 135, count: 1000, densityBias: 0.5, minRadiusMeters: minRadius);
+
+        foreach (var p in points)
+        {
+            double dist = HaversineMeters(CenterLat, CenterLon, p.Lat, p.Lon);
+            Assert.True(dist <= maxRadius * 1.02,
+                $"Point at distance {dist:F0}m exceeds maxRadius={maxRadius}m");
+        }
+    }
+
+    [Fact]
+    public void GenerateRandomPointsInWedge_WithMinRadius_PointsAreEastOfCenter()
+    {
+        // East wedge (45-135°) with minRadius should still produce points with lon > centerLon.
+        // This guards against any direction regression in the presence of the new minRadius parameter.
+        const double minRadius = 2_000;
+        const double maxRadius = 10_000;
+
+        var points = PostGisOsmDiscoveryService.GenerateRandomPointsInWedge(
+            CenterLat, CenterLon, maxRadius, 45, 135, count: 500, densityBias: 0.5, minRadiusMeters: minRadius);
+
+        // Every east-wedge point must be strictly east of center (lon > centerLon).
+        // East wedge spans 45–135°, so all vectors have a positive east component.
+        foreach (var p in points)
+        {
+            Assert.True(p.Lon > CenterLon,
+                $"East-wedge point at lon={p.Lon:F5} is west of center lon={CenterLon}");
+        }
+    }
+
     // Duplicate logic for testing purposes
     private double CalculateAzimuth(double lat1, double lon1, double lat2, double lon2)
     {
