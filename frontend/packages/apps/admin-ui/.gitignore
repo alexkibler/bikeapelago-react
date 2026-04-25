@@ -22,3 +22,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# TypeScript compiled output
+*.tsbuildinfo
+src/**/*.js
+vite.config.js
