@@ -1,8 +1,9 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useState } from 'react';
 
-interface User {
+export interface User {
   id: string;
-  userName: string;
+  userName?: string;
+  username?: string;
   name?: string;
   email?: string;
   avatar?: string;
@@ -13,34 +14,67 @@ interface AuthContextType {
   user: User | null;
   token: string | null;
   loading: boolean;
-  login: (token: string, user: any) => void;
+  login: (token: string, user: unknown) => void;
   logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+const normalizeUser = (value: unknown): User | null => {
+  if (!isRecord(value) || typeof value.id !== 'string') {
+    return null;
+  }
+
+  const roles = Array.isArray(value.roles)
+    ? value.roles.filter((role): role is string => typeof role === 'string')
+    : [];
+
+  return {
+    id: value.id,
+    userName:
+      typeof value.userName === 'string'
+        ? value.userName
+        : typeof value.username === 'string'
+          ? value.username
+          : undefined,
+    username: typeof value.username === 'string' ? value.username : undefined,
+    name: typeof value.name === 'string' ? value.name : undefined,
+    email: typeof value.email === 'string' ? value.email : undefined,
+    avatar: typeof value.avatar === 'string' ? value.avatar : undefined,
+    roles,
+  };
+};
+
+const parseStoredUser = (raw: string): User | null => {
+  try {
+    return normalizeUser(JSON.parse(raw) as unknown);
+  } catch {
+    return null;
+  }
+};
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<User | null>(() => {
+    const savedUser = localStorage.getItem('admin_user');
+    return savedUser ? parseStoredUser(savedUser) : null;
+  });
   const [token, setToken] = useState<string | null>(
     localStorage.getItem('admin_token'),
   );
-  const [loading, setLoading] = useState(true);
+  const [loading] = useState(false);
 
-  useEffect(() => {
-    const savedUser = localStorage.getItem('admin_user');
-    if (token && savedUser) {
-      setUser(JSON.parse(savedUser));
-    }
-    setLoading(false);
-  }, [token]);
+  const login = (nextToken: string, userData: unknown) => {
+    const normalizedUser = normalizeUser(userData);
 
-  const login = (token: string, userData: any) => {
-    localStorage.setItem('admin_token', token);
+    localStorage.setItem('admin_token', nextToken);
     localStorage.setItem('admin_user', JSON.stringify(userData));
-    setToken(token);
-    setUser(userData);
+    setToken(nextToken);
+    setUser(normalizedUser);
   };
 
   const logout = () => {

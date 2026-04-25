@@ -10,7 +10,7 @@ export const DashboardLayout: React.FC = () => {
 
   const handleLogout = () => {
     logout();
-    navigate('/login');
+    void navigate('/login');
   };
 
   const navItems = [

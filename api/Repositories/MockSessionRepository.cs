@@ -29,6 +29,8 @@ public class MockSessionRepository : IGameSessionRepository
     public Task<GameSession> CreateAsync(GameSession session)
     {
         session.Id = Guid.NewGuid();
+        session.CreatedAt = DateTime.UtcNow.ToString("O");
+        session.UpdatedAt = DateTime.UtcNow.ToString("O");
         _sessions.Add(session);
         return Task.FromResult(session);
     }

@@ -15,10 +15,22 @@ import {
 
 import { useAuth } from '../context/AuthContext';
 
+interface AnalyticsSummary {
+  totalUsers: number;
+  activeSessions: number;
+  totalNodes: number;
+  apiUtilization: number;
+}
+
+interface TrafficSeries {
+  labels: string[];
+  data: number[];
+}
+
 export const AnalyticsDashboard: React.FC = () => {
   const { token } = useAuth();
-  const [summary, setSummary] = useState<any>(null);
-  const [traffic, setTraffic] = useState<any>(null);
+  const [summary, setSummary] = useState<AnalyticsSummary | null>(null);
+  const [traffic, setTraffic] = useState<TrafficSeries | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -32,15 +44,15 @@ export const AnalyticsDashboard: React.FC = () => {
             headers: { Authorization: `Bearer ${token}` },
           }),
         ]);
-        setSummary(sumRes.data);
-        setTraffic(trafRes.data);
+        setSummary(sumRes.data as AnalyticsSummary);
+        setTraffic(trafRes.data as TrafficSeries);
       } catch (err) {
         console.error('Failed to fetch analytics', err);
       } finally {
         setLoading(false);
       }
     };
-    fetchData();
+    void fetchData();
   }, [token]);
 
   if (loading)
@@ -190,7 +202,7 @@ export const AnalyticsDashboard: React.FC = () => {
           </div>
           <div className='flex justify-between px-2'>
             {traffic?.labels
-              .filter((_: any, i: number) => i % 6 === 0)
+              .filter((_, i) => i % 6 === 0)
               .map((l: string, i: number) => (
                 <span
                   key={i}

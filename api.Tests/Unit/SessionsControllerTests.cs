@@ -9,7 +9,6 @@ using Bikeapelago.Api.Repositories;
 using Bikeapelago.Api.Services;
 using Bikeapelago.Api.Models;
 using Bikeapelago.Api.Validators;
-using NetTopologySuite.Geometries;
 
 namespace Bikeapelago.Api.Tests.Unit;
 
@@ -19,6 +18,7 @@ public class SessionsControllerTests
     private readonly Mock<IMapNodeRepository> _nodeRepoMock;
     private readonly Mock<IUserRepository> _userRepoMock;
     private readonly Mock<IRouteBuilderService> _routeBuilderMock;
+    private readonly Mock<IItemExecutionService> _itemExecutionMock;
     private readonly SessionsController _controller;
     private readonly Guid _userId;
 
@@ -28,6 +28,7 @@ public class SessionsControllerTests
         _nodeRepoMock = new Mock<IMapNodeRepository>();
         _userRepoMock = new Mock<IUserRepository>();
         _routeBuilderMock = new Mock<IRouteBuilderService>();
+        _itemExecutionMock = new Mock<IItemExecutionService>();
 
         _userId = Guid.NewGuid();
 
@@ -39,7 +40,7 @@ public class SessionsControllerTests
             Mock.Of<IProgressionEngineFactory>(),
             new SessionValidator(Mock.Of<ILogger<SessionValidator>>()),
             _routeBuilderMock.Object,
-            Mock.Of<IItemExecutionService>());
+            _itemExecutionMock.Object);
 
         var claims = new List<Claim>
         {
@@ -53,6 +54,12 @@ public class SessionsControllerTests
         {
             HttpContext = new DefaultHttpContext { User = claimsPrincipal }
         };
+    }
+
+    private void SetupOwnedSession(Guid sessionId)
+    {
+        _sessionRepoMock.Setup(repo => repo.GetByIdAsync(sessionId))
+            .ReturnsAsync(new GameSession { Id = sessionId, UserId = _userId, ConnectionMode = "singleplayer" });
     }
 
     [Fact]
@@ -78,6 +85,7 @@ public class SessionsControllerTests
     {
         // Arrange
         var sessionId = Guid.NewGuid();
+        SetupOwnedSession(sessionId);
         var request = new RouteWaypointsRequest { NodeIds = [Guid.NewGuid()] };
         
         _routeBuilderMock.Setup(s => s.BuildRouteAsync(sessionId, request))
@@ -108,11 +116,9 @@ public class SessionsControllerTests
     public async Task RouteWaypoints_ServiceReturnsSessionNotFound_ReturnsNotFound()
     {
         var sessionId = Guid.NewGuid();
-        var request = new RouteWaypointsRequest();
-        _routeBuilderMock.Setup(s => s.BuildRouteAsync(sessionId, request))
-            .ReturnsAsync(RouteBuilderResult.Fail("Session not found"));
+        _sessionRepoMock.Setup(repo => repo.GetByIdAsync(sessionId)).ReturnsAsync((GameSession?)null);
 
-        var result = await _controller.RouteWaypoints(sessionId, request);
+        var result = await _controller.RouteWaypoints(sessionId, new RouteWaypointsRequest());
 
         Assert.IsType<NotFoundObjectResult>(result);
     }
@@ -121,6 +127,7 @@ public class SessionsControllerTests
     public async Task RouteWaypoints_ServiceReturnsOtherError_ReturnsBadRequest()
     {
         var sessionId = Guid.NewGuid();
+        SetupOwnedSession(sessionId);
         var request = new RouteWaypointsRequest();
         _routeBuilderMock.Setup(s => s.BuildRouteAsync(sessionId, request))
             .ReturnsAsync(RouteBuilderResult.Fail("No available nodes to route to"));
@@ -135,6 +142,7 @@ public class SessionsControllerTests
     public async Task RouteWaypoints_ServiceThrows_ReturnsInternalServerError()
     {
         var sessionId = Guid.NewGuid();
+        SetupOwnedSession(sessionId);
         _routeBuilderMock.Setup(s => s.BuildRouteAsync(sessionId, It.IsAny<RouteWaypointsRequest>()))
             .ThrowsAsync(new Exception("Database explosion"));
 
@@ -191,5 +199,148 @@ public class SessionsControllerTests
             Mock.Of<IArchipelagoService>());
 
         Assert.IsType<BadRequestObjectResult>(result);
+    }
+
+    [Fact]
+    public async Task CreateSession_SetsAuthenticatedUserAndSafeDefaults()
+    {
+        // Arrange
+        GameSession? captured = null;
+        _sessionRepoMock.Setup(repo => repo.CreateAsync(It.IsAny<GameSession>()))
+            .Callback<GameSession>(s => captured = s)
+            .ReturnsAsync((GameSession s) => s);
+
+        var request = new SessionsController.CreateSessionRequest
+        {
+            Name = "My Session",
+            CenterLat = 40.44,
+            CenterLon = -79.99,
+            Radius = 5000,
+            ConnectionMode = "archipelago"
+        };
+
+        // Act
+        var result = await _controller.CreateSession(request);
+
+        // Assert
+        Assert.IsType<CreatedAtActionResult>(result);
+        Assert.NotNull(captured);
+        Assert.Equal(_userId, captured!.UserId);
+        Assert.Equal(SessionStatus.SetupInProgress, captured.Status);
+        Assert.Equal("archipelago", captured.ConnectionMode);
+        Assert.Equal(5000, captured.Radius);
+        Assert.False(string.IsNullOrWhiteSpace(captured.CreatedAt));
+        Assert.False(string.IsNullOrWhiteSpace(captured.UpdatedAt));
+    }
+
+    [Fact]
+    public async Task CreateSession_WithOnlyOneCoordinate_ReturnsBadRequest()
+    {
+        var request = new SessionsController.CreateSessionRequest
+        {
+            CenterLat = 40.44
+        };
+
+        var result = await _controller.CreateSession(request);
+
+        Assert.IsType<BadRequestObjectResult>(result);
+        _sessionRepoMock.Verify(repo => repo.CreateAsync(It.IsAny<GameSession>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task RouteWaypoints_WhenSessionBelongsToDifferentUser_ReturnsForbid()
+    {
+        var sessionId = Guid.NewGuid();
+        _sessionRepoMock.Setup(repo => repo.GetByIdAsync(sessionId))
+            .ReturnsAsync(new GameSession { Id = sessionId, UserId = Guid.NewGuid() });
+
+        var result = await _controller.RouteWaypoints(sessionId, new RouteWaypointsRequest());
+
+        Assert.IsType<ForbidResult>(result);
+        _routeBuilderMock.Verify(s => s.BuildRouteAsync(It.IsAny<Guid>(), It.IsAny<RouteWaypointsRequest>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task GenerateSessionNodes_WithInvalidRadius_ReturnsBadRequest()
+    {
+        var sessionId = Guid.NewGuid();
+        SetupOwnedSession(sessionId);
+        var nodeGenerationService = new Mock<INodeGenerationService>();
+
+        var result = await _controller.GenerateSessionNodes(sessionId, new NodeGenerationRequest
+        {
+            CenterLat = 40.44,
+            CenterLon = -79.99,
+            Radius = -1,
+            NodeCount = 50,
+            TransportMode = "bike",
+            GameMode = "singleplayer"
+        }, nodeGenerationService.Object);
+
+        Assert.IsType<BadRequestObjectResult>(result);
+        nodeGenerationService.Verify(s => s.GenerateNodesAsync(It.IsAny<NodeGenerationRequest>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task ExecuteDetour_WithEmptyNodeId_ReturnsBadRequest()
+    {
+        var result = await _controller.ExecuteDetour(Guid.NewGuid(), Guid.Empty);
+
+        Assert.IsType<BadRequestObjectResult>(result);
+        _itemExecutionMock.Verify(s => s.ExecuteDetourAsync(It.IsAny<Guid>(), It.IsAny<Guid>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task ExecuteDrone_WithEmptyNodeId_ReturnsBadRequest()
+    {
+        var result = await _controller.ExecuteDrone(Guid.NewGuid(), Guid.Empty);
+
+        Assert.IsType<BadRequestObjectResult>(result);
+        _itemExecutionMock.Verify(s => s.ExecuteDroneAsync(It.IsAny<Guid>(), It.IsAny<Guid>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task GenerateSessionNodes_WhenSessionBelongsToDifferentUser_ReturnsForbid()
+    {
+        var sessionId = Guid.NewGuid();
+        _sessionRepoMock.Setup(repo => repo.GetByIdAsync(sessionId))
+            .ReturnsAsync(new GameSession { Id = sessionId, UserId = Guid.NewGuid() });
+        var nodeGenerationService = new Mock<INodeGenerationService>();
+
+        var result = await _controller.GenerateSessionNodes(sessionId, new NodeGenerationRequest
+        {
+            CenterLat = 40.44,
+            CenterLon = -79.99,
+            Radius = 1000,
+            NodeCount = 10,
+            TransportMode = "bike",
+            GameMode = "singleplayer"
+        }, nodeGenerationService.Object);
+
+        Assert.IsType<ForbidResult>(result);
+        nodeGenerationService.Verify(s => s.GenerateNodesAsync(It.IsAny<NodeGenerationRequest>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task ValidateNodes_WithEmptyPoints_ReturnsBadRequest()
+    {
+        var discoveryService = new Mock<IOsmDiscoveryService>();
+
+        var result = await _controller.ValidateNodes(discoveryService.Object, new ValidateRequest([], "bike"));
+
+        Assert.IsType<BadRequestObjectResult>(result.Result);
+        discoveryService.Verify(d => d.ValidateNodesAsync(It.IsAny<ValidateRequest>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task ValidateNodes_WithInvalidProfile_ReturnsBadRequest()
+    {
+        var discoveryService = new Mock<IOsmDiscoveryService>();
+
+        var request = new ValidateRequest([new DiscoveryPoint(-79.99, 40.44)], "spaceship");
+        var result = await _controller.ValidateNodes(discoveryService.Object, request);
+
+        Assert.IsType<BadRequestObjectResult>(result.Result);
+        discoveryService.Verify(d => d.ValidateNodesAsync(It.IsAny<ValidateRequest>()), Times.Never);
     }
 }

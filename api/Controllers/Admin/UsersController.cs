@@ -16,6 +16,12 @@ public class UsersController(UserManager<User> userManager) : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetUsers([FromQuery] int page = 1, [FromQuery] int perPage = 30)
     {
+        if (page < 1)
+            return BadRequest(new { message = "page must be at least 1." });
+
+        if (perPage < 1 || perPage > 200)
+            return BadRequest(new { message = "perPage must be between 1 and 200." });
+
         var query = _userManager.Users;
         var total = await query.CountAsync();
         var items = await query

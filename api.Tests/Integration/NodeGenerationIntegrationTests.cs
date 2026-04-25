@@ -5,7 +5,6 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 
 namespace Bikeapelago.Api.Tests.Integration;
@@ -13,7 +12,9 @@ namespace Bikeapelago.Api.Tests.Integration;
 /// <summary>
 /// Integration tests for node generation. Require the full Docker stack to be running.
 /// Set BIKEAPELAGO_API_URL (default: http://bikeapelago-api.orb.local) and
-/// BIKEAPELAGO_TOKEN to override defaults.
+/// BIKEAPELAGO_TOKEN to use a pre-issued token.
+/// Otherwise the suite will login/register using:
+/// BIKEAPELAGO_TEST_USERNAME / BIKEAPELAGO_TEST_PASSWORD.
 /// Skip with: dotnet test --filter "Category!=Integration"
 /// </summary>
 [Trait("Category", "Integration")]
@@ -23,24 +24,26 @@ public class NodeGenerationIntegrationTests : IAsyncLifetime
         Environment.GetEnvironmentVariable("BIKEAPELAGO_API_URL")
         ?? "http://localhost:5054";
 
-    private static readonly string Token =
-        Environment.GetEnvironmentVariable("BIKEAPELAGO_TOKEN")
-        ?? "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9uYW1laWRlbnRpZmllciI6IjAxOWQ2ZGM0LTQ5NjUtNzhmZi05ZjJhLWYyN2IyMWFmZDNlNiIsImh0dHA6Ly9zY2hlbWFzLnhtbHNvYXAub3JnL3dzLzIwMDUvMDUvaWRlbnRpdHkvY2xhaW1zL25hbWUiOiJha2libGVyMTZAZ21haWwuY29tIiwiaHR0cDovL3NjaGVtYXMueG1sc29hcC5vcmcvd3MvMjAwNS8wNS9pZGVudGl0eS9jbGFpbXMvZW1haWxhZGRyZXNzIjoiYWtpYmxlcjE2QGdtYWlsLmNvbSIsImh0dHA6Ly9zY2hlbWFzLm1pY3Jvc29mdC5jb20vd3MvMjAwOC8wNi9pZGVudGl0eS9jbGFpbXMvcm9sZSI6IkFkbWluIiwiZXhwIjoxNzc2MzQyNjkyLCJpc3MiOiJiaWtlYXBlbGFnby1hcGkiLCJhdWQiOiJiaWtlYXBlbGFnby1mcm9udGVuZCJ9.aq_Hc147_Oy1RzhH2dZ0ZlxPpCVMTxvJgqJgqTYQTx0";
-
-    private static readonly string UserId = "019d6dc4-4965-78ff-9f2a-f27b21afd3e6";
-
     private readonly HttpClient _client;
     private readonly List<Guid> _createdSessionIds = [];
 
     public NodeGenerationIntegrationTests()
     {
         _client = new HttpClient { BaseAddress = new Uri(BaseUrl) };
-        _client.DefaultRequestHeaders.Authorization =
-            new AuthenticationHeaderValue("Bearer", Token);
         _client.Timeout = TimeSpan.FromMinutes(2);
     }
 
-    public Task InitializeAsync() => Task.CompletedTask;
+    public async Task InitializeAsync()
+    {
+        var token = Environment.GetEnvironmentVariable("BIKEAPELAGO_TOKEN");
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            token = await AcquireTokenAsync();
+        }
+
+        _client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", token);
+    }
 
     public async Task DisposeAsync()
     {
@@ -164,41 +167,63 @@ public class NodeGenerationIntegrationTests : IAsyncLifetime
             "densityBias=0.75 should produce more nodes in the inner half than 0.5");
     }
 
+    [Fact]
+    public async Task GenerateNodes_InvalidRadius_ReturnsBadRequest()
+    {
+        var sessionId = await CreateSessionAsync(40.4406, -79.9959, 5_000, "invalid-radius-session");
+
+        var genResp = await _client.PostAsJsonAsync($"/api/sessions/{sessionId}/generate", new
+        {
+            centerLat = 40.4406,
+            centerLon = -79.9959,
+            radius = -1,
+            nodeCount = 25,
+            transportMode = "bike",
+            gameMode = "singleplayer",
+            densityBias = 0.5
+        });
+
+        Assert.Equal(System.Net.HttpStatusCode.BadRequest, genResp.StatusCode);
+    }
+
+    [Fact]
+    public async Task ValidateNodes_InvalidProfile_ReturnsBadRequest()
+    {
+        var validateResp = await _client.PostAsJsonAsync("/api/discovery/validate-nodes", new
+        {
+            points = new[] { new { lat = 40.4406, lon = -79.9959 } },
+            profile = "spaceship"
+        });
+
+        Assert.Equal(System.Net.HttpStatusCode.BadRequest, validateResp.StatusCode);
+    }
+
     // ── Helpers ───────────────────────────────────────────────────────────
 
     private async Task<GenerateResult> GenerateAndFetch(
         double centerLat, double centerLon, double radiusMeters, int nodeCount, double densityBias = 0.5)
     {
         // 1. Create session
-        var createResp = await _client.PostAsJsonAsync("/api/sessions", new
-        {
-            center_lat = centerLat,
-            center_lon = centerLon,
-            name = $"test-{nodeCount}nodes-{radiusMeters / 1000:F0}km",
-            radius = (int)radiusMeters,
-            status = "SetupInProgress",
-            user = UserId
-        });
-        createResp.EnsureSuccessStatusCode();
-        var session = await createResp.Content.ReadFromJsonAsync<SessionDto>()
-            ?? throw new InvalidOperationException("Session creation returned null");
-        _createdSessionIds.Add(session.Id);
+        var sessionId = await CreateSessionAsync(
+            centerLat, centerLon, (int)radiusMeters,
+            $"test-{nodeCount}nodes-{radiusMeters / 1000:F0}km");
 
         // 2. Generate nodes
-        var genResp = await _client.PostAsJsonAsync($"/api/sessions/{session.Id}/generate", new
+        var genResp = await _client.PostAsJsonAsync($"/api/sessions/{sessionId}/generate", new
         {
             centerLat,
             centerLon,
             radius = radiusMeters,
             nodeCount,
-            mode = "singleplayer",
+            transportMode = "bike",
+            gameMode = "singleplayer",
             densityBias
         });
         Assert.True(genResp.IsSuccessStatusCode,
             $"Generate returned {(int)genResp.StatusCode}: {await genResp.Content.ReadAsStringAsync()}");
 
         // 3. Fetch nodes
-        var nodesResp = await _client.GetAsync($"/api/sessions/{session.Id}/nodes");
+        var nodesResp = await _client.GetAsync($"/api/sessions/{sessionId}/nodes");
         nodesResp.EnsureSuccessStatusCode();
         var nodes = await nodesResp.Content.ReadFromJsonAsync<List<NodeDto>>()
             ?? throw new InvalidOperationException("Nodes endpoint returned null");
@@ -235,9 +260,79 @@ public class NodeGenerationIntegrationTests : IAsyncLifetime
 
     private record GenerateResult(List<NodeDto> Nodes);
 
-    private record SessionDto([property: JsonPropertyName("id")] Guid Id);
+    private record SessionDto(Guid Id);
 
-    private record NodeDto(
-        [property: JsonPropertyName("lat")] double Lat,
-        [property: JsonPropertyName("lon")] double Lon);
+    private record NodeDto(double Lat, double Lon);
+
+    private async Task<string> AcquireTokenAsync()
+    {
+        var username = Environment.GetEnvironmentVariable("BIKEAPELAGO_TEST_USERNAME")
+            ?? $"integration-{Guid.NewGuid():N}@bikeapelago.local";
+        var password = Environment.GetEnvironmentVariable("BIKEAPELAGO_TEST_PASSWORD")
+            ?? "integration-test-password";
+
+        var loginToken = await TryLoginAsync(username, password);
+        if (!string.IsNullOrWhiteSpace(loginToken))
+            return loginToken;
+
+        var registerResp = await _client.PostAsJsonAsync("/api/auth/register", new
+        {
+            username,
+            password,
+            name = "Integration Test User"
+        });
+
+        if (!registerResp.IsSuccessStatusCode)
+        {
+            var body = await registerResp.Content.ReadAsStringAsync();
+            throw new InvalidOperationException($"Unable to register integration user. Status={(int)registerResp.StatusCode}, body={body}");
+        }
+
+        loginToken = await TryLoginAsync(username, password);
+        if (!string.IsNullOrWhiteSpace(loginToken))
+            return loginToken;
+
+        throw new InvalidOperationException("Unable to acquire integration auth token after register/login.");
+    }
+
+    private async Task<string?> TryLoginAsync(string username, string password)
+    {
+        var loginResp = await _client.PostAsJsonAsync("/api/auth/login", new
+        {
+            identity = username,
+            password
+        });
+
+        if (!loginResp.IsSuccessStatusCode)
+            return null;
+
+        var body = await loginResp.Content.ReadAsStringAsync();
+        using var doc = JsonDocument.Parse(body);
+        if (!doc.RootElement.TryGetProperty("token", out var tokenEl))
+            return null;
+
+        var token = tokenEl.GetString();
+        return string.IsNullOrWhiteSpace(token) ? null : token;
+    }
+
+    private async Task<Guid> CreateSessionAsync(double centerLat, double centerLon, int radiusMeters, string name)
+    {
+        var createResp = await _client.PostAsJsonAsync("/api/sessions", new
+        {
+            center_lat = centerLat,
+            center_lon = centerLon,
+            name,
+            radius = radiusMeters,
+            connection_mode = "singleplayer"
+        });
+
+        Assert.True(createResp.IsSuccessStatusCode,
+            $"Create session returned {(int)createResp.StatusCode}: {await createResp.Content.ReadAsStringAsync()}");
+
+        var session = await createResp.Content.ReadFromJsonAsync<SessionDto>()
+            ?? throw new InvalidOperationException("Session creation returned null");
+
+        _createdSessionIds.Add(session.Id);
+        return session.Id;
+    }
 }

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Xunit;
@@ -11,6 +12,7 @@ using Bikeapelago.Api.Models;
 using Bikeapelago.Api.Repositories;
 using Bikeapelago.Api.Services;
 using Bikeapelago.Api.Validators;
+using System.Security.Claims;
 
 namespace Bikeapelago.Api.Tests.Unit;
 
@@ -23,6 +25,7 @@ public class SessionsControllerNodesTests
     private readonly Mock<ILogger<SessionsController>> _logger;
     private readonly SessionValidator _validator;
     private readonly SessionsController _controller;
+    private readonly Guid _userId = Guid.NewGuid();
     private readonly Guid _sessionId = Guid.NewGuid();
 
     public SessionsControllerNodesTests()
@@ -48,11 +51,22 @@ public class SessionsControllerNodesTests
             _validator,
             null!, // IRouteBuilderService
             Mock.Of<IItemExecutionService>());
+
+        var claims = new List<Claim>
+        {
+            new Claim(ClaimTypes.NameIdentifier, _userId.ToString()),
+            new Claim(ClaimTypes.Name, "testuser")
+        };
+        var identity = new ClaimsIdentity(claims, "TestAuthType");
+        _controller.ControllerContext = new ControllerContext
+        {
+            HttpContext = new DefaultHttpContext { User = new ClaimsPrincipal(identity) }
+        };
     }
 
     private void SetupSession(string mode = "singleplayer") =>
         _sessionRepo.Setup(r => r.GetByIdAsync(_sessionId))
-            .ReturnsAsync(new GameSession { Id = _sessionId, ConnectionMode = mode });
+            .ReturnsAsync(new GameSession { Id = _sessionId, ConnectionMode = mode, UserId = _userId });
 
     // --- State validation ---
 
@@ -169,5 +183,32 @@ public class SessionsControllerNodesTests
         });
 
         Assert.IsType<UnprocessableEntityObjectResult>(result);
+    }
+
+    [Fact]
+    public async Task CheckNodes_WhenSessionBelongsToDifferentUser_ReturnsForbid()
+    {
+        _sessionRepo.Setup(r => r.GetByIdAsync(_sessionId))
+            .ReturnsAsync(new GameSession { Id = _sessionId, ConnectionMode = "singleplayer", UserId = Guid.NewGuid() });
+
+        var result = await _controller.CheckNodes(_sessionId, new SessionsController.CheckNodesRequest
+        {
+            NodeIds = [Guid.NewGuid()]
+        });
+
+        Assert.IsType<ForbidResult>(result);
+        _engine.Verify(e => e.CheckNodesAsync(It.IsAny<Guid>(), It.IsAny<List<NewlyCheckedNode>>()), Times.Never());
+    }
+
+    [Fact]
+    public async Task GetSessionNodes_WhenSessionBelongsToDifferentUser_ReturnsForbid()
+    {
+        _sessionRepo.Setup(r => r.GetByIdAsync(_sessionId))
+            .ReturnsAsync(new GameSession { Id = _sessionId, UserId = Guid.NewGuid() });
+
+        var result = await _controller.GetSessionNodes(_sessionId);
+
+        Assert.IsType<ForbidResult>(result);
+        _nodeRepo.Verify(r => r.GetBySessionIdAsync(It.IsAny<Guid>()), Times.Never);
     }
 }

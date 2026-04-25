@@ -22,6 +22,21 @@ interface User {
   weight: number;
 }
 
+interface UsersResponse {
+  items: User[];
+}
+
+interface CreateUserData {
+  username: string;
+  password: string;
+  name: string;
+}
+
+const getErrorMessage = (err: unknown, fallback: string) =>
+  axios.isAxiosError<{ message?: string }>(err)
+    ? err.response?.data?.message ?? fallback
+    : fallback;
+
 export const UserManagement: React.FC = () => {
   const { token } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
@@ -34,7 +49,7 @@ export const UserManagement: React.FC = () => {
     text: string;
   } | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [createData, setCreateData] = useState({
+  const [createData, setCreateData] = useState<CreateUserData>({
     username: '',
     password: '',
     name: '',
@@ -43,7 +58,7 @@ export const UserManagement: React.FC = () => {
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      const res = await axios.get('/api/admin/users', {
+      const res = await axios.get<UsersResponse>('/api/admin/users', {
         headers: { Authorization: `Bearer ${token}` },
       });
       setUsers(res.data.items);
@@ -55,7 +70,7 @@ export const UserManagement: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchUsers();
+    void fetchUsers();
   }, [token]);
 
   const handleCreateUser = async (e: React.FormEvent) => {
@@ -66,10 +81,10 @@ export const UserManagement: React.FC = () => {
       setShowCreateModal(false);
       setCreateData({ username: '', password: '', name: '' });
       fetchUsers();
-    } catch (err: any) {
+    } catch (err: unknown) {
       setMessage({
         type: 'error',
-        text: err.response?.data?.message || 'Failed to create user',
+        text: getErrorMessage(err, 'Failed to create user'),
       });
     }
   };
@@ -90,10 +105,10 @@ export const UserManagement: React.FC = () => {
       setResettingId(null);
       setNewPassword('');
       setTimeout(() => setMessage(null), 3000);
-    } catch (err: any) {
+    } catch (err: unknown) {
       setMessage({
         type: 'error',
-        text: err.response?.data?.message || 'Failed to reset password',
+        text: getErrorMessage(err, 'Failed to reset password'),
       });
     }
   };

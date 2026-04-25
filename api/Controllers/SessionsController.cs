@@ -5,6 +5,7 @@ using Bikeapelago.Api.Repositories;
 using Bikeapelago.Api.Services;
 using Bikeapelago.Api.Validators;
 using System.Security.Claims;
+using System.ComponentModel.DataAnnotations;
 
 namespace Bikeapelago.Api.Controllers;
 
@@ -20,6 +21,21 @@ public class SessionsController(
     IRouteBuilderService routeBuilderService,
     IItemExecutionService itemExecutionService) : ControllerBase
 {
+    private static readonly HashSet<string> AllowedTransportModes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "bike", "walk", "foot"
+    };
+
+    private static readonly HashSet<string> AllowedGameModes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "archipelago", "singleplayer", "quadrant", "radius", "free"
+    };
+
+    private static readonly HashSet<string> AllowedRoutingProfiles = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "bike", "cycling", "walk", "walking", "foot", "car", "driving"
+    };
+
     private readonly IGameSessionRepository _sessionRepository = sessionRepository;
     private readonly IMapNodeRepository _nodeRepository = nodeRepository;
     private readonly IUserRepository _userRepository = userRepository;
@@ -86,12 +102,41 @@ public class SessionsController(
     }
 
     [HttpPost]
-    public async Task<IActionResult> CreateSession([FromBody] GameSession session)
+    [Microsoft.AspNetCore.Authorization.Authorize]
+    public async Task<IActionResult> CreateSession([FromBody] CreateSessionRequest request)
     {
-        try {
+        try
+        {
+            if (!TryGetAuthenticatedUserId(out var userId))
+                return Unauthorized(new { message = "Invalid token" });
+
+            var validationError = ValidateCreateSessionRequest(request);
+            if (validationError != null)
+                return BadRequest(new { message = validationError });
+
+            var session = new GameSession
+            {
+                UserId = userId,
+                Name = request.Name,
+                Status = SessionStatus.SetupInProgress,
+                ConnectionMode = request.ConnectionMode?.ToLowerInvariant() switch
+                {
+                    "archipelago" => "archipelago",
+                    _ => "singleplayer"
+                },
+                Radius = request.Radius
+            };
+
+            if (request.CenterLat.HasValue && request.CenterLon.HasValue)
+            {
+                session.Location = new NetTopologySuite.Geometries.Point(request.CenterLon.Value, request.CenterLat.Value) { SRID = 4326 };
+            }
+
             var createdSession = await _sessionRepository.CreateAsync(session);
             return CreatedAtAction(nameof(GetSession), new { id = createdSession.Id }, createdSession);
-        } catch (Exception ex) {
+        }
+        catch (Exception ex)
+        {
             return BadRequest(new { message = ex.Message });
         }
     }
@@ -201,12 +246,18 @@ public class SessionsController(
     }
 
     [HttpPost("{id}/generate")]
+    [Microsoft.AspNetCore.Authorization.Authorize]
     public async Task<IActionResult> GenerateSessionNodes(Guid id, [FromBody] Bikeapelago.Api.Services.NodeGenerationRequest request, [FromServices] Bikeapelago.Api.Services.INodeGenerationService nodeGenerationService)
     {
         try
         {
-            var session = await _sessionRepository.GetByIdAsync(id);
-            if (session == null) return NotFound(new { message = "Session not found." });
+            var (_, error) = await GetAuthorizedSessionResultAsync(id);
+            if (error != null)
+                return error;
+
+            var validationError = ValidateNodeGenerationRequest(request);
+            if (validationError != null)
+                return BadRequest(new { message = validationError });
 
             // Pass the path ID into the request body object
             request.SessionId = id;
@@ -370,10 +421,15 @@ public class SessionsController(
     }
 
     [HttpPost("{id}/route")]
+    [Microsoft.AspNetCore.Authorization.Authorize]
     public async Task<IActionResult> RouteWaypoints(Guid id, [FromBody] RouteWaypointsRequest request)
     {
         try
         {
+            var (_, error) = await GetAuthorizedSessionResultAsync(id);
+            if (error != null)
+                return error;
+
             var result = await _routeBuilderService.BuildRouteAsync(id, request);
 
             if (!result.Success)
@@ -404,8 +460,13 @@ public class SessionsController(
     }
 
     [HttpGet("{id}/nodes")]
-    public async Task<ActionResult<IEnumerable<MapNode>>> GetSessionNodes(Guid id)
+    [Microsoft.AspNetCore.Authorization.Authorize]
+    public async Task<IActionResult> GetSessionNodes(Guid id)
     {
+        var (_, error) = await GetAuthorizedSessionResultAsync(id);
+        if (error != null)
+            return error;
+
         var nodes = await _nodeRepository.GetBySessionIdAsync(id);
         return Ok(nodes);
     }
@@ -420,11 +481,12 @@ public class SessionsController(
     }
 
     [HttpPost("{id}/nodes/check")]
+    [Microsoft.AspNetCore.Authorization.Authorize]
     public async Task<IActionResult> CheckNodes(Guid id, [FromBody] CheckNodesRequest request)
     {
-        var session = await _sessionRepository.GetByIdAsync(id);
-        if (session == null)
-            return NotFound(new { message = "Session not found." });
+        var (session, error) = await GetAuthorizedSessionResultAsync(id);
+        if (error != null || session == null)
+            return error ?? NotFound(new { message = "Session not found." });
 
         var dbNodes = await _nodeRepository.GetBySessionIdAsync(id);
         
@@ -527,6 +589,10 @@ public class SessionsController(
         [FromServices] IOsmDiscoveryService discoveryService,
         [FromBody] ValidateRequest request)
     {
+        var validationError = ValidateDiscoveryRequest(request);
+        if (validationError != null)
+            return BadRequest(new { message = validationError });
+
         var results = await discoveryService.ValidateNodesAsync(request);
         return Ok(results);
     }
@@ -535,6 +601,9 @@ public class SessionsController(
     [Microsoft.AspNetCore.Authorization.Authorize]
     public async Task<IActionResult> ExecuteDetour(Guid id, [FromQuery] Guid nodeId)
     {
+        if (nodeId == Guid.Empty)
+            return BadRequest(new { message = "nodeId is required." });
+
         var (_, error) = await GetAuthorizedSessionResultAsync(id);
         if (error != null)
             return error;
@@ -547,6 +616,9 @@ public class SessionsController(
     [Microsoft.AspNetCore.Authorization.Authorize]
     public async Task<IActionResult> ExecuteDrone(Guid id, [FromQuery] Guid nodeId)
     {
+        if (nodeId == Guid.Empty)
+            return BadRequest(new { message = "nodeId is required." });
+
         var (_, error) = await GetAuthorizedSessionResultAsync(id);
         if (error != null)
             return error;
@@ -607,5 +679,95 @@ public class SessionsController(
         await archipelagoService.UpdateUnlockedNodesAsync(id, session.ReceivedItemIds.ToArray());
 
         return Ok(new { message = $"Item {itemId} count set to {count}" });
+    }
+
+    public class CreateSessionRequest
+    {
+        [JsonPropertyName("name")]
+        [MaxLength(200)]
+        public string? Name { get; set; }
+
+        [JsonPropertyName("center_lat")]
+        public double? CenterLat { get; set; }
+
+        [JsonPropertyName("center_lon")]
+        public double? CenterLon { get; set; }
+
+        [JsonPropertyName("radius")]
+        public int? Radius { get; set; }
+
+        [JsonPropertyName("connection_mode")]
+        public string? ConnectionMode { get; set; } = "singleplayer";
+    }
+
+    private static string? ValidateCreateSessionRequest(CreateSessionRequest request)
+    {
+        if (request.CenterLat.HasValue && (request.CenterLat.Value < -90 || request.CenterLat.Value > 90))
+            return "center_lat must be between -90 and 90.";
+
+        if (request.CenterLon.HasValue && (request.CenterLon.Value < -180 || request.CenterLon.Value > 180))
+            return "center_lon must be between -180 and 180.";
+
+        if ((request.CenterLat.HasValue && !request.CenterLon.HasValue) || (!request.CenterLat.HasValue && request.CenterLon.HasValue))
+            return "center_lat and center_lon must either both be set or both be omitted.";
+
+        if (request.Radius.HasValue && (request.Radius.Value <= 0 || request.Radius.Value > 1_000_000))
+            return "radius must be between 1 and 1000000 meters.";
+
+        if (!string.IsNullOrWhiteSpace(request.ConnectionMode) &&
+            !request.ConnectionMode.Equals("singleplayer", StringComparison.OrdinalIgnoreCase) &&
+            !request.ConnectionMode.Equals("archipelago", StringComparison.OrdinalIgnoreCase))
+            return "connection_mode must be either 'singleplayer' or 'archipelago'.";
+
+        return null;
+    }
+
+    private static string? ValidateNodeGenerationRequest(NodeGenerationRequest request)
+    {
+        if (request.CenterLat < -90 || request.CenterLat > 90)
+            return "centerLat must be between -90 and 90.";
+
+        if (request.CenterLon < -180 || request.CenterLon > 180)
+            return "centerLon must be between -180 and 180.";
+
+        if (request.Radius <= 0 || request.Radius > 1_000_000)
+            return "radius must be between 1 and 1000000 meters.";
+
+        if (request.NodeCount < 1 || request.NodeCount > 5000)
+            return "nodeCount must be between 1 and 5000.";
+
+        if (request.DensityBias <= 0 || request.DensityBias > 1.0)
+            return "densityBias must be greater than 0 and less than or equal to 1.0.";
+
+        if (!AllowedTransportModes.Contains(request.TransportMode))
+            return "transportMode must be one of: bike, walk, foot.";
+
+        if (!AllowedGameModes.Contains(request.GameMode))
+            return "gameMode must be one of: archipelago, singleplayer, quadrant, radius, free.";
+
+        return null;
+    }
+
+    private static string? ValidateDiscoveryRequest(ValidateRequest request)
+    {
+        if (request.Points == null || request.Points.Length == 0)
+            return "points must contain at least one coordinate.";
+
+        if (request.Points.Length > 1000)
+            return "points must contain at most 1000 coordinates.";
+
+        if (!AllowedRoutingProfiles.Contains(request.Profile))
+            return "profile must be one of: bike, cycling, walk, walking, foot, car, driving.";
+
+        for (int i = 0; i < request.Points.Length; i++)
+        {
+            var p = request.Points[i];
+            if (p.Lat < -90 || p.Lat > 90)
+                return $"points[{i}].lat must be between -90 and 90.";
+            if (p.Lon < -180 || p.Lon > 180)
+                return $"points[{i}].lon must be between -180 and 180.";
+        }
+
+        return null;
     }
 }
