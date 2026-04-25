@@ -36,7 +36,7 @@ export function useApiGet<
     const data = await res.json() as TResponse;
 
     return data
-  }, [handleUnauthorized, token]);
+  }, [handleUnauthorized, token, baseUrl]);
 
   return request
 }

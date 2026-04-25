@@ -46,7 +46,7 @@ function useApiMutableRequest<
     const data = await res.json() as TResponse;
 
     return data
-  }, [handleUnauthorized, token, method]);
+  }, [handleUnauthorized, token, baseUrl, method]);
 
   return request
 }

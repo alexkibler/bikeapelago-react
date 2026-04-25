@@ -29,11 +29,13 @@ export default function FitImport() {
   const [selectedSession, setSelectedSession] = useState<GameSession | null>(null);
   const [analysisResult, setAnalysisResult] = useState<FitAnalysisResult | null>(null);
 
-  // Reset flow state whenever a new file arrives mid-session
-  useEffect(() => {
+  // Reset flow state whenever a new file arrives mid-session (adjust-state-during-render pattern)
+  const [prevFile, setPrevFile] = useState(file);
+  if (prevFile !== file) {
+    setPrevFile(file);
     setSelectedSession(null);
     setAnalysisResult(null);
-  }, [file]);
+  }
 
   const { sessions, loading: sessionsLoading } = useSessions();
   const { analyzeFile, confirmValidation, loading, error, setError } = useFitAnalyzer(
