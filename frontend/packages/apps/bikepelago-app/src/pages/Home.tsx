@@ -2,6 +2,7 @@ import { useState } from 'react';
 
 import {
   ArrowRight,
+  CheckCircle,
   Download,
   Loader2,
   Monitor,
@@ -116,13 +117,24 @@ const Home = () => {
 
               <div className='relative flex-grow flex flex-col'>
                 <div className='flex items-center justify-between mb-3'>
-                  <div
-                    className={`px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-tighter ${isAp(session) ? 'bg-orange-600 text-white' : 'bg-[var(--color-surface-alt-hex)] text-[var(--color-text-muted-hex)]'}`}
-                  >
-                    {isAp(session) ? 'Archipelago' : 'Single Player'}
+                  <div className='flex items-center gap-2'>
+                    <div
+                      className={`px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-tighter ${isAp(session) ? 'bg-orange-600 text-white' : 'bg-[var(--color-surface-alt-hex)] text-[var(--color-text-muted-hex)]'}`}
+                    >
+                      {isAp(session) ? 'Archipelago' : 'Single Player'}
+                    </div>
+                    {session.status === 'Completed' && (
+                      <div className='px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-tighter bg-green-600/20 text-green-400'>
+                        Completed
+                      </div>
+                    )}
                   </div>
-                  <div className='text-[var(--color-text-muted-hex)] group-hover:text-orange-500 transition-colors mr-8'>
-                    <PlayCircle className='w-6 h-6' />
+                  <div className={`transition-colors mr-8 ${session.status === 'Completed' ? 'text-green-500' : 'text-[var(--color-text-muted-hex)] group-hover:text-orange-500'}`}>
+                    {session.status === 'Completed' ? (
+                      <CheckCircle className='w-6 h-6' />
+                    ) : (
+                      <PlayCircle className='w-6 h-6' />
+                    )}
                   </div>
                 </div>
 
@@ -158,9 +170,9 @@ const Home = () => {
 
                 <Link
                   to={`/game/${session.id}`}
-                  className='w-full btn btn-orange btn-md flex items-center justify-center gap-2 group/btn mt-auto'
+                  className={`w-full btn btn-md flex items-center justify-center gap-2 group/btn mt-auto ${session.status === 'Completed' ? 'btn-secondary' : 'btn-orange'}`}
                 >
-                  Resume Session
+                  {session.status === 'Completed' ? 'View Session' : 'Resume Session'}
                   <ArrowRight className='w-4 h-4 group-hover/btn:translate-x-1 transition-transform' />
                 </Link>
               </div>

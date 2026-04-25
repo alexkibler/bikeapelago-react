@@ -118,6 +118,18 @@ body {
   background-color: var(--color-primary-hover-hex);
 }
 
+.btn-secondary {
+  background-color: rgb(22 101 52 / 0.2);
+  color: rgb(134 239 172);
+  border: 1px solid rgb(22 163 74 / 0.3);
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.btn-secondary:hover {
+  background-color: rgb(22 101 52 / 0.35);
+  border-color: rgb(22 163 74 / 0.5);
+}
+
 /* Scrollbar styling */
 ::-webkit-scrollbar {
   width: 8px;
