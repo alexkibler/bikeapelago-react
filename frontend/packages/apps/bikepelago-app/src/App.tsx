@@ -1,4 +1,7 @@
+import { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { Capacitor } from '@capacitor/core';
+import { App as CapApp } from '@capacitor/app';
 import Layout from './components/layout/Layout';
 import Home from './pages/Home';
 import GameView from './pages/GameView';
@@ -20,7 +23,23 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
 }
 
 function App() {
-  const token = useAuthStore(s => s.token)
+  const token = useAuthStore(s => s.token);
+
+  // On Android, the hardware back button exits the app by default when Capacitor
+  // handles it. Override it to navigate within the web history stack instead.
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+    const listenerPromise = CapApp.addListener('backButton', ({ canGoBack }) => {
+      if (canGoBack) {
+        window.history.back();
+      } else {
+        CapApp.exitApp();
+      }
+    });
+    return () => {
+      listenerPromise.then(handle => handle.remove());
+    };
+  }, []);
 
   return (
     <Router>

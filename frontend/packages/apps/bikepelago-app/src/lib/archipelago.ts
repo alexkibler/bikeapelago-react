@@ -24,8 +24,9 @@ class ArchipelagoClient {
 
     this.startingPromise = (async () => {
       try {
+        const apiBase = import.meta.env.VITE_PUBLIC_API_URL ?? '';
         const conn = new signalR.HubConnectionBuilder()
-          .withUrl('/hubs/archipelago')
+          .withUrl(`${apiBase}/hubs/archipelago`)
           .withAutomaticReconnect()
           .build();
 
