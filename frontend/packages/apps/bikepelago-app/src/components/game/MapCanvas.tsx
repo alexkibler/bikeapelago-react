@@ -22,7 +22,44 @@ const NODE_COLORS: Record<NodeState, string> = {
   Checked: '#22c55e'     // green-500
 };
 
+const WAYPOINT_ICON_CACHE = new Map<number, L.DivIcon>();
+
+const getWaypointIcon = (index: number) => {
+  if (WAYPOINT_ICON_CACHE.has(index)) {
+    return WAYPOINT_ICON_CACHE.get(index)!;
+  }
+
+  const icon = L.divIcon({
+    className: 'bg-white border-2 border-orange-500 rounded-full flex items-center justify-center text-[10px] font-bold text-orange-500 leading-none w-5 h-5',
+    html: `<div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">${index + 1}</div>`,
+    iconSize: [20, 20],
+    iconAnchor: [10, 10]
+  });
+
+  WAYPOINT_ICON_CACHE.set(index, icon);
+  return icon;
+};
+
+const USER_LOCATION_ICON = L.divIcon({
+  className: 'relative',
+  html: `
+    <div class="relative flex items-center justify-center">
+      <div class="absolute w-8 h-8 bg-blue-500/30 rounded-full animate-ping"></div>
+      <div class="w-4 h-4 bg-blue-500 border-2 border-white rounded-full shadow-lg z-10"></div>
+    </div>
+  `,
+  iconSize: [32, 32],
+  iconAnchor: [16, 16]
+});
+
+const ICON_CACHE = new Map<string, L.DivIcon>();
+
 const getMarkerIcon = (state: NodeState, debugClickable = false, selected = false) => {
+  const cacheKey = `${state}-${debugClickable}-${selected}`;
+  if (ICON_CACHE.has(cacheKey)) {
+    return ICON_CACHE.get(cacheKey)!;
+  }
+
   const color = NODE_COLORS[state] || NODE_COLORS.Hidden;
   const cursor = debugClickable ? 'cursor:pointer;' : '';
   const ring = selected
@@ -32,7 +69,7 @@ const getMarkerIcon = (state: NodeState, debugClickable = false, selected = fals
       : `box-shadow:0 0 10px ${color};`;
   
   // Use a 44px hit area for mobile friendliness
-  return L.divIcon({
+  const icon = L.divIcon({
     className: 'custom-div-icon',
     html: `
       <div style="display:flex; align-items:center; justify-content:center; width:44px; height:44px;">
@@ -42,6 +79,9 @@ const getMarkerIcon = (state: NodeState, debugClickable = false, selected = fals
     iconSize: [44, 44],
     iconAnchor: [22, 22]
   });
+
+  ICON_CACHE.set(cacheKey, icon);
+  return icon;
 };
 
 const getCustomOriginIcon = () =>
@@ -213,6 +253,40 @@ const MapCanvas = ({ session, nodes }: MapCanvasProps) => {
   const toggleSelectedNode = useGameStore(s => s.toggleSelectedNode);
   const mapRef = useRef<L.Map | null>(null);
 
+  const renderedNodes = useMemo(() => nodes.map(node => {
+    const isSelected = selectedNodeIds.has(node.id);
+    const inRouteMode = activePanel === 'route';
+    const inInventoryMode = activePanel === 'inventory';
+
+    // Available nodes are selectable when either Route or Inventory panel is open
+    const canSelect = (inRouteMode || inInventoryMode) && node.state === 'Available';
+
+    const handleClick = canSelect
+      ? (e: L.LeafletMouseEvent) => {
+          L.DomEvent.stopPropagation(e);
+          toggleSelectedNode(node.id);
+        }
+      : undefined;
+
+    return (
+      <Marker
+        key={node.id}
+        position={[node.lat, node.lon]}
+        icon={getMarkerIcon(node.state, canSelect, isSelected)}
+        title={node.name}
+        eventHandlers={handleClick ? { click: handleClick } : undefined}
+      />
+    );
+  }), [nodes, selectedNodeIds, activePanel, toggleSelectedNode]);
+
+  const renderedWaypoints = useMemo(() => waypoints.map((wp, i) => (
+    <Marker
+      key={`wp-${i}`}
+      position={wp}
+      icon={getWaypointIcon(i)}
+    />
+  )), [waypoints]);
+
   const locateUser = () => {
     if (userLocation && mapRef.current) {
       mapRef.current.setView(userLocation, 16);
@@ -250,31 +324,7 @@ const MapCanvas = ({ session, nodes }: MapCanvasProps) => {
 
         <ProgressionOverlay session={session} />
         
-        {nodes.map(node => {
-          const isSelected = selectedNodeIds.has(node.id);
-          const inRouteMode = activePanel === 'route';
-          const inInventoryMode = activePanel === 'inventory';
-          
-          // Available nodes are selectable when either Route or Inventory panel is open
-          const canSelect = (inRouteMode || inInventoryMode) && node.state === 'Available';
-
-          const handleClick = canSelect
-            ? (e: L.LeafletMouseEvent) => {
-                L.DomEvent.stopPropagation(e);
-                toggleSelectedNode(node.id);
-              }
-            : undefined;
-
-          return (
-            <Marker
-              key={node.id}
-              position={[node.lat, node.lon]}
-              icon={getMarkerIcon(node.state, canSelect, isSelected)}
-              title={node.name}
-              eventHandlers={handleClick ? { click: handleClick } : undefined}
-            />
-          );
-        })}
+        {renderedNodes}
 
         {routeData.polyline.length > 0 && (
           <Polyline positions={routeData.polyline} color="#f97316" weight={5} opacity={0.7} />
@@ -284,18 +334,7 @@ const MapCanvas = ({ session, nodes }: MapCanvasProps) => {
           <Polyline positions={analysisPath} color="#22c55e" weight={5} opacity={0.7} dashArray="10, 10" />
         )}
 
-        {waypoints.map((wp, i) => (
-          <Marker
-            key={`wp-${i}`}
-            position={wp}
-            icon={L.divIcon({
-              className: 'bg-white border-2 border-orange-500 rounded-full flex items-center justify-center text-[10px] font-bold text-orange-500 leading-none w-5 h-5',
-              html: `<div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">${i + 1}</div>`,
-              iconSize: [20, 20],
-              iconAnchor: [10, 10]
-            })}
-          />
-        ))}
+        {renderedWaypoints}
 
         {/* Custom origin pin — click to clear */}
         {customOrigin && (
@@ -316,17 +355,7 @@ const MapCanvas = ({ session, nodes }: MapCanvasProps) => {
           <Marker
             position={userLocation}
             zIndexOffset={Z_INDEX.USER_LOCATION}
-            icon={L.divIcon({
-              className: 'relative',
-              html: `
-                <div class="relative flex items-center justify-center">
-                  <div class="absolute w-8 h-8 bg-blue-500/30 rounded-full animate-ping"></div>
-                  <div class="w-4 h-4 bg-blue-500 border-2 border-white rounded-full shadow-lg z-10"></div>
-                </div>
-              `,
-              iconSize: [32, 32],
-              iconAnchor: [16, 16]
-            })}
+            icon={USER_LOCATION_ICON}
           />
         )}
       </MapContainer>
