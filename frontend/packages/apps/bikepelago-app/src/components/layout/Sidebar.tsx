@@ -14,9 +14,7 @@ const Sidebar = () => {
   const pathname = location.pathname;
   const isGamePage = pathname.startsWith('/game');
   const session = useGameStore((s) => s.session);
-  const isAp = !!session?.ap_server_url;
-  const isCompleted = session?.status === 'Completed';
-  const canRouteOrUseItems = isAp && !isCompleted;
+  const canInteract = !!session?.ap_server_url && session?.status !== 'Completed';
 
   const togglePanel = (panel: GamePanel) => {
     setActivePanel(activePanel === panel ? null : panel);
@@ -58,7 +56,7 @@ const Sidebar = () => {
               <span className="font-medium text-sm">Game Chat</span>
             </button>
 
-            {isAp && (
+            {canInteract && (
               <button
                 onClick={() => togglePanel('inventory')}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${activePanel === 'inventory' ? 'bg-[var(--color-primary-hex)]/10 text-[var(--color-primary-hex)] shadow-inner shadow-primary/5' : 'text-[var(--color-text-muted-hex)] hover:text-[var(--color-text-hex)] hover:bg-[rgb(var(--color-surface-overlay))]'}`}>
@@ -67,7 +65,7 @@ const Sidebar = () => {
               </button>
             )}
 
-            {canRouteOrUseItems && (
+            {canInteract && (
               <button
                 onClick={() => togglePanel('route')}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${activePanel === 'route' ? 'bg-[var(--color-primary-hex)]/10 text-[var(--color-primary-hex)] shadow-inner shadow-primary/5' : 'text-[var(--color-text-muted-hex)] hover:text-[var(--color-text-hex)] hover:bg-[rgb(var(--color-surface-overlay))]'}`}>

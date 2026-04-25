@@ -35,7 +35,6 @@ const InventoryPanel = () => {
   const detourCount = activeCount(ITEMS.DETOUR.id, session?.detours_used);
   const droneCount = activeCount(ITEMS.DRONE.id, session?.drones_used);
   const signalAmpCount = activeCount(ITEMS.SIGNAL_AMPLIFIER.id, session?.signal_amplifiers_used);
-  const isCompleted = session?.status === 'Completed';
 
   const handleUseDetour = async () => {
     if (!sessionId || selectedNodeIds.size !== 1) {
@@ -164,7 +163,7 @@ const InventoryPanel = () => {
             </div>
             <ItemCount count={detourCount} itemId={ITEMS.DETOUR.id} />
           </div>
-          {detourCount > 0 && !isCompleted && (
+          {detourCount > 0 && (
             <button
               onClick={() => void handleUseDetour()}
               disabled={isUsing || selectedNodeIds.size !== 1}
@@ -189,7 +188,7 @@ const InventoryPanel = () => {
             </div>
             <ItemCount count={droneCount} itemId={ITEMS.DRONE.id} />
           </div>
-          {droneCount > 0 && !isCompleted && (
+          {droneCount > 0 && (
             <button
               onClick={() => void handleUseDrone()}
               disabled={isUsing || selectedNodeIds.size !== 1}
@@ -214,7 +213,7 @@ const InventoryPanel = () => {
             </div>
             <ItemCount count={signalAmpCount} itemId={ITEMS.SIGNAL_AMPLIFIER.id} />
           </div>
-          {signalAmpCount > 0 && !isCompleted && (
+          {signalAmpCount > 0 && (
             <button
               onClick={() => void handleUseSignalAmplifier()}
               disabled={isUsing}
