@@ -36,7 +36,7 @@ const Layout = ({ children }: LayoutProps) => {
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Mobile Header */}
         {!isAuthPage && (
-          <div className="bg-[var(--color-surface-alt-hex)] sticky top-0 shrink-0 md:hidden z-50">
+          <div className="bg-[var(--color-surface-alt-hex)] sticky top-0 shrink-0 md:hidden z-50 pt-[env(safe-area-inset-top)]">
             <Header />
           </div>
         )}
