@@ -16,6 +16,11 @@ public class GenericDataController(BikeapelagoDbContext context) : ControllerBas
     [HttpGet("{tableName}")]
     public async Task<IActionResult> GetList(string tableName, [FromQuery] int page = 1, [FromQuery] int perPage = 30)
     {
+        if (page < 1)
+            return BadRequest(new { message = "page must be at least 1." });
+
+        if (perPage < 1 || perPage > 200)
+            return BadRequest(new { message = "perPage must be between 1 and 200." });
 
         var entityType = _context.Model.GetEntityTypes().FirstOrDefault(e => e.GetTableName() == tableName);
         if (entityType == null) return NotFound(new { message = $"Table {tableName} not found." });

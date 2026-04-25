@@ -6,21 +6,35 @@ import { SpatialPreview } from './SpatialPreview';
 interface GenericDataFormProps {
   table: string;
   columns: ColumnMetadata[];
-  initialData?: any;
-  onSave: (data: any) => void;
+  initialData?: Record<string, unknown> | null;
+  onSave: (data: Record<string, unknown>) => void;
   onCancel: () => void;
 }
 
 export const GenericDataForm: React.FC<GenericDataFormProps> = ({ table, columns, initialData, onSave, onCancel }) => {
-  const [formData, setFormData] = useState<any>(initialData || {});
+  const [formData, setFormData] = useState<Record<string, unknown>>(
+    initialData || {},
+  );
 
-  const handleChange = (name: string, value: any) => {
-    setFormData((prev: any) => ({ ...prev, [name]: value }));
+  const handleChange = (name: string, value: unknown) => {
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSave(formData);
+  };
+
+  const renderValue = (value: unknown) => {
+    if (typeof value === 'string') return value;
+    if (value === undefined || value === null) return '';
+    if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return '';
+    }
   };
 
   return (
@@ -50,12 +64,12 @@ export const GenericDataForm: React.FC<GenericDataFormProps> = ({ table, columns
                 {col.isSpatial ? (
                   <div className="space-y-4">
                      <textarea
-                       className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4 text-zinc-100 focus:ring-2 focus:ring-indigo-500/50 text-xs font-mono"
-                       placeholder='{"type": "Point", "coordinates": [0,0]}'
-                       value={typeof formData[col.name] === 'string' ? formData[col.name] : JSON.stringify(formData[col.name])}
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4 text-zinc-100 focus:ring-2 focus:ring-indigo-500/50 text-xs font-mono"
+                      placeholder='{"type": "Point", "coordinates": [0,0]}'
+                       value={renderValue(formData[col.name])}
                        onChange={(e) => {
                          try {
-                           const json = JSON.parse(e.target.value);
+                           const json: unknown = JSON.parse(e.target.value);
                            handleChange(col.name, json);
                          } catch {
                            handleChange(col.name, e.target.value);
@@ -63,7 +77,8 @@ export const GenericDataForm: React.FC<GenericDataFormProps> = ({ table, columns
                        }}
                        rows={3}
                      />
-                     {formData[col.name] && typeof formData[col.name] === 'object' && (
+                     {formData[col.name] !== null &&
+                       typeof formData[col.name] === 'object' && (
                        <div className="border border-zinc-800 rounded-2xl p-2 bg-zinc-950/20">
                           <p className="text-[10px] font-bold text-zinc-700 uppercase tracking-widest mb-2 ml-2">Quick Preview</p>
                           <SpatialPreview geoJson={formData[col.name]} height="140px" interactive={false} />
@@ -81,11 +96,11 @@ export const GenericDataForm: React.FC<GenericDataFormProps> = ({ table, columns
                      <span className="text-zinc-400 text-sm">Enabled / True</span>
                   </div>
                 ) : col.type === 'number' ? (
-                  <input
-                    type="number"
-                    step="any"
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4 text-zinc-100 focus:ring-2 focus:ring-indigo-500/50"
-                    value={formData[col.name] || ''}
+                    <input
+                      type="number"
+                      step="any"
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4 text-zinc-100 focus:ring-2 focus:ring-indigo-500/50"
+                    value={renderValue(formData[col.name])}
                     onChange={(e) => handleChange(col.name, parseFloat(e.target.value))}
                     required={!col.isNullable}
                   />
@@ -93,7 +108,7 @@ export const GenericDataForm: React.FC<GenericDataFormProps> = ({ table, columns
                   <input
                     type="text"
                     className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4 text-zinc-100 focus:ring-2 focus:ring-indigo-500/50"
-                    value={formData[col.name] || ''}
+                    value={renderValue(formData[col.name])}
                     onChange={(e) => handleChange(col.name, e.target.value)}
                     required={!col.isNullable && !col.isPrimaryKey}
                   />

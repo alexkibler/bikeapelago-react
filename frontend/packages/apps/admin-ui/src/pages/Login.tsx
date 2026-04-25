@@ -12,6 +12,12 @@ import {
 import { useNavigate } from 'react-router-dom';
 
 import { useAuth } from '../context/AuthContext';
+import type { User } from '../context/AuthContext';
+
+interface LoginResponse {
+  token: string;
+  record: User;
+}
 
 export const Login: React.FC = () => {
   const [identity, setIdentity] = useState('');
@@ -27,14 +33,19 @@ export const Login: React.FC = () => {
     setError(null);
 
     try {
-      const res = await axios.post('/api/auth/login', { identity, password });
+      const res = await axios.post<LoginResponse>('/api/auth/login', {
+        identity,
+        password,
+      });
       const { token, record } = res.data;
 
       login(token, record);
       navigate('/');
-    } catch (err: any) {
+    } catch (err: unknown) {
       setError(
-        err.response?.data?.message ?? 'Gateway timeout or unauthorized link.',
+        axios.isAxiosError<{ message?: string }>(err)
+          ? err.response?.data?.message ?? 'Gateway timeout or unauthorized link.'
+          : 'Gateway timeout or unauthorized link.',
       );
     } finally {
       setLoading(false);

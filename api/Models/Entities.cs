@@ -111,10 +111,10 @@ public class GameSession
     public SessionStatus Status { get; set; } = SessionStatus.SetupInProgress;
 
     [JsonPropertyName("created")]
-    public string CreatedAt { get; set; } = string.Empty;
+    public string CreatedAt { get; set; } = DateTime.UtcNow.ToString("O");
 
     [JsonPropertyName("updated")]
-    public string UpdatedAt { get; set; } = string.Empty;
+    public string UpdatedAt { get; set; } = DateTime.UtcNow.ToString("O");
 
     [NotMapped]
     [JsonPropertyName("center_lat")]

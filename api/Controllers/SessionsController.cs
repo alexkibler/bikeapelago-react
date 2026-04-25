@@ -601,6 +601,9 @@ public class SessionsController(
     [Microsoft.AspNetCore.Authorization.Authorize]
     public async Task<IActionResult> ExecuteDetour(Guid id, [FromQuery] Guid nodeId)
     {
+        if (nodeId == Guid.Empty)
+            return BadRequest(new { message = "nodeId is required." });
+
         var (_, error) = await GetAuthorizedSessionResultAsync(id);
         if (error != null)
             return error;
@@ -613,6 +616,9 @@ public class SessionsController(
     [Microsoft.AspNetCore.Authorization.Authorize]
     public async Task<IActionResult> ExecuteDrone(Guid id, [FromQuery] Guid nodeId)
     {
+        if (nodeId == Guid.Empty)
+            return BadRequest(new { message = "nodeId is required." });
+
         var (_, error) = await GetAuthorizedSessionResultAsync(id);
         if (error != null)
             return error;

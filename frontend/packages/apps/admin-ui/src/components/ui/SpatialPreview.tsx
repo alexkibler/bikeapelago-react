@@ -3,9 +3,32 @@ import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
 interface SpatialPreviewProps {
-  geoJson: any;
+  geoJson: unknown;
   height?: string;
   interactive?: boolean;
+}
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+const isCoordinatePair = (value: unknown): value is [number, number] =>
+  Array.isArray(value) &&
+  value.length >= 2 &&
+  typeof value[0] === 'number' &&
+  typeof value[1] === 'number';
+
+function processCoords(
+  coords: unknown,
+  bounds: maplibregl.LngLatBounds,
+): void {
+  if (!Array.isArray(coords)) return;
+
+  if (isCoordinatePair(coords)) {
+    bounds.extend(coords);
+    return;
+  }
+
+  coords.forEach((child) => processCoords(child, bounds));
 }
 
 export const SpatialPreview: React.FC<SpatialPreviewProps> = ({ geoJson, height = '200px', interactive = false }) => {
@@ -45,7 +68,7 @@ export const SpatialPreview: React.FC<SpatialPreviewProps> = ({ geoJson, height 
 
       map.current.addSource('spatial-data', {
         type: 'geojson',
-        data: geoJson
+        data: geoJson as maplibregl.GeoJSONSourceSpecification['data'],
       });
 
       // Add layers based on geometry type
@@ -91,24 +114,20 @@ export const SpatialPreview: React.FC<SpatialPreviewProps> = ({ geoJson, height 
       // Fit bounds
       const bounds = new maplibregl.LngLatBounds();
       
-      const processCoords = (coords: any) => {
-        if (Array.isArray(coords[0])) {
-           coords.forEach(processCoords);
-        } else if (typeof coords[0] === 'number') {
-           bounds.extend(coords as [number, number]);
-        }
-      };
-
-      if (geoJson.type === 'Feature') {
-          processCoords(geoJson.geometry.coordinates);
-      } else if (geoJson.type === 'FeatureCollection') {
-          geoJson.features.forEach((f: any) => processCoords(f.geometry.coordinates));
-      } else if (geoJson.coordinates) {
-          processCoords(geoJson.coordinates);
+      if (isRecord(geoJson) && geoJson.type === 'Feature' && isRecord(geoJson.geometry)) {
+        processCoords(geoJson.geometry.coordinates, bounds);
+      } else if (isRecord(geoJson) && geoJson.type === 'FeatureCollection' && Array.isArray(geoJson.features)) {
+        geoJson.features.forEach((feature) => {
+          if (isRecord(feature) && isRecord(feature.geometry)) {
+            processCoords(feature.geometry.coordinates, bounds);
+          }
+        });
+      } else if (isRecord(geoJson) && 'coordinates' in geoJson) {
+        processCoords(geoJson.coordinates, bounds);
       }
 
       if (!bounds.isEmpty()) {
-          map.current.fitBounds(bounds, { padding: 40, animate: false });
+        map.current.fitBounds(bounds, { padding: 40, animate: false });
       }
     });
 

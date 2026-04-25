@@ -18,6 +18,7 @@ public class SessionsControllerTests
     private readonly Mock<IMapNodeRepository> _nodeRepoMock;
     private readonly Mock<IUserRepository> _userRepoMock;
     private readonly Mock<IRouteBuilderService> _routeBuilderMock;
+    private readonly Mock<IItemExecutionService> _itemExecutionMock;
     private readonly SessionsController _controller;
     private readonly Guid _userId;
 
@@ -27,6 +28,7 @@ public class SessionsControllerTests
         _nodeRepoMock = new Mock<IMapNodeRepository>();
         _userRepoMock = new Mock<IUserRepository>();
         _routeBuilderMock = new Mock<IRouteBuilderService>();
+        _itemExecutionMock = new Mock<IItemExecutionService>();
 
         _userId = Guid.NewGuid();
 
@@ -38,7 +40,7 @@ public class SessionsControllerTests
             Mock.Of<IProgressionEngineFactory>(),
             new SessionValidator(Mock.Of<ILogger<SessionValidator>>()),
             _routeBuilderMock.Object,
-            Mock.Of<IItemExecutionService>());
+            _itemExecutionMock.Object);
 
         var claims = new List<Claim>
         {
@@ -227,6 +229,8 @@ public class SessionsControllerTests
         Assert.Equal(SessionStatus.SetupInProgress, captured.Status);
         Assert.Equal("archipelago", captured.ConnectionMode);
         Assert.Equal(5000, captured.Radius);
+        Assert.False(string.IsNullOrWhiteSpace(captured.CreatedAt));
+        Assert.False(string.IsNullOrWhiteSpace(captured.UpdatedAt));
     }
 
     [Fact]
@@ -275,6 +279,24 @@ public class SessionsControllerTests
 
         Assert.IsType<BadRequestObjectResult>(result);
         nodeGenerationService.Verify(s => s.GenerateNodesAsync(It.IsAny<NodeGenerationRequest>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task ExecuteDetour_WithEmptyNodeId_ReturnsBadRequest()
+    {
+        var result = await _controller.ExecuteDetour(Guid.NewGuid(), Guid.Empty);
+
+        Assert.IsType<BadRequestObjectResult>(result);
+        _itemExecutionMock.Verify(s => s.ExecuteDetourAsync(It.IsAny<Guid>(), It.IsAny<Guid>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task ExecuteDrone_WithEmptyNodeId_ReturnsBadRequest()
+    {
+        var result = await _controller.ExecuteDrone(Guid.NewGuid(), Guid.Empty);
+
+        Assert.IsType<BadRequestObjectResult>(result);
+        _itemExecutionMock.Verify(s => s.ExecuteDroneAsync(It.IsAny<Guid>(), It.IsAny<Guid>()), Times.Never);
     }
 
     [Fact]

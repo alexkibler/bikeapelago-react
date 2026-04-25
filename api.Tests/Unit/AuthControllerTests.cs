@@ -72,4 +72,45 @@ public class AuthControllerTests
         var updatedUser = Assert.IsType<User>(okResult.Value);
         Assert.Equal("New Name", updatedUser.Name);
     }
+
+    [Fact]
+    public async Task Login_WithMissingCredentials_ReturnsBadRequest()
+    {
+        var result = await _controller.Login(new LoginRequest
+        {
+            Username = " ",
+            Password = ""
+        });
+
+        Assert.IsType<BadRequestObjectResult>(result);
+        _userRepoMock.Verify(repo => repo.LoginAsync(It.IsAny<string>(), It.IsAny<string>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task Register_WithMissingCredentials_ReturnsBadRequest()
+    {
+        var result = await _controller.Register(new RegisterRequest
+        {
+            Username = "",
+            Password = ""
+        });
+
+        Assert.IsType<BadRequestObjectResult>(result);
+        _userManagerMock.Verify(um => um.CreateAsync(It.IsAny<User>(), It.IsAny<string>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task UpdateUser_WithNonPositiveWeight_ReturnsBadRequest()
+    {
+        var user = new User { Id = _userId, UserName = "testuser", Name = "Old Name" };
+        _userRepoMock.Setup(repo => repo.GetByIdAsync(_userId)).ReturnsAsync(user);
+
+        var result = await _controller.UpdateUser(_userId, new UpdateUserRequest
+        {
+            Weight = 0
+        });
+
+        Assert.IsType<BadRequestObjectResult>(result);
+        _userManagerMock.Verify(um => um.UpdateAsync(It.IsAny<User>()), Times.Never);
+    }
 }

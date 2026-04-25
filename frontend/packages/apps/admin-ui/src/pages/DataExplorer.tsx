@@ -18,23 +18,16 @@ import {
 import { GenericDataForm } from '../components/ui/GenericDataForm';
 import { SpatialPreview } from '../components/ui/SpatialPreview';
 import { useAuth } from '../context/AuthContext';
+import type { ColumnMetadata } from '../types/schema';
 
-interface Column {
-  name: string;
-  type: string;
-  isNullable: boolean;
-  isPrimaryKey: boolean;
-  isSpatial: boolean;
-}
-
-interface TableMetadata {
-  table: string;
-  columns: Column[];
-}
+type DataRow = Record<string, unknown>;
 
 interface TableGroup {
   name: string;
-  tables: TableMetadata[];
+  tables: {
+    table: string;
+    columns: ColumnMetadata[];
+  }[];
 }
 
 export const DataExplorer: React.FC = () => {
@@ -42,20 +35,20 @@ export const DataExplorer: React.FC = () => {
   const [schemaGroups, setSchemaGroups] = useState<TableGroup[]>([]);
   const [selectedTable, setSelectedTable] = useState<string | null>(null);
   const [expandedGroups, setExpandedGroups] = useState<string[]>(['Game Core']);
-  const [data, setData] = useState<any[]>([]);
+  const [data, setData] = useState<DataRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
-  const [previewGeo, setPreviewGeo] = useState<any | null>(null);
+  const [previewGeo, setPreviewGeo] = useState<unknown>(null);
   const [formMode, setFormMode] = useState<'create' | 'edit' | null>(null);
-  const [selectedRow, setSelectedRow] = useState<any | null>(null);
+  const [selectedRow, setSelectedRow] = useState<DataRow | null>(null);
 
   const fetchSchema = async () => {
     try {
-      const res = await axios.get('/api/admin/schema', {
+      const res = await axios.get<TableGroup[]>('/api/admin/schema', {
         headers: { Authorization: `Bearer ${token}` },
       });
       setSchemaGroups(res.data);
-      const allTables = res.data.flatMap((g: TableGroup) => g.tables);
+      const allTables = res.data.flatMap((g) => g.tables);
       if (allTables.length > 0 && !selectedTable)
         setSelectedTable(allTables[0].table);
     } catch (err) {
@@ -67,9 +60,12 @@ export const DataExplorer: React.FC = () => {
     if (!selectedTable) return;
     setLoading(true);
     try {
-      const res = await axios.get(`/api/admin/data/${selectedTable}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await axios.get<{ items: DataRow[] }>(
+        `/api/admin/data/${selectedTable}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
       setData(res.data.items);
     } catch (err) {
       console.error('Failed to fetch data', err);
@@ -79,10 +75,10 @@ export const DataExplorer: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchSchema();
+    void fetchSchema();
   }, [token]);
   useEffect(() => {
-    fetchData();
+    void fetchData();
   }, [selectedTable, token]);
 
   const toggleGroup = (name: string) => {
@@ -91,12 +87,16 @@ export const DataExplorer: React.FC = () => {
     );
   };
 
-  const handleSave = async (payload: any) => {
+  const handleSave = async (payload: DataRow) => {
     try {
       const pk = currentTable?.columns.find((c) => c.isPrimaryKey)?.name;
+      const pkValue = pk ? payload[pk] : undefined;
+      if (formMode === 'edit' && pk && pkValue == null) {
+        throw new Error(`Missing primary key value for ${selectedTable}`);
+      }
       const url =
         formMode === 'edit' && pk
-          ? `/api/admin/data/${selectedTable}/${payload[pk]}`
+          ? `/api/admin/data/${selectedTable}/${pkValue as string | number | boolean}`
           : `/api/admin/data/${selectedTable}`;
       const method = formMode === 'edit' ? 'put' : 'post';
 
@@ -107,21 +107,21 @@ export const DataExplorer: React.FC = () => {
         headers: { Authorization: `Bearer ${token}` },
       });
       setFormMode(null);
-      fetchData();
+      void fetchData();
     } catch (err) {
       console.error('Save failed', err);
     }
   };
 
-  const handleDelete = async (row: any) => {
+  const handleDelete = async (row: DataRow) => {
     if (!window.confirm('Delete this record irreversibly?')) return;
     try {
       const pk = currentTable?.columns.find((c) => c.isPrimaryKey)?.name;
       if (pk) {
-        await axios.delete(`/api/admin/data/${selectedTable}/${row[pk]}`, {
+        await axios.delete(`/api/admin/data/${selectedTable}/${String(row[pk])}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
-        fetchData();
+        void fetchData();
       }
     } catch (err) {
       console.error('Delete failed', err);
@@ -135,6 +135,23 @@ export const DataExplorer: React.FC = () => {
       String(v).toLowerCase().includes(search.toLowerCase()),
     ),
   );
+
+  const renderCellValue = (value: unknown) => {
+    if (value === null || value === undefined) return '-';
+    if (
+      typeof value === 'string' ||
+      typeof value === 'number' ||
+      typeof value === 'boolean'
+    ) {
+      return String(value);
+    }
+
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return '-';
+    }
+  };
 
   return (
     <div className='flex flex-col h-full bg-[#09090b] border border-[#18181b] rounded-[40px] overflow-hidden shadow-2xl relative'>
@@ -310,7 +327,7 @@ export const DataExplorer: React.FC = () => {
                                   : ''
                               }
                             >
-                              {String(val ?? '-')}
+                              {renderCellValue(val)}
                             </span>
                           )}
                         </td>
@@ -344,7 +361,7 @@ export const DataExplorer: React.FC = () => {
       </div>
 
       {/* Spatial Preview Modal */}
-      {previewGeo && (
+      {previewGeo !== null && previewGeo !== undefined && (
         <div className='fixed inset-0 z-[100] flex items-center justify-center p-8 animate-in fade-in duration-300'>
           <div
             className='absolute inset-0 bg-zinc-950/80 backdrop-blur-2xl'
@@ -393,13 +410,13 @@ export const DataExplorer: React.FC = () => {
 
       {/* Dynamic Data Form Modal */}
       {formMode && currentTable && (
-        <GenericDataForm
-          table={selectedTable!}
-          columns={currentTable.columns}
-          initialData={selectedRow}
-          onSave={handleSave}
-          onCancel={() => setFormMode(null)}
-        />
+          <GenericDataForm
+            table={selectedTable!}
+            columns={currentTable.columns}
+            initialData={selectedRow ?? undefined}
+            onSave={handleSave}
+            onCancel={() => setFormMode(null)}
+          />
       )}
     </div>
   );

@@ -27,6 +27,9 @@ public class AuthController : ControllerBase
     [HttpPost("/api/pb/api/collections/users/auth-with-password")]
     public async Task<IActionResult> Login([FromBody] LoginRequest request)
     {
+        if (string.IsNullOrWhiteSpace(request.Username) || string.IsNullOrWhiteSpace(request.Password))
+            return BadRequest(new { message = "Username and password are required." });
+
         var result = await _userRepository.LoginAsync(request.Username, request.Password);
         if (result != null)
         {
@@ -67,6 +70,9 @@ public class AuthController : ControllerBase
         var user = await _userRepository.GetByIdAsync(id);
         if (user == null) return NotFound(new { message = "User not found." });
 
+        if (request.Weight.HasValue && request.Weight.Value <= 0)
+            return BadRequest(new { message = "Weight must be greater than 0." });
+
         if (request.Username != null) user.UserName = request.Username;
         if (request.Name != null) user.Name = request.Name;
         if (request.Weight.HasValue) user.Weight = request.Weight.Value;
@@ -89,9 +95,13 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> Register([FromBody] RegisterRequest request)
     {
         try {
+            if (string.IsNullOrWhiteSpace(request.Username) || string.IsNullOrWhiteSpace(request.Password))
+                return BadRequest(new { message = "Username and password are required." });
+
+            var normalizedUsername = request.Username.Trim();
             var user = new User {
-                UserName = request.Username,
-                Email = request.Username.Contains("@") ? request.Username : null,
+                UserName = normalizedUsername,
+                Email = normalizedUsername.Contains("@") ? normalizedUsername : null,
                 Name = request.Name
             };
             
