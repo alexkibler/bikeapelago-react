@@ -14,6 +14,7 @@ import Register from './pages/Register';
 import About from './pages/About';
 import Settings from './pages/Settings';
 import { handleUnauthorized, useAuthStore } from './store/authStore';
+import { useFitFileOpen } from './hooks/useFitFileOpen';
 import { DataFetchProvider } from '@bikeapelago/shared-data-fetching';
 import './App.css';
 
@@ -24,6 +25,8 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
 
 function App() {
   const token = useAuthStore(s => s.token);
+
+  useFitFileOpen();
 
   // On Android, the hardware back button exits the app by default when Capacitor
   // handles it. Override it to navigate within the web history stack instead.

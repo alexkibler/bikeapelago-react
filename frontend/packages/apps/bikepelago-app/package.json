@@ -16,7 +16,8 @@
     "cap:sync": "cap sync",
     "cap:build": "pnpm run build && cap sync",
     "cap:android": "pnpm run cap:build && cap open android",
-    "cap:ios": "pnpm run cap:build && cap open ios"
+    "cap:ios": "pnpm run cap:build && cap open ios",
+    "cap:ios:configure": "node scripts/configure-ios-documents.js && cap sync"
   },
   "dependencies": {
     "@airbreather/archipelago.js": "^2.0.5-airbreather.6",

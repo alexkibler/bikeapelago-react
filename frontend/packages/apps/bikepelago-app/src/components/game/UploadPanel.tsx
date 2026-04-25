@@ -1,12 +1,21 @@
 import React, { useState, useRef } from 'react';
 import { useGameStore } from '../../store/gameStore';
+import { useFitImportStore } from '../../store/fitImportStore';
 import { Upload, FileCheck, Loader2, Play, CheckCircle2, XCircle } from 'lucide-react';
 import { useFitAnalyzer } from '../../hooks/useFitAnalyzer';
 
 const UploadPanel = ({ sessionId }: { sessionId: string }) => {
   const { analysisResult, setAnalysisResult } = useGameStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+
+  // Consume any FIT file that was opened via the native file-open handler before
+  // this panel mounted. Using getState() reads the store synchronously so no
+  // effect or cascade render is needed.
+  const [selectedFile, setSelectedFile] = useState<File | null>(() => {
+    const { pendingFile, setPendingFile } = useFitImportStore.getState();
+    if (pendingFile) setPendingFile(null);
+    return pendingFile;
+  });
 
   const {
     analyzeFile,
