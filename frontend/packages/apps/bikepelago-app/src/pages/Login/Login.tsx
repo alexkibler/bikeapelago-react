@@ -32,7 +32,9 @@ export function Login(): ReactElement {
     loginRequest.mutate(data, {
       onSuccess: (responseData) => {
         login(responseData.token, responseData.record);
-        void navigate('/');
+        const returnTo = (location.state as Record<string, unknown> | null)
+          ?.returnTo as string | undefined;
+        void navigate(returnTo ?? '/');
       },
       onError: (err) => {
         setError(err instanceof Error ? err.message : 'Invalid credentials.');

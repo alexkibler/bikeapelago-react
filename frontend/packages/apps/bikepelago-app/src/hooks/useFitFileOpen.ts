@@ -1,13 +1,15 @@
 import { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
 import { App } from '@capacitor/app';
 
 import { useFitImportStore } from '../store/fitImportStore';
 
 // Listens for iOS/Android file-open events (Share Sheet, Files app) and converts
-// the incoming file:// URL into a File object for the upload flow.
+// the incoming file:// URL into a File object, then routes to the import page.
 export function useFitFileOpen() {
   const setPendingFile = useFitImportStore((s) => s.setPendingFile);
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;
@@ -27,6 +29,7 @@ export function useFitFileOpen() {
           setPendingFile(
             new File([buffer], filename, { type: 'application/octet-stream' }),
           );
+          void navigate('/fit-import');
         } catch (err) {
           console.error('[useFitFileOpen] Failed to read FIT file:', err);
         }
@@ -36,5 +39,5 @@ export function useFitFileOpen() {
     return () => {
       void listenerPromise.then((h) => h.remove());
     };
-  }, [setPendingFile]);
+  }, [setPendingFile, navigate]);
 }
