@@ -13,6 +13,10 @@ const Sidebar = () => {
 
   const pathname = location.pathname;
   const isGamePage = pathname.startsWith('/game');
+  const session = useGameStore((s) => s.session);
+  const isAp = !!session?.ap_server_url;
+  const isCompleted = session?.status === 'Completed';
+  const canRouteOrUseItems = isAp && !isCompleted;
 
   const togglePanel = (panel: GamePanel) => {
     setActivePanel(activePanel === panel ? null : panel);
@@ -54,19 +58,23 @@ const Sidebar = () => {
               <span className="font-medium text-sm">Game Chat</span>
             </button>
 
-            <button
-              onClick={() => togglePanel('inventory')}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${activePanel === 'inventory' ? 'bg-[var(--color-primary-hex)]/10 text-[var(--color-primary-hex)] shadow-inner shadow-primary/5' : 'text-[var(--color-text-muted-hex)] hover:text-[var(--color-text-hex)] hover:bg-[rgb(var(--color-surface-overlay))]'}`}>
-              <Package className="w-5 h-5" />
-              <span className="font-medium text-sm">Inventory</span>
-            </button>
+            {isAp && (
+              <button
+                onClick={() => togglePanel('inventory')}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${activePanel === 'inventory' ? 'bg-[var(--color-primary-hex)]/10 text-[var(--color-primary-hex)] shadow-inner shadow-primary/5' : 'text-[var(--color-text-muted-hex)] hover:text-[var(--color-text-hex)] hover:bg-[rgb(var(--color-surface-overlay))]'}`}>
+                <Package className="w-5 h-5" />
+                <span className="font-medium text-sm">Inventory</span>
+              </button>
+            )}
 
-            <button
-              onClick={() => togglePanel('route')}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${activePanel === 'route' ? 'bg-[var(--color-primary-hex)]/10 text-[var(--color-primary-hex)] shadow-inner shadow-primary/5' : 'text-[var(--color-text-muted-hex)] hover:text-[var(--color-text-hex)] hover:bg-[rgb(var(--color-surface-overlay))]'}`}>
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3Z"/><path d="M9 3v15"/><path d="M15 6v15"/></svg>
-              <span className="font-medium text-sm">Route Builder</span>
-            </button>
+            {canRouteOrUseItems && (
+              <button
+                onClick={() => togglePanel('route')}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${activePanel === 'route' ? 'bg-[var(--color-primary-hex)]/10 text-[var(--color-primary-hex)] shadow-inner shadow-primary/5' : 'text-[var(--color-text-muted-hex)] hover:text-[var(--color-text-hex)] hover:bg-[rgb(var(--color-surface-overlay))]'}`}>
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3Z"/><path d="M9 3v15"/><path d="M15 6v15"/></svg>
+                <span className="font-medium text-sm">Route Builder</span>
+              </button>
+            )}
           </>
         ) : (
           <>

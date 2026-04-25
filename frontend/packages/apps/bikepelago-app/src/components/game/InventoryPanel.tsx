@@ -35,6 +35,7 @@ const InventoryPanel = () => {
   const detourCount = activeCount(ITEMS.DETOUR.id, session?.detours_used);
   const droneCount = activeCount(ITEMS.DRONE.id, session?.drones_used);
   const signalAmpCount = activeCount(ITEMS.SIGNAL_AMPLIFIER.id, session?.signal_amplifiers_used);
+  const isCompleted = session?.status === 'Completed';
 
   const handleUseDetour = async () => {
     if (!sessionId || selectedNodeIds.size !== 1) {
@@ -163,8 +164,8 @@ const InventoryPanel = () => {
             </div>
             <ItemCount count={detourCount} itemId={ITEMS.DETOUR.id} />
           </div>
-          {detourCount > 0 && (
-            <button 
+          {detourCount > 0 && !isCompleted && (
+            <button
               onClick={() => void handleUseDetour()}
               disabled={isUsing || selectedNodeIds.size !== 1}
               className="w-full py-2 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-600 text-white text-xs font-bold rounded-lg transition-colors flex items-center justify-center gap-2"
@@ -188,8 +189,8 @@ const InventoryPanel = () => {
             </div>
             <ItemCount count={droneCount} itemId={ITEMS.DRONE.id} />
           </div>
-          {droneCount > 0 && (
-            <button 
+          {droneCount > 0 && !isCompleted && (
+            <button
               onClick={() => void handleUseDrone()}
               disabled={isUsing || selectedNodeIds.size !== 1}
               className="w-full py-2 bg-purple-500 hover:bg-purple-600 disabled:bg-gray-600 text-white text-xs font-bold rounded-lg transition-colors flex items-center justify-center gap-2"
@@ -213,8 +214,8 @@ const InventoryPanel = () => {
             </div>
             <ItemCount count={signalAmpCount} itemId={ITEMS.SIGNAL_AMPLIFIER.id} />
           </div>
-          {signalAmpCount > 0 && (
-            <button 
+          {signalAmpCount > 0 && !isCompleted && (
+            <button
               onClick={() => void handleUseSignalAmplifier()}
               disabled={isUsing}
               className="w-full py-2 bg-orange-500 hover:bg-orange-600 disabled:bg-gray-600 text-white text-xs font-bold rounded-lg transition-colors"

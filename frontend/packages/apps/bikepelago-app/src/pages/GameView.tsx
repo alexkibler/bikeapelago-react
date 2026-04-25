@@ -29,6 +29,7 @@ const GameView = () => {
   const setNodes = useGameStore((s) => s.setNodes);
   const syncVersion = useGameStore((s) => s.syncVersion);
 
+  const [victoryDismissed, setVictoryDismissed] = useState(false);
   const [reconnectCanceled, setReconnectCanceled] = useState<boolean | null>(
     null,
   );
@@ -211,7 +212,9 @@ const GameView = () => {
 
   return (
     <div className='relative w-full h-full flex flex-col bg-[var(--color-surface-alt-hex)]'>
-      {session?.status === 'Completed' && <VictoryModal session={session} />}
+      {!victoryDismissed && session?.status === 'Completed' && (
+        <VictoryModal session={session} onDismiss={() => setVictoryDismissed(true)} />
+      )}
       {showReconnect && <ArchipelagoReconnectDialog {...reconnectProps} />}
       <DebugBanner />
       <GameStatsBar session={session} nodes={nodes} />
