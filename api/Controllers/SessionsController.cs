@@ -386,9 +386,7 @@ public class SessionsController(
             if (string.IsNullOrEmpty(userIdString) || !Guid.TryParse(userIdString, out var userId))
                 return Unauthorized(new { message = "Invalid token" });
 
-            var userName = User.FindFirstValue(ClaimTypes.Name);
-
-            if (session.UserId != userId && userName != "testuser")
+            if (session.UserId != userId)
             {
                 return Forbid();
             }
