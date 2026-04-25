@@ -16,6 +16,7 @@ export function DataFetchProvider({
   children,
   handleUnauthorized,
   token,
+  baseUrl,
 }: PropsWithChildren<DataFetchProviderProps>) {
   // eslint-disable-next-line react-hooks/exhaustive-deps -- change client wholesale when token changes
   const queryClient = useMemo(() => new QueryClient(), [token]);
@@ -24,8 +25,9 @@ export function DataFetchProvider({
     () => ({
       handleUnauthorized,
       token,
+      baseUrl,
     }),
-    [handleUnauthorized, token],
+    [handleUnauthorized, token, baseUrl],
   );
 
   return (

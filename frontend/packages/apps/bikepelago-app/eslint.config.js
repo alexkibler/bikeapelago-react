@@ -1,3 +1,6 @@
 import config from '@bikeapelago/shared-configs/eslint.config.js';
 
-export default config;
+export default [
+  { ignores: ['ios/**'] },
+  ...config,
+];

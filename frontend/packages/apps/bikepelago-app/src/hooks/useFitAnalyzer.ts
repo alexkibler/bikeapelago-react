@@ -1,5 +1,6 @@
 import { useState } from 'react';
 
+import { API_BASE } from '../lib/api';
 import { getToken } from '../store/authStore';
 import { useGameStore } from '../store/gameStore';
 import type { FitAnalysisResult } from '../types/game';
@@ -58,7 +59,7 @@ export function useFitAnalyzer(
       const formData = new FormData();
       formData.append('file', selectedFile);
 
-      const res = await fetch(`/api/sessions/${sessionId}/analyze`, {
+      const res = await fetch(`${API_BASE}/sessions/${sessionId}/analyze`, {
         method: 'POST',
         headers,
         body: formData,
@@ -106,7 +107,7 @@ export function useFitAnalyzer(
 
       const nodeIds = analysisResult.newlyCheckedNodes.map((n) => n.id);
 
-      const res = await fetch(`/api/sessions/${sessionId}/nodes/check`, {
+      const res = await fetch(`${API_BASE}/sessions/${sessionId}/nodes/check`, {
         method: 'POST',
         headers,
         body: JSON.stringify({ nodeIds }),

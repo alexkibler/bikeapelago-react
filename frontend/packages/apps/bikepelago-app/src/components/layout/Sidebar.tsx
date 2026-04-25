@@ -1,5 +1,6 @@
 import React from 'react';
 import { useLocation, Link, useNavigate } from 'react-router-dom';
+import { resetStores } from '../../lib/resetStores';
 import { useAuthStore } from '../../store/authStore';
 import { useGameStore, type GamePanel } from '../../store/gameStore';
 import ThemeToggle from './ThemeToggle';
@@ -20,6 +21,7 @@ const Sidebar = () => {
 
   const handleLogout = (e: React.FormEvent) => {
     e.preventDefault();
+    resetStores();
     logout();
     void navigate('/login');
   };

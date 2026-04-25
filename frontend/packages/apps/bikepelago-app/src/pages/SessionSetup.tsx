@@ -25,6 +25,7 @@ import {
 } from 'react-leaflet';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
+import { API_BASE } from '../lib/api';
 import { getToken, useAuthStore } from '../store/authStore';
 
 const DefaultIcon = L.icon({
@@ -152,7 +153,7 @@ const SessionSetup = () => {
         payload.ap_slot_name = slotName;
       }
 
-      const createRes = await fetch('/api/sessions', {
+      const createRes = await fetch(`${API_BASE}/sessions`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -177,7 +178,7 @@ const SessionSetup = () => {
       setStatus('Generating intersection nodes...');
 
       // 2. Generate Nodes
-      const genRes = await fetch(`/api/sessions/${newSessionId}/generate`, {
+      const genRes = await fetch(`${API_BASE}/sessions/${newSessionId}/generate`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

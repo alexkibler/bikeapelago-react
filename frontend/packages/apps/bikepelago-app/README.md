@@ -16,13 +16,29 @@ pnpm --filter "@bikeapelago/bikepelago-app" run test:run
 
 ## Environment
 
-Optional `.env` in this folder:
+`.env` in this folder:
 
 ```env
-VITE_PUBLIC_API_URL=http://localhost:5054
+VITE_PUBLIC_API_URL=https://bikeapelago.alexkibler.com
 ```
 
-If unset, Vite falls back to `VITE_API_URL`, then `http://127.0.0.1:5054`.
+- **Browser dev:** leave unset — Vite's proxy forwards `/api` to `localhost:5054`.
+- **Native (iOS/Android) builds:** must be set to the full API URL. Relative paths don't work in a native WebView — there is no proxy.
+
+## iOS Native Build
+
+Prerequisites: Xcode, CocoaPods (`gem install cocoapods`), `xcode-select` pointing at Xcode (not CLT):
+```bash
+sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+```
+
+Build and deploy:
+```bash
+pnpm run build          # must be run with VITE_PUBLIC_API_URL set
+npx cap sync ios        # copies dist/ into the Xcode project and runs pod install
+```
+
+Then open **`ios/App/App.xcworkspace`** in Xcode (not `.xcodeproj`), select the `App` scheme and your device, and hit ⌘R.
 
 ## Notes
 

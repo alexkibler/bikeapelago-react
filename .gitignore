@@ -20,6 +20,14 @@ node_modules/
 dist/
 build/
 coverage/
+
+# Capacitor native build artifacts (keep android/ and ios/ dirs, ignore their build outputs)
+frontend/packages/apps/bikepelago-app/android/.gradle/
+frontend/packages/apps/bikepelago-app/android/app/build/
+frontend/packages/apps/bikepelago-app/android/build/
+frontend/packages/apps/bikepelago-app/ios/App/Pods/
+frontend/packages/apps/bikepelago-app/ios/App/App.xcworkspace/xcuserdata/
+frontend/packages/apps/bikepelago-app/ios/App/build/
 .env.local
 .env.*.local
 .envrc.private

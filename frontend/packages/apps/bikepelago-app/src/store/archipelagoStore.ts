@@ -27,6 +27,7 @@ interface ArchipelagoState {
   setReceivedItems: (items: { id: number; name: string }[]) => void;
   addMessage: (message: Omit<ChatMessage, 'id' | 'timestamp'>) => void;
   clearMessages: () => void;
+  reset: () => void;
 }
 
 export const useArchipelagoStore = create<ArchipelagoState>((set) => ({
@@ -59,4 +60,11 @@ export const useArchipelagoStore = create<ArchipelagoState>((set) => ({
       ],
     })),
   clearMessages: () => set({ messages: [] }),
+  reset: () => set({
+    status: 'disconnected',
+    error: null,
+    checkedLocationIds: [],
+    receivedItems: [],
+    messages: [],
+  }),
 }));

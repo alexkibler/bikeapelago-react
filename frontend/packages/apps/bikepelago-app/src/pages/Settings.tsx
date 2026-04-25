@@ -15,6 +15,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 
 import Toggle from '../components/layout/Toggle';
+import { API_BASE } from '../lib/api';
 import { useDeleteAllSessions } from '../operations/sessions';
 import { getToken, useAuthStore, type User as AuthUser } from '../store/authStore';
 import { useDebugStore } from '../store/debugStore';
@@ -49,7 +50,7 @@ const Settings = () => {
     setUsernameSuccess(false);
     try {
       const token = getToken();
-      const res = await fetch(`/api/users/${user.id}`, {
+      const res = await fetch(`${API_BASE}/users/${user.id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -83,7 +84,7 @@ const Settings = () => {
     setPasswordSuccess(false);
     try {
       const token = getToken();
-      const res = await fetch(`/api/users/${user.id}`, {
+      const res = await fetch(`${API_BASE}/users/${user.id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',

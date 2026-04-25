@@ -119,7 +119,17 @@ Each app can define Vite API target:
 - `frontend/packages/apps/admin-ui/.env`
 
 Variable:
-- `VITE_PUBLIC_API_URL` (fallback in both apps is `http://127.0.0.1:5054`)
+- `VITE_PUBLIC_API_URL` — optional for browser dev (Vite proxy handles it), **required** for native iOS/Android builds (must be a full URL, e.g. `https://bikeapelago.alexkibler.com`)
+
+### CORS (native app support)
+
+The API CORS policy is driven by `AllowedOrigins` in `docker-compose.deploy.yml`. Native Capacitor apps send requests from the `capacitor://localhost` origin, which must be explicitly allowed:
+
+```yaml
+AllowedOrigins__2: ${ALLOWED_ORIGIN_2:-capacitor://localhost}
+```
+
+This is already set in `docker-compose.deploy.yml`. When adding new allowed origins, extend the numbered sequence (`AllowedOrigins__3`, etc.).
 
 ## Additional Docs
 
