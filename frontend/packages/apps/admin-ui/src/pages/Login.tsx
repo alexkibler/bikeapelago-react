@@ -44,7 +44,8 @@ export const Login: React.FC = () => {
     } catch (err: unknown) {
       setError(
         axios.isAxiosError<{ message?: string }>(err)
-          ? err.response?.data?.message ?? 'Gateway timeout or unauthorized link.'
+          ? (err.response?.data?.message ??
+              'Gateway timeout or unauthorized link.')
           : 'Gateway timeout or unauthorized link.',
       );
     } finally {

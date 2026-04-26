@@ -1,0 +1,4 @@
+{
+  "extends": "@bikeapelago/shared-configs/tsconfig.json",
+  "include": ["src"]
+}

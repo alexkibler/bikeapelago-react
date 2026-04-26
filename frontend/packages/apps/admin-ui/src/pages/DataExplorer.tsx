@@ -118,9 +118,12 @@ export const DataExplorer: React.FC = () => {
     try {
       const pk = currentTable?.columns.find((c) => c.isPrimaryKey)?.name;
       if (pk) {
-        await axios.delete(`/api/admin/data/${selectedTable}/${String(row[pk])}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        await axios.delete(
+          `/api/admin/data/${selectedTable}/${String(row[pk])}`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          },
+        );
         void fetchData();
       }
     } catch (err) {
@@ -410,13 +413,13 @@ export const DataExplorer: React.FC = () => {
 
       {/* Dynamic Data Form Modal */}
       {formMode && currentTable && (
-          <GenericDataForm
-            table={selectedTable!}
-            columns={currentTable.columns}
-            initialData={selectedRow ?? undefined}
-            onSave={handleSave}
-            onCancel={() => setFormMode(null)}
-          />
+        <GenericDataForm
+          table={selectedTable!}
+          columns={currentTable.columns}
+          initialData={selectedRow ?? undefined}
+          onSave={handleSave}
+          onCancel={() => setFormMode(null)}
+        />
       )}
     </div>
   );

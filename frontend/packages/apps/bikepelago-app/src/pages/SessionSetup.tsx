@@ -178,21 +178,24 @@ const SessionSetup = () => {
       setStatus('Generating intersection nodes...');
 
       // 2. Generate Nodes
-      const genRes = await fetch(`${API_BASE}/sessions/${newSessionId}/generate`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      const genRes = await fetch(
+        `${API_BASE}/sessions/${newSessionId}/generate`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({
+            centerLat: center[0],
+            centerLon: center[1],
+            radius,
+            nodeCount: mode === 'singleplayer' ? nodeCount : undefined,
+            gameMode: mode === 'singleplayer' ? progressionMode : mode,
+            transportMode: travelMode,
+          }),
         },
-        body: JSON.stringify({
-          centerLat: center[0],
-          centerLon: center[1],
-          radius,
-          nodeCount: mode === 'singleplayer' ? nodeCount : undefined,
-          gameMode: mode === 'singleplayer' ? progressionMode : mode,
-          transportMode: travelMode,
-        }),
-      });
+      );
 
       if (!genRes.ok) {
         const err = (await genRes.json().catch(() => ({}))) as {
@@ -411,7 +414,9 @@ const SessionSetup = () => {
                     </div>
                     <div className='text-left'>
                       <p className='font-bold text-xs'>Quadrant Mode</p>
-                      <p className='text-[9px] opacity-70'>Unlock wedges of the map</p>
+                      <p className='text-[9px] opacity-70'>
+                        Unlock wedges of the map
+                      </p>
                     </div>
                   </button>
                   <button
@@ -428,7 +433,9 @@ const SessionSetup = () => {
                     </div>
                     <div className='text-left'>
                       <p className='font-bold text-xs'>Radius Mode</p>
-                      <p className='text-[9px] opacity-70'>Expand outward from center</p>
+                      <p className='text-[9px] opacity-70'>
+                        Expand outward from center
+                      </p>
                     </div>
                   </button>
                   <button
@@ -443,14 +450,16 @@ const SessionSetup = () => {
                     <Search className='w-4 h-4' />
                     <div className='text-left'>
                       <p className='font-bold text-xs'>Free Mode</p>
-                      <p className='text-[9px] opacity-70'>Nodes revealed one-by-one</p>
+                      <p className='text-[9px] opacity-70'>
+                        Nodes revealed one-by-one
+                      </p>
                     </div>
                   </button>
                 </div>
               </div>
             )}
 
-                {/* Progress */}
+            {/* Progress */}
             {isGenerating && (
               <div className='space-y-2 pt-4 border-t border-[var(--color-border-hex)] animate-in fade-in duration-300'>
                 <div className='flex justify-between text-xs mb-1'>

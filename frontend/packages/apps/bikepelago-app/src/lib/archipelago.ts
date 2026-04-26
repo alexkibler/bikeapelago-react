@@ -24,7 +24,8 @@ class ArchipelagoClient {
 
     this.startingPromise = (async () => {
       try {
-        const apiBase = (import.meta.env.VITE_PUBLIC_API_URL as string | undefined) ?? '';
+        const apiBase =
+          (import.meta.env.VITE_PUBLIC_API_URL as string | undefined) ?? '';
         const conn = new signalR.HubConnectionBuilder()
           .withUrl(`${apiBase}/hubs/archipelago`)
           .withAutomaticReconnect()
@@ -58,15 +59,12 @@ class ArchipelagoClient {
           },
         );
 
-        conn.on(
-          'OnChatMessage',
-          (text: string, type: string) => {
-            useArchipelagoStore.getState().addMessage({
-              text: text,
-              type: type as 'system' | 'player' | 'item' | 'error',
-            });
-          },
-        );
+        conn.on('OnChatMessage', (text: string, type: string) => {
+          useArchipelagoStore.getState().addMessage({
+            text: text,
+            type: type as 'system' | 'player' | 'item' | 'error',
+          });
+        });
 
         conn.on('OnSyncRequired', async () => {
           console.log('[ArchipelagoClient] Sync required, triggering refresh');

@@ -9,7 +9,7 @@
     "build": "pnpm -r --if-present run build",
     "lint": "pnpm -r --if-present run lint",
     "format": "pnpm format:base --write",
-    "format:check": "pnpm format:base",
+    "format:check": "pnpm format:base --check",
     "format:base": "prettier packages/{apps,shared}/*/src/**/*.{tsx,ts,js,jsx} --no-error-on-unmatched-pattern",
     "test": "pnpm -r --if-present run test"
   },

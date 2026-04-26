@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import {
   AlertTriangle,
   ArrowLeft,
+  Bug,
   Check,
   Loader2,
   Lock,
@@ -10,14 +11,17 @@ import {
   ShieldAlert,
   Trash2,
   User,
-  Bug,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 import Toggle from '../components/layout/Toggle';
 import { API_BASE } from '../lib/api';
 import { useDeleteAllSessions } from '../operations/sessions';
-import { getToken, useAuthStore, type User as AuthUser } from '../store/authStore';
+import {
+  type User as AuthUser,
+  getToken,
+  useAuthStore,
+} from '../store/authStore';
 import { useDebugStore } from '../store/debugStore';
 import { toast } from '../store/toastStore';
 
@@ -160,7 +164,10 @@ const Settings = () => {
             </div>
           </div>
 
-          <form onSubmit={(e) => void handleUpdateUsername(e)} className='space-y-4 max-w-md'>
+          <form
+            onSubmit={(e) => void handleUpdateUsername(e)}
+            className='space-y-4 max-w-md'
+          >
             <div>
               <label className='block text-[10px] font-black uppercase tracking-widest text-[var(--color-text-muted-hex)] mb-2'>
                 Username
@@ -212,7 +219,10 @@ const Settings = () => {
             </div>
           </div>
 
-          <form onSubmit={(e) => void handleUpdatePassword(e)} className='space-y-4 max-w-md'>
+          <form
+            onSubmit={(e) => void handleUpdatePassword(e)}
+            className='space-y-4 max-w-md'
+          >
             <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
               <div>
                 <label className='block text-[10px] font-black uppercase tracking-widest text-[var(--color-text-muted-hex)] mb-2'>
@@ -285,15 +295,14 @@ const Settings = () => {
 
           <div className='flex items-center justify-between max-w-md'>
             <div>
-              <p className='text-sm font-bold text-[var(--color-text-hex)]'>Debug Mode</p>
+              <p className='text-sm font-bold text-[var(--color-text-hex)]'>
+                Debug Mode
+              </p>
               <p className='text-xs text-[var(--color-text-muted-hex)] mt-0.5'>
                 Tap available nodes on the map to manually mark them as checked.
               </p>
             </div>
-            <Toggle
-              checked={debugMode}
-              onCheckedChange={toggleDebug}
-            />
+            <Toggle checked={debugMode} onCheckedChange={toggleDebug} />
           </div>
         </section>
 

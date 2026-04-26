@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+
 import { Capacitor } from '@capacitor/core';
 import { Geolocation } from '@capacitor/geolocation';
 
@@ -21,7 +22,10 @@ export function useGeolocation() {
       // Without this iOS silently ignores watchPosition calls.
       if (Capacitor.isNativePlatform()) {
         const status = await Geolocation.requestPermissions();
-        if (status.location !== 'granted' && status.coarseLocation !== 'granted') {
+        if (
+          status.location !== 'granted' &&
+          status.coarseLocation !== 'granted'
+        ) {
           console.error('Geolocation permission denied by user');
           return;
         }

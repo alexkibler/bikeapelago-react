@@ -60,11 +60,12 @@ export const useArchipelagoStore = create<ArchipelagoState>((set) => ({
       ],
     })),
   clearMessages: () => set({ messages: [] }),
-  reset: () => set({
-    status: 'disconnected',
-    error: null,
-    checkedLocationIds: [],
-    receivedItems: [],
-    messages: [],
-  }),
+  reset: () =>
+    set({
+      status: 'disconnected',
+      error: null,
+      checkedLocationIds: [],
+      receivedItems: [],
+      messages: [],
+    }),
 }));
