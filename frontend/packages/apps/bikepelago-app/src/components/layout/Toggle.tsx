@@ -1,3 +1,5 @@
+import { useId } from 'react';
+
 interface ToggleProps {
   id?: string;
   label?: string;
@@ -8,15 +10,27 @@ interface ToggleProps {
 }
 
 const Toggle = ({ id, label, checked, onCheckedChange, disabled = false, className = '' }: ToggleProps) => {
+  const fallbackId = useId();
+  const toggleId = id || fallbackId;
+
   return (
     <div className={`flex items-center justify-between ${className}`}>
       {label && (
-        <label htmlFor={id} className='text-xs font-bold uppercase tracking-wider text-[var(--color-text-subtle-hex)] cursor-pointer'>
+        <label
+          htmlFor={toggleId}
+          onClick={(e) => {
+            if (disabled) return;
+            e.preventDefault();
+            onCheckedChange(!checked);
+            document.getElementById(toggleId)?.focus();
+          }}
+          className='text-xs font-bold uppercase tracking-wider text-[var(--color-text-subtle-hex)] cursor-pointer'
+        >
           {label}
         </label>
       )}
       <button
-        id={id}
+        id={toggleId}
         onClick={() => onCheckedChange(!checked)}
         disabled={disabled}
         className={`relative w-10 h-5 rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 ${
