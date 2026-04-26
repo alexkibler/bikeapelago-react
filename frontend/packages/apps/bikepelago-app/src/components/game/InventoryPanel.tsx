@@ -164,7 +164,7 @@ const InventoryPanel = () => {
             <ItemCount count={detourCount} itemId={ITEMS.DETOUR.id} />
           </div>
           {detourCount > 0 && (
-            <button 
+            <button
               onClick={() => void handleUseDetour()}
               disabled={isUsing || selectedNodeIds.size !== 1}
               className="w-full py-2 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-600 text-white text-xs font-bold rounded-lg transition-colors flex items-center justify-center gap-2"
@@ -189,7 +189,7 @@ const InventoryPanel = () => {
             <ItemCount count={droneCount} itemId={ITEMS.DRONE.id} />
           </div>
           {droneCount > 0 && (
-            <button 
+            <button
               onClick={() => void handleUseDrone()}
               disabled={isUsing || selectedNodeIds.size !== 1}
               className="w-full py-2 bg-purple-500 hover:bg-purple-600 disabled:bg-gray-600 text-white text-xs font-bold rounded-lg transition-colors flex items-center justify-center gap-2"
@@ -214,7 +214,7 @@ const InventoryPanel = () => {
             <ItemCount count={signalAmpCount} itemId={ITEMS.SIGNAL_AMPLIFIER.id} />
           </div>
           {signalAmpCount > 0 && (
-            <button 
+            <button
               onClick={() => void handleUseSignalAmplifier()}
               disabled={isUsing}
               className="w-full py-2 bg-orange-500 hover:bg-orange-600 disabled:bg-gray-600 text-white text-xs font-bold rounded-lg transition-colors"
