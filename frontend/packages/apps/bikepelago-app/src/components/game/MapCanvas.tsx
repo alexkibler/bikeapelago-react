@@ -229,6 +229,54 @@ const MapCanvas = ({ session, nodes }: MapCanvasProps) => {
     return analysisResult?.path ? analysisResult.path.map((p: { lat: number, lon: number }) => [p.lat, p.lon] as [number, number]) : [];
   }, [analysisResult]);
 
+  const nodeMarkers = useMemo(() => {
+    return nodes.map(node => {
+      const isSelected = selectedNodeIds.has(node.id);
+      const inRouteMode = activePanel === 'route';
+      const inInventoryMode = activePanel === 'inventory';
+
+      // Available nodes are selectable when either Route or Inventory panel is open
+      const canSelect = (inRouteMode || inInventoryMode) && node.state === 'Available';
+
+      const handleClick = canSelect
+        ? (e: L.LeafletMouseEvent) => {
+            L.DomEvent.stopPropagation(e);
+            toggleSelectedNode(node.id);
+          }
+        : undefined;
+
+      return (
+        <Marker
+          key={node.id}
+          position={[node.lat, node.lon]}
+          icon={getMarkerIcon(node.state, canSelect, isSelected)}
+          title={node.name}
+          eventHandlers={handleClick ? { click: handleClick } : undefined}
+        />
+      );
+    });
+  }, [nodes, selectedNodeIds, activePanel, toggleSelectedNode]);
+
+  const routePolyline = useMemo(() => {
+    if (routeData.polyline.length === 0) return null;
+    return <Polyline positions={routeData.polyline} color="#f97316" weight={5} opacity={0.7} />;
+  }, [routeData.polyline]);
+
+  const waypointMarkers = useMemo(() => {
+    return waypoints.map((wp, i) => (
+      <Marker
+        key={`wp-${i}`}
+        position={wp}
+        icon={L.divIcon({
+          className: 'bg-white border-2 border-orange-500 rounded-full flex items-center justify-center text-[10px] font-bold text-orange-500 leading-none w-5 h-5',
+          html: `<div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">${i + 1}</div>`,
+          iconSize: [20, 20],
+          iconAnchor: [10, 10]
+        })}
+      />
+    ));
+  }, [waypoints]);
+
   return (
     <div className="flex-1 relative">
       <MapContainer
@@ -250,52 +298,15 @@ const MapCanvas = ({ session, nodes }: MapCanvasProps) => {
 
         <ProgressionOverlay session={session} />
         
-        {nodes.map(node => {
-          const isSelected = selectedNodeIds.has(node.id);
-          const inRouteMode = activePanel === 'route';
-          const inInventoryMode = activePanel === 'inventory';
-          
-          // Available nodes are selectable when either Route or Inventory panel is open
-          const canSelect = (inRouteMode || inInventoryMode) && node.state === 'Available';
+        {nodeMarkers}
 
-          const handleClick = canSelect
-            ? (e: L.LeafletMouseEvent) => {
-                L.DomEvent.stopPropagation(e);
-                toggleSelectedNode(node.id);
-              }
-            : undefined;
-
-          return (
-            <Marker
-              key={node.id}
-              position={[node.lat, node.lon]}
-              icon={getMarkerIcon(node.state, canSelect, isSelected)}
-              title={node.name}
-              eventHandlers={handleClick ? { click: handleClick } : undefined}
-            />
-          );
-        })}
-
-        {routeData.polyline.length > 0 && (
-          <Polyline positions={routeData.polyline} color="#f97316" weight={5} opacity={0.7} />
-        )}
+        {routePolyline}
 
         {analysisPath.length > 0 && (
           <Polyline positions={analysisPath} color="#22c55e" weight={5} opacity={0.7} dashArray="10, 10" />
         )}
 
-        {waypoints.map((wp, i) => (
-          <Marker
-            key={`wp-${i}`}
-            position={wp}
-            icon={L.divIcon({
-              className: 'bg-white border-2 border-orange-500 rounded-full flex items-center justify-center text-[10px] font-bold text-orange-500 leading-none w-5 h-5',
-              html: `<div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">${i + 1}</div>`,
-              iconSize: [20, 20],
-              iconAnchor: [10, 10]
-            })}
-          />
-        ))}
+        {waypointMarkers}
 
         {/* Custom origin pin — click to clear */}
         {customOrigin && (
