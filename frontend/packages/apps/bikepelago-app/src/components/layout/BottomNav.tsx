@@ -7,8 +7,6 @@ const BottomNav = () => {
   const isGamePage = location.pathname.startsWith('/game');
   const pathname = location.pathname;
   const { activePanel, togglePanel } = useGameStore();
-  const session = useGameStore((s) => s.session);
-  const canInteract = !!session?.ap_server_url && session?.status !== 'Completed';
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-[2000] border-t border-[var(--color-border-hex)] bg-[var(--color-surface-hex)] px-0 pb-safe pt-0 md:hidden">
@@ -25,22 +23,18 @@ const BottomNav = () => {
               <MessageSquare className="w-5 h-5" />
               <span className="text-[10px] font-bold uppercase tracking-wider">Chat</span>
             </button>
-            {canInteract && (
-              <button
-                onClick={() => togglePanel('inventory')}
-                className={`flex flex-col items-center gap-1 p-2 transition-colors rounded-lg ${activePanel === 'inventory' ? 'bg-[var(--color-primary-hex)]/20 text-[var(--color-primary-hex)]' : 'text-[var(--color-text-muted-hex)] hover:text-[var(--color-primary-hex)] hover:bg-[rgb(var(--color-surface-overlay))]'}`}>
-                <Package className="w-5 h-5" />
-                <span className="text-[10px] font-bold uppercase tracking-wider">Inventory</span>
-              </button>
-            )}
-            {canInteract && (
-              <button
-                onClick={() => togglePanel('route')}
-                className={`flex flex-col items-center gap-1 p-2 transition-colors rounded-lg ${activePanel === 'route' ? 'bg-[var(--color-primary-hex)]/20 text-[var(--color-primary-hex)]' : 'text-[var(--color-text-muted-hex)] hover:text-[var(--color-primary-hex)] hover:bg-[rgb(var(--color-surface-overlay))]'}`}>
-                <Map className="w-5 h-5" />
-                <span className="text-[10px] font-bold uppercase tracking-wider">Route Builder</span>
-              </button>
-            )}
+            <button
+              onClick={() => togglePanel('inventory')}
+              className={`flex flex-col items-center gap-1 p-2 transition-colors rounded-lg ${activePanel === 'inventory' ? 'bg-[var(--color-primary-hex)]/20 text-[var(--color-primary-hex)]' : 'text-[var(--color-text-muted-hex)] hover:text-[var(--color-primary-hex)] hover:bg-[rgb(var(--color-surface-overlay))]'}`}>
+              <Package className="w-5 h-5" />
+              <span className="text-[10px] font-bold uppercase tracking-wider">Inventory</span>
+            </button>
+            <button
+              onClick={() => togglePanel('route')}
+              className={`flex flex-col items-center gap-1 p-2 transition-colors rounded-lg ${activePanel === 'route' ? 'bg-[var(--color-primary-hex)]/20 text-[var(--color-primary-hex)]' : 'text-[var(--color-text-muted-hex)] hover:text-[var(--color-primary-hex)] hover:bg-[rgb(var(--color-surface-overlay))]'}`}>
+              <Map className="w-5 h-5" />
+              <span className="text-[10px] font-bold uppercase tracking-wider">Route Builder</span>
+            </button>
           </>
         ) : (
           <>

@@ -5,10 +5,9 @@ import type { GameSession } from '../../types/game';
 
 interface VictoryModalProps {
   session: GameSession;
-  onDismiss?: () => void;
 }
 
-const VictoryModal = ({ session, onDismiss }: VictoryModalProps) => {
+const VictoryModal = ({ session }: VictoryModalProps) => {
   const navigate = useNavigate();
   const firedRef = useRef(false);
 
@@ -78,14 +77,6 @@ const VictoryModal = ({ session, onDismiss }: VictoryModalProps) => {
         >
           Back to Sessions
         </button>
-        {onDismiss && (
-          <button
-            onClick={onDismiss}
-            className="w-full py-2 rounded-xl font-bold text-sm text-[var(--color-text-muted-hex)] hover:text-[var(--color-text-hex)] transition-colors"
-          >
-            Continue to Game
-          </button>
-        )}
       </div>
     </div>
   );
