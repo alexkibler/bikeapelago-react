@@ -1,5 +1,5 @@
-import { useGameStore } from '../store/gameStore';
 import { useFitImportStore } from '../store/fitImportStore';
+import { useGameStore } from '../store/gameStore';
 
 /**
  * Resets all session-scoped store state. Call on logout or unauthorized.

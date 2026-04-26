@@ -1,8 +1,8 @@
 import { create } from 'zustand';
 
 import { ENDPOINTS, apiFetch } from '../lib/api';
-import { useArchipelagoStore } from './archipelagoStore';
 import type { FitAnalysisResult, GameSession, MapNode } from '../types/game';
+import { useArchipelagoStore } from './archipelagoStore';
 
 export type GamePanel = 'chat' | 'upload' | 'route' | 'inventory' | null;
 
@@ -122,15 +122,16 @@ export const useGameStore = create<GameState>((set, get) => ({
       } else {
         next.add(id);
       }
-      return { 
+      return {
         selectedNodeIds: next,
-        routeData: { distance: 0, elevation: 0, polyline: [] }
+        routeData: { distance: 0, elevation: 0, polyline: [] },
       };
     }),
-  clearSelectedNodes: () => set({ 
-    selectedNodeIds: new Set<string>(),
-    routeData: { distance: 0, elevation: 0, polyline: [] }
-  }),
+  clearSelectedNodes: () =>
+    set({
+      selectedNodeIds: new Set<string>(),
+      routeData: { distance: 0, elevation: 0, polyline: [] },
+    }),
 
   // ── Custom origin pin ──
   customOrigin: null,
@@ -180,12 +181,11 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     try {
       // Build origin: customOrigin > userLocation > omit (server falls back to session centre)
-      const origin: { lat: number; lon: number } | undefined =
-        customOrigin
-          ? { lat: customOrigin[0], lon: customOrigin[1] }
-          : userLocation
-            ? { lat: userLocation[0], lon: userLocation[1] }
-            : undefined;
+      const origin: { lat: number; lon: number } | undefined = customOrigin
+        ? { lat: customOrigin[0], lon: customOrigin[1] }
+        : userLocation
+          ? { lat: userLocation[0], lon: userLocation[1] }
+          : undefined;
 
       // Build nodeIds: selected subset > empty (server uses all Available)
       const nodeIds = selectedNodeIds.size > 0 ? [...selectedNodeIds] : [];

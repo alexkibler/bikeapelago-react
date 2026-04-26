@@ -11,7 +11,7 @@
   },
   "devDependencies": {
     "@bikeapelago/shared-configs": "workspace:^",
-    "@types/lodash": "^4.17.24",
+    "@bikeapelago/shared-util-types": "workspace:^",
     "@types/lodash-es": "^4.17.12"
   },
   "dependencies": {

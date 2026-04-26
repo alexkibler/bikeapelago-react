@@ -1,6 +1,7 @@
 import { getToken, handleUnauthorized } from '../store/authStore';
 
-const API_ORIGIN = (import.meta.env.VITE_PUBLIC_API_URL as string | undefined) ?? '';
+const API_ORIGIN =
+  (import.meta.env.VITE_PUBLIC_API_URL as string | undefined) ?? '';
 export const API_BASE = `${API_ORIGIN}/api`;
 
 export const ENDPOINTS = {
@@ -11,11 +12,15 @@ export const ENDPOINTS = {
     ME: `${API_BASE}/auth/me`,
   },
   ITEMS: {
-    DETOUR: (sessionId: string) => `${API_BASE}/sessions/${sessionId}/items/detour`,
-    DRONE: (sessionId: string) => `${API_BASE}/sessions/${sessionId}/items/drone`,
-    SIGNAL_AMPLIFIER: (sessionId: string) => `${API_BASE}/sessions/${sessionId}/items/signal-amplifier`,
-    DEBUG_SET_ITEM_COUNT: (sessionId: string) => `${API_BASE}/sessions/${sessionId}/debug/items`,
-  }
+    DETOUR: (sessionId: string) =>
+      `${API_BASE}/sessions/${sessionId}/items/detour`,
+    DRONE: (sessionId: string) =>
+      `${API_BASE}/sessions/${sessionId}/items/drone`,
+    SIGNAL_AMPLIFIER: (sessionId: string) =>
+      `${API_BASE}/sessions/${sessionId}/items/signal-amplifier`,
+    DEBUG_SET_ITEM_COUNT: (sessionId: string) =>
+      `${API_BASE}/sessions/${sessionId}/debug/items`,
+  },
 };
 
 export async function apiFetch<T>(
@@ -44,7 +49,8 @@ export async function apiFetch<T>(
     let message = `API request failed with status ${response.status}`;
     try {
       const errorData = (await response.json()) as { message?: unknown };
-      message = typeof errorData.message === 'string' ? errorData.message : message;
+      message =
+        typeof errorData.message === 'string' ? errorData.message : message;
     } catch {
       // If JSON parsing fails, we use the default status message
     }

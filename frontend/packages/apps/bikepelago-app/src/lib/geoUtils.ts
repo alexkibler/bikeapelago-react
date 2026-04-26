@@ -32,4 +32,3 @@ export function downloadGPX(gpx: string, filename = 'bikeapelago_route.gpx') {
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
-
