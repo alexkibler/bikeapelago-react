@@ -22,7 +22,14 @@ const NODE_COLORS: Record<NodeState, string> = {
   Checked: '#22c55e'     // green-500
 };
 
+const iconCache = new Map<string, L.DivIcon>();
+
 const getMarkerIcon = (state: NodeState, debugClickable = false, selected = false) => {
+  const cacheKey = `${state}-${debugClickable}-${selected}`;
+  if (iconCache.has(cacheKey)) {
+    return iconCache.get(cacheKey)!;
+  }
+
   const color = NODE_COLORS[state] || NODE_COLORS.Hidden;
   const cursor = debugClickable ? 'cursor:pointer;' : '';
   const ring = selected
@@ -32,7 +39,7 @@ const getMarkerIcon = (state: NodeState, debugClickable = false, selected = fals
       : `box-shadow:0 0 10px ${color};`;
   
   // Use a 44px hit area for mobile friendliness
-  return L.divIcon({
+  const icon = L.divIcon({
     className: 'custom-div-icon',
     html: `
       <div style="display:flex; align-items:center; justify-content:center; width:44px; height:44px;">
@@ -42,6 +49,9 @@ const getMarkerIcon = (state: NodeState, debugClickable = false, selected = fals
     iconSize: [44, 44],
     iconAnchor: [22, 22]
   });
+
+  iconCache.set(cacheKey, icon);
+  return icon;
 };
 
 const getCustomOriginIcon = () =>
@@ -229,6 +239,32 @@ const MapCanvas = ({ session, nodes }: MapCanvasProps) => {
     return analysisResult?.path ? analysisResult.path.map((p: { lat: number, lon: number }) => [p.lat, p.lon] as [number, number]) : [];
   }, [analysisResult]);
 
+  const memoizedNodes = useMemo(() => nodes.map(node => {
+    const isSelected = selectedNodeIds.has(node.id);
+    const inRouteMode = activePanel === 'route';
+    const inInventoryMode = activePanel === 'inventory';
+
+    // Available nodes are selectable when either Route or Inventory panel is open
+    const canSelect = (inRouteMode || inInventoryMode) && node.state === 'Available';
+
+    const handleClick = canSelect
+      ? (e: L.LeafletMouseEvent) => {
+          L.DomEvent.stopPropagation(e);
+          toggleSelectedNode(node.id);
+        }
+      : undefined;
+
+    return (
+      <Marker
+        key={node.id}
+        position={[node.lat, node.lon]}
+        icon={getMarkerIcon(node.state, canSelect, isSelected)}
+        title={node.name}
+        eventHandlers={handleClick ? { click: handleClick } : undefined}
+      />
+    );
+  }), [nodes, selectedNodeIds, activePanel, toggleSelectedNode]);
+
   return (
     <div className="flex-1 relative">
       <MapContainer
@@ -250,31 +286,7 @@ const MapCanvas = ({ session, nodes }: MapCanvasProps) => {
 
         <ProgressionOverlay session={session} />
         
-        {nodes.map(node => {
-          const isSelected = selectedNodeIds.has(node.id);
-          const inRouteMode = activePanel === 'route';
-          const inInventoryMode = activePanel === 'inventory';
-          
-          // Available nodes are selectable when either Route or Inventory panel is open
-          const canSelect = (inRouteMode || inInventoryMode) && node.state === 'Available';
-
-          const handleClick = canSelect
-            ? (e: L.LeafletMouseEvent) => {
-                L.DomEvent.stopPropagation(e);
-                toggleSelectedNode(node.id);
-              }
-            : undefined;
-
-          return (
-            <Marker
-              key={node.id}
-              position={[node.lat, node.lon]}
-              icon={getMarkerIcon(node.state, canSelect, isSelected)}
-              title={node.name}
-              eventHandlers={handleClick ? { click: handleClick } : undefined}
-            />
-          );
-        })}
+        {memoizedNodes}
 
         {routeData.polyline.length > 0 && (
           <Polyline positions={routeData.polyline} color="#f97316" weight={5} opacity={0.7} />
