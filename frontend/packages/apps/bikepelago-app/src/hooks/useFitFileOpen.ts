@@ -1,7 +1,8 @@
 import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Capacitor } from '@capacitor/core';
+
 import { App } from '@capacitor/app';
+import { Capacitor } from '@capacitor/core';
+import { useNavigate } from 'react-router-dom';
 
 import { useFitImportStore } from '../store/fitImportStore';
 

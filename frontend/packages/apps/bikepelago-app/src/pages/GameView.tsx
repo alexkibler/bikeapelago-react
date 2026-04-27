@@ -5,11 +5,11 @@ import { useNavigate, useParams } from 'react-router-dom';
 
 // Extracted Components
 import ArchipelagoReconnectDialog from '../components/game/ArchipelagoReconnectDialog';
-import VictoryModal from '../components/game/VictoryModal';
 import DebugBanner from '../components/game/DebugBanner';
 import GameStatsBar from '../components/game/GameStatsBar';
 import MapCanvas from '../components/game/MapCanvas';
 import SidePanelCoordinator from '../components/game/SidePanelCoordinator';
+import VictoryModal from '../components/game/VictoryModal';
 import { useGeolocation } from '../hooks/useGeolocation';
 import { useToast } from '../hooks/useToast';
 import { archipelago } from '../lib/archipelago';
@@ -88,7 +88,7 @@ const GameView = () => {
         802021: 'Leg Cramp',
         802022: 'Empty CO2',
         802023: 'Kudos',
-        802024: 'Wheel Patch Kit'
+        802024: 'Wheel Patch Kit',
       };
 
       setReceivedItems(
@@ -120,7 +120,14 @@ const GameView = () => {
         },
       },
     );
-  }, [apStatus, pendingConnection, session, sessionUpdate, toast, setPendingConnection]);
+  }, [
+    apStatus,
+    pendingConnection,
+    session,
+    sessionUpdate,
+    toast,
+    setPendingConnection,
+  ]);
 
   // Activate Geolocation tracking
   useGeolocation();
@@ -129,7 +136,11 @@ const GameView = () => {
   useEffect(() => {
     if (id && session) {
       if (session.ap_server_url && session.ap_slot_name) {
-        void archipelago.connect(id, session.ap_server_url, session.ap_slot_name);
+        void archipelago.connect(
+          id,
+          session.ap_server_url,
+          session.ap_slot_name,
+        );
       } else {
         void archipelago.joinSessionOnly(id);
       }
@@ -156,12 +167,16 @@ const GameView = () => {
       if ((arrivalChecked || precisionChecked) && node.state !== 'Checked') {
         hasChanges = true;
         const isArrivalChecked = node.is_arrival_checked || arrivalChecked;
-        const isPrecisionChecked = node.is_precision_checked || precisionChecked;
+        const isPrecisionChecked =
+          node.is_precision_checked || precisionChecked;
         return {
           ...node,
           is_arrival_checked: isArrivalChecked,
           is_precision_checked: isPrecisionChecked,
-          state: isArrivalChecked && isPrecisionChecked ? 'Checked' as const : node.state,
+          state:
+            isArrivalChecked && isPrecisionChecked
+              ? ('Checked' as const)
+              : node.state,
         };
       }
       return node;

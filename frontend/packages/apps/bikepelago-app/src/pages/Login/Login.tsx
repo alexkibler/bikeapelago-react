@@ -1,16 +1,17 @@
 import { useEffect, useState } from 'react';
-import type { ReactElement, FormEvent } from 'react';
+import type { ReactElement } from 'react';
 
-import { ArrowRight, Bike, Loader2, Lock, User } from 'lucide-react';
+import { ArrowRight, Bike, Lock, User } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { RhfInput, useForm } from '@bikeapelago/shared-ui-form';
+import { Button } from '@bikeapelago/shared-ui-components';
 
 import { useAuthStore } from '../../store/authStore';
 import type { LoginForm } from './types';
 import { useLoginPost } from '../../operations/authentication';
 
 export function Login(): ReactElement {
-  const [identity, setIdentity] = useState('');
-  const [password, setPassword] = useState('');
+  const formMethods = useForm<LoginForm>()
   const [error, setError] = useState('');
   const navigate = useNavigate();
   const { login, isValid } = useAuthStore();
@@ -26,9 +27,7 @@ export function Login(): ReactElement {
     if (isValid) void navigate('/');
   }, [isValid, navigate]);
 
-  const handleLogin = (e: FormEvent) => {
-    e.preventDefault();
-    const data: LoginForm = { identity, password };
+  const handleLogin = (data: LoginForm) => {
     loginRequest.mutate(data, {
       onSuccess: (responseData) => {
         login(responseData.token, responseData.record);
@@ -43,8 +42,10 @@ export function Login(): ReactElement {
   };
 
   const handleAutofill = () => {
-    setIdentity('testuser');
-    setPassword('Password');
+    handleLogin({
+      identity: 'testuser',
+      password: 'Password',
+    })
   };
 
   return (
@@ -59,7 +60,7 @@ export function Login(): ReactElement {
           </h1>
         </div>
 
-        <form onSubmit={handleLogin} className='space-y-4'>
+        <form onSubmit={formMethods.handleSubmit(handleLogin)} className='space-y-4'>
           {registerMessage && !error && (
             <div className='p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl text-emerald-500 text-sm font-bold text-center'>
               {registerMessage}
@@ -72,45 +73,34 @@ export function Login(): ReactElement {
             </div>
           )}
 
-          <div className='relative group'>
-            <User className='absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-600 group-focus-within:text-orange-500 transition-colors' />
-            <input
-              type='text'
-              value={identity}
-              onChange={(e) => setIdentity(e.target.value)}
-              placeholder='Username'
-              required
-              className='w-full bg-[var(--color-surface-alt-hex)] border border-[var(--color-border-hex)] rounded-xl pl-12 pr-4 py-3 text-[var(--color-text-hex)] font-medium focus:outline-none focus:border-orange-500 transition-colors placeholder:text-[var(--color-text-subtle-hex)]'
-            />
-          </div>
+          <RhfInput
+            leftIcon={
+              <User className='absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-600 group-focus-within:text-orange-500 transition-colors' />
+            }
+            formMethods={formMethods}
+            name="identity"
+            placeholder='Username'
+            required
+          />
+          <RhfInput
+            leftIcon={
+              <Lock className='absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-600 group-focus-within:text-orange-500 transition-colors' />
+            }
+            formMethods={formMethods}
+            name="password"
+            type="password"
+            placeholder='Password'
+            required
+          />
 
-          <div className='relative group'>
-            <Lock className='absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-600 group-focus-within:text-orange-500 transition-colors' />
-            <input
-              type='password'
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder='Password'
-              required
-              className='w-full bg-[var(--color-surface-alt-hex)] border border-[var(--color-border-hex)] rounded-xl pl-12 pr-4 py-3 text-[var(--color-text-hex)] font-medium focus:outline-none focus:border-orange-500 transition-colors placeholder:text-[var(--color-text-subtle-hex)]'
-            />
-          </div>
-
-          <button
+          <Button
             type='submit'
-            disabled={loginRequest.isPending}
+            isLoading={loginRequest.isPending}
             id='login-submit'
-            className='w-full h-16 rounded-2xl bg-[var(--color-primary-hex)] text-white font-black text-lg uppercase tracking-widest gap-3 shadow-xl shadow-orange-600/20 items-center justify-center flex hover:bg-[var(--color-primary-hover-hex)] transition-all active:scale-[0.98] disabled:opacity-50'
           >
-            {loginRequest.isPending ? (
-              <Loader2 className='w-6 h-6 animate-spin' />
-            ) : (
-              <>
-                Ignition
-                <ArrowRight className='w-5 h-5' />
-              </>
-            )}
-          </button>
+            Ignition
+            <ArrowRight className='w-5 h-5' />
+          </Button>
         </form>
 
         <div className='mt-8 text-center text-sm space-y-2'>

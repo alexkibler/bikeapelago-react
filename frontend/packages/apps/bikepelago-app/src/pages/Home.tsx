@@ -68,13 +68,19 @@ const Home = () => {
             <>
               Are you sure you want to delete{' '}
               <span className='text-[var(--color-text-hex)] font-semibold'>
-                &ldquo;{sessionToDelete.name || sessionToDelete.ap_seed_name || 'Unnamed Session'}&rdquo;
+                &ldquo;
+                {sessionToDelete.name ||
+                  sessionToDelete.ap_seed_name ||
+                  'Unnamed Session'}
+                &rdquo;
               </span>
               ? This action is permanent and will delete all nodes and routes
               associated with it.
             </>
           }
-          confirmLabel={deleteSession.isPending ? 'Deleting...' : 'Confirm Delete'}
+          confirmLabel={
+            deleteSession.isPending ? 'Deleting...' : 'Confirm Delete'
+          }
           onConfirm={handleDelete}
           onCancel={() => setSessionToDelete(null)}
           isLoading={deleteSession.isPending}

@@ -34,7 +34,7 @@ interface CreateUserData {
 
 const getErrorMessage = (err: unknown, fallback: string) =>
   axios.isAxiosError<{ message?: string }>(err)
-    ? err.response?.data?.message ?? fallback
+    ? (err.response?.data?.message ?? fallback)
     : fallback;
 
 export const UserManagement: React.FC = () => {

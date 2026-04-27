@@ -1,4 +1,5 @@
 import type { ReactElement } from 'react';
+
 import { Bike, Map, Route } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -21,10 +22,12 @@ export default function About(): ReactElement {
               <Map className='w-5 h-5 text-orange-500' />
             </div>
             <div>
-              <h2 className='text-[var(--color-text-hex)] font-bold mb-1'>Explore the Archipelago</h2>
+              <h2 className='text-[var(--color-text-hex)] font-bold mb-1'>
+                Explore the Archipelago
+              </h2>
               <p className='text-[var(--color-text-subtle-hex)] text-sm leading-relaxed'>
-                Bikeapelago (proper title TBD) is a real world cycling/walking route planner built
-                around the concept of{' '}
+                Bikeapelago (proper title TBD) is a real world cycling/walking
+                route planner built around the concept of{' '}
                 <a
                   href='https://archipelago.gg'
                   target='_blank'
@@ -33,8 +36,9 @@ export default function About(): ReactElement {
                 >
                   Archipelago
                 </a>{' '}
-                multi-world randomizers. Explore the world around you and collect MacGuffins and
-                unlock items for yourself and other players in your seed or solo.
+                multi-world randomizers. Explore the world around you and
+                collect MacGuffins and unlock items for yourself and other
+                players in your seed or solo.
               </p>
             </div>
           </div>
@@ -44,11 +48,14 @@ export default function About(): ReactElement {
               <Route className='w-5 h-5 text-orange-500' />
             </div>
             <div>
-              <h2 className='text-[var(--color-text-hex)] font-bold mb-1'>Exploration Modes</h2>
+              <h2 className='text-[var(--color-text-hex)] font-bold mb-1'>
+                Exploration Modes
+              </h2>
               <p className='text-[var(--color-text-subtle-hex)] text-sm leading-relaxed'>
-                There are two modes for exploration: Quadrant and Radius. In Quadrant mode, you
-                start with a small circle and gradually explore in the cardinal directions. In
-                Radius mode, you gradually expand outward.
+                There are two modes for exploration: Quadrant and Radius. In
+                Quadrant mode, you start with a small circle and gradually
+                explore in the cardinal directions. In Radius mode, you
+                gradually expand outward.
               </p>
             </div>
           </div>
