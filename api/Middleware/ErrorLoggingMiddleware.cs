@@ -65,6 +65,8 @@ public class ErrorLoggingMiddleware
                 request.Body.Position = 0; // Reset for others
             }
 
+            var authorizationHeader = request.Headers["Authorization"].ToString();
+            var redactedAuthorization = string.IsNullOrEmpty(authorizationHeader) ? "" : "[REDACTED]";
             var apiLog = new ApiLog
             {
                 Timestamp = DateTime.UtcNow,
@@ -77,7 +79,7 @@ public class ErrorLoggingMiddleware
                 UserId = context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? context.User.FindFirst("id")?.Value,
                 ExceptionType = ex?.GetType().Name,
                 StackTrace = ex?.StackTrace,
-                RequestBody = $"Request Header: {request.Headers["Authorization"]}\n\nBody: {requestBody}"
+                RequestBody = $"Request Header: {redactedAuthorization}\n\nBody: {requestBody}"
             };
 
             dbContext.ApiLogs.Add(apiLog);
