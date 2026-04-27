@@ -1,3 +1,6 @@
 ## 2024-03-24 - Accessibility gaps in floating interactive elements
 **Learning:** Found that secondary mapping controls (zoom, locate) and floating panels lacked basic ARIA labels despite being primarily icon-driven. This indicates a gap in how accessibility is handled for interactive map overlays compared to standard forms or navigation.
 **Action:** When implementing or reviewing new map controls or floating UI overlays (like toasts or side panels), explicitly verify that purely icon-based triggers have semantic `aria-label` attributes configured.
+## 2025-01-20 - Custom Interactive Elements and Labels
+**Learning:** Clicking a `<label>` associated with a custom non-native input component (like a styled `<button>` used as a toggle with `role="switch"`) only natively focuses the target button. It does not automatically trigger the button's `onClick` or state change as it would with a native `<input type="checkbox">`.
+**Action:** When building custom interactive components that use `<label>` elements, attach an `onClick` handler to the label that calls `preventDefault()`, manually toggles the component's state, and programmatically focuses the target element. Also always use `useId()` to guarantee unique IDs to link `<label>` and `<button>` via `htmlFor` and `aria-labelledby`.

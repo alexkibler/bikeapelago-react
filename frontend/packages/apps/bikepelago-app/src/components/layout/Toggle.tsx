@@ -1,3 +1,5 @@
+import { useId, useRef } from 'react';
+
 interface ToggleProps {
   id?: string;
   label?: string;
@@ -8,15 +10,35 @@ interface ToggleProps {
 }
 
 const Toggle = ({ id, label, checked, onCheckedChange, disabled = false, className = '' }: ToggleProps) => {
+  const generatedId = useId();
+  const toggleId = id || generatedId;
+  const labelId = `${toggleId}-label`;
+  const buttonRef = useRef<HTMLButtonElement>(null);
+
+  const handleLabelClick = (e: React.MouseEvent<HTMLLabelElement>) => {
+    e.preventDefault(); // Prevent default label click behavior which just focuses the button
+    if (!disabled) {
+      onCheckedChange(!checked);
+      buttonRef.current?.focus();
+    }
+  };
+
   return (
     <div className={`flex items-center justify-between ${className}`}>
       {label && (
-        <label htmlFor={id} className='text-xs font-bold uppercase tracking-wider text-[var(--color-text-subtle-hex)] cursor-pointer'>
+        <label
+          id={labelId}
+          htmlFor={toggleId}
+          onClick={handleLabelClick}
+          className='text-xs font-bold uppercase tracking-wider text-[var(--color-text-subtle-hex)] cursor-pointer'
+        >
           {label}
         </label>
       )}
       <button
-        id={id}
+        ref={buttonRef}
+        id={toggleId}
+        aria-labelledby={label ? labelId : undefined}
         onClick={() => onCheckedChange(!checked)}
         disabled={disabled}
         className={`relative w-10 h-5 rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 ${
