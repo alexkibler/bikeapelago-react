@@ -80,7 +80,7 @@ public class SessionsController(
             return Ok(sessions);
         } catch (Exception ex) {
             Console.WriteLine($"DEBUG: Exception in GetSessions: {ex}");
-            return StatusCode(500, ex.ToString());
+            return StatusCode(500, new { message = "An error occurred while fetching sessions." });
         }
     }
 
