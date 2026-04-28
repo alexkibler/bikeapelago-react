@@ -17,6 +17,7 @@ public class SessionsControllerTests
     private readonly Mock<IGameSessionRepository> _sessionRepoMock;
     private readonly Mock<IMapNodeRepository> _nodeRepoMock;
     private readonly Mock<IUserRepository> _userRepoMock;
+    private readonly Mock<IFitAnalysisService> _fitAnalysisMock;
     private readonly Mock<IRouteBuilderService> _routeBuilderMock;
     private readonly Mock<IItemExecutionService> _itemExecutionMock;
     private readonly SessionsController _controller;
@@ -27,6 +28,7 @@ public class SessionsControllerTests
         _sessionRepoMock = new Mock<IGameSessionRepository>();
         _nodeRepoMock = new Mock<IMapNodeRepository>();
         _userRepoMock = new Mock<IUserRepository>();
+        _fitAnalysisMock = new Mock<IFitAnalysisService>();
         _routeBuilderMock = new Mock<IRouteBuilderService>();
         _itemExecutionMock = new Mock<IItemExecutionService>();
 
@@ -36,7 +38,7 @@ public class SessionsControllerTests
             _sessionRepoMock.Object,
             _nodeRepoMock.Object,
             _userRepoMock.Object,
-            null!, // IFitAnalysisService
+            _fitAnalysisMock.Object,
             Mock.Of<IProgressionEngineFactory>(),
             new SessionValidator(Mock.Of<ILogger<SessionValidator>>()),
             _routeBuilderMock.Object,
@@ -163,6 +165,27 @@ public class SessionsControllerTests
 
         // Assert
         Assert.IsType<NoContentResult>(result);
+    }
+
+    [Fact]
+    public async Task AnalyzeFitFile_WhenTestUserDoesNotOwnSession_ReturnsForbid()
+    {
+        var sessionId = Guid.NewGuid();
+        _sessionRepoMock.Setup(repo => repo.GetByIdAsync(sessionId))
+            .ReturnsAsync(new GameSession { Id = sessionId, UserId = Guid.NewGuid() });
+
+        await using var stream = new MemoryStream([1, 2, 3]);
+        var file = new FormFile(stream, 0, stream.Length, "file", "ride.fit");
+
+        var result = await _controller.AnalyzeFitFile(sessionId, file);
+
+        Assert.IsType<ForbidResult>(result);
+        _fitAnalysisMock.Verify(
+            service => service.AnalyzeFitFile(
+                It.IsAny<Stream>(),
+                It.IsAny<IEnumerable<MapNode>>(),
+                It.IsAny<double>()),
+            Times.Never);
     }
 
     [Fact]
