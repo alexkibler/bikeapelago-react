@@ -1,3 +1,5 @@
+import { type MouseEvent, useId, useRef } from 'react';
+
 interface ToggleProps {
   id?: string;
   label?: string;
@@ -8,24 +10,41 @@ interface ToggleProps {
 }
 
 const Toggle = ({
-  id,
+  id: providedId,
   label,
   checked,
   onCheckedChange,
   disabled = false,
   className = '',
 }: ToggleProps) => {
+  const generatedId = useId();
+  const id = providedId ?? generatedId;
+  const labelId = label ? `${id}-label` : undefined;
+  const buttonRef = useRef<HTMLButtonElement>(null);
+
+  const handleLabelClick = (event: MouseEvent<HTMLLabelElement>) => {
+    event.preventDefault();
+
+    if (disabled) return;
+
+    onCheckedChange(!checked);
+    buttonRef.current?.focus();
+  };
+
   return (
     <div className={`flex items-center justify-between ${className}`}>
       {label && (
         <label
+          id={labelId}
           htmlFor={id}
+          onClick={handleLabelClick}
           className='text-xs font-bold uppercase tracking-wider text-[var(--color-text-subtle-hex)] cursor-pointer'
         >
           {label}
         </label>
       )}
       <button
+        ref={buttonRef}
         id={id}
         onClick={() => onCheckedChange(!checked)}
         disabled={disabled}
@@ -36,6 +55,7 @@ const Toggle = ({
         }`}
         role='switch'
         aria-checked={checked}
+        aria-labelledby={labelId}
       >
         <div
           className={`absolute top-1 left-1 w-3 h-3 rounded-full bg-white transition-transform duration-200 transform ${

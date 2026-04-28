@@ -37,11 +37,48 @@ const NODE_COLORS: Record<NodeState, string> = {
   Checked: '#22c55e', // green-500
 };
 
-const getMarkerIcon = (
+const markerIconCache = new Map<string, L.DivIcon>();
+const waypointIconCache = new Map<number, L.DivIcon>();
+
+const customOriginIcon = L.divIcon({
+  className: 'custom-div-icon',
+  html: `
+    <div style="display:flex; align-items:center; justify-content:center; width:44px; height:44px;">
+      <div style="
+        width:26px; height:26px; border-radius:50%;
+        background:linear-gradient(135deg,#7c3aed,#4f46e5);
+        border:3px solid #fff;
+        box-shadow:0 0 0 2px #7c3aed, 0 4px 12px rgba(124,58,237,0.5);
+        display:flex; align-items:center; justify-content:center;
+        font-size:11px; font-weight:900; color:#fff; cursor:pointer;
+      ">S</div>
+    </div>
+  `,
+  iconSize: [44, 44],
+  iconAnchor: [22, 22],
+});
+
+const userLocationIcon = L.divIcon({
+  className: 'relative',
+  html: `
+    <div class="relative flex items-center justify-center">
+      <div class="absolute w-8 h-8 bg-blue-500/30 rounded-full animate-ping"></div>
+      <div class="w-4 h-4 bg-blue-500 border-2 border-white rounded-full shadow-lg z-10"></div>
+    </div>
+  `,
+  iconSize: [32, 32],
+  iconAnchor: [16, 16],
+});
+
+export const getMarkerIcon = (
   state: NodeState,
   debugClickable = false,
   selected = false,
 ) => {
+  const cacheKey = `${state}-${debugClickable}-${selected}`;
+  const cachedIcon = markerIconCache.get(cacheKey);
+  if (cachedIcon) return cachedIcon;
+
   const color = NODE_COLORS[state] || NODE_COLORS.Hidden;
   const cursor = debugClickable ? 'cursor:pointer;' : '';
   const ring = selected
@@ -51,7 +88,7 @@ const getMarkerIcon = (
       : `box-shadow:0 0 10px ${color};`;
 
   // Use a 44px hit area for mobile friendliness
-  return L.divIcon({
+  const icon = L.divIcon({
     className: 'custom-div-icon',
     html: `
       <div style="display:flex; align-items:center; justify-content:center; width:44px; height:44px;">
@@ -61,26 +98,30 @@ const getMarkerIcon = (
     iconSize: [44, 44],
     iconAnchor: [22, 22],
   });
+
+  markerIconCache.set(cacheKey, icon);
+  return icon;
 };
 
-const getCustomOriginIcon = () =>
-  L.divIcon({
-    className: 'custom-div-icon',
-    html: `
-      <div style="display:flex; align-items:center; justify-content:center; width:44px; height:44px;">
-        <div style="
-          width:26px; height:26px; border-radius:50%;
-          background:linear-gradient(135deg,#7c3aed,#4f46e5);
-          border:3px solid #fff;
-          box-shadow:0 0 0 2px #7c3aed, 0 4px 12px rgba(124,58,237,0.5);
-          display:flex; align-items:center; justify-content:center;
-          font-size:11px; font-weight:900; color:#fff; cursor:pointer;
-        ">S</div>
-      </div>
-    `,
-    iconSize: [44, 44],
-    iconAnchor: [22, 22],
+export const getWaypointIcon = (index: number) => {
+  const cachedIcon = waypointIconCache.get(index);
+  if (cachedIcon) return cachedIcon;
+
+  const icon = L.divIcon({
+    className:
+      'bg-white border-2 border-orange-500 rounded-full flex items-center justify-center text-[10px] font-bold text-orange-500 leading-none w-5 h-5',
+    html: `<div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">${index + 1}</div>`,
+    iconSize: [20, 20],
+    iconAnchor: [10, 10],
   });
+
+  waypointIconCache.set(index, icon);
+  return icon;
+};
+
+const getCustomOriginIcon = () => customOriginIcon;
+
+export const getUserLocationIcon = () => userLocationIcon;
 
 interface MapCanvasProps {
   session: GameSession;
@@ -303,6 +344,45 @@ const MapCanvas = ({ session, nodes }: MapCanvasProps) => {
       : [];
   }, [analysisResult]);
 
+  const nodeMarkers = useMemo(
+    () =>
+      nodes.map((node) => {
+        const isSelected = selectedNodeIds.has(node.id);
+        const inRouteMode = activePanel === 'route';
+        const inInventoryMode = activePanel === 'inventory';
+
+        // Available nodes are selectable when either Route or Inventory panel is open
+        const canSelect =
+          (inRouteMode || inInventoryMode) && node.state === 'Available';
+
+        const handleClick = canSelect
+          ? (e: L.LeafletMouseEvent) => {
+              L.DomEvent.stopPropagation(e);
+              toggleSelectedNode(node.id);
+            }
+          : undefined;
+
+        return (
+          <Marker
+            key={node.id}
+            position={[node.lat, node.lon]}
+            icon={getMarkerIcon(node.state, canSelect, isSelected)}
+            title={node.name}
+            eventHandlers={handleClick ? { click: handleClick } : undefined}
+          />
+        );
+      }),
+    [activePanel, nodes, selectedNodeIds, toggleSelectedNode],
+  );
+
+  const waypointMarkers = useMemo(
+    () =>
+      waypoints.map((wp, i) => (
+        <Marker key={`wp-${i}`} position={wp} icon={getWaypointIcon(i)} />
+      )),
+    [waypoints],
+  );
+
   return (
     <div className='flex-1 relative'>
       <MapContainer
@@ -324,32 +404,7 @@ const MapCanvas = ({ session, nodes }: MapCanvasProps) => {
 
         <ProgressionOverlay session={session} />
 
-        {nodes.map((node) => {
-          const isSelected = selectedNodeIds.has(node.id);
-          const inRouteMode = activePanel === 'route';
-          const inInventoryMode = activePanel === 'inventory';
-
-          // Available nodes are selectable when either Route or Inventory panel is open
-          const canSelect =
-            (inRouteMode || inInventoryMode) && node.state === 'Available';
-
-          const handleClick = canSelect
-            ? (e: L.LeafletMouseEvent) => {
-                L.DomEvent.stopPropagation(e);
-                toggleSelectedNode(node.id);
-              }
-            : undefined;
-
-          return (
-            <Marker
-              key={node.id}
-              position={[node.lat, node.lon]}
-              icon={getMarkerIcon(node.state, canSelect, isSelected)}
-              title={node.name}
-              eventHandlers={handleClick ? { click: handleClick } : undefined}
-            />
-          );
-        })}
+        {nodeMarkers}
 
         {routeData.polyline.length > 0 && (
           <Polyline
@@ -370,19 +425,7 @@ const MapCanvas = ({ session, nodes }: MapCanvasProps) => {
           />
         )}
 
-        {waypoints.map((wp, i) => (
-          <Marker
-            key={`wp-${i}`}
-            position={wp}
-            icon={L.divIcon({
-              className:
-                'bg-white border-2 border-orange-500 rounded-full flex items-center justify-center text-[10px] font-bold text-orange-500 leading-none w-5 h-5',
-              html: `<div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">${i + 1}</div>`,
-              iconSize: [20, 20],
-              iconAnchor: [10, 10],
-            })}
-          />
-        ))}
+        {waypointMarkers}
 
         {/* Custom origin pin — click to clear */}
         {customOrigin && (
@@ -403,17 +446,7 @@ const MapCanvas = ({ session, nodes }: MapCanvasProps) => {
           <Marker
             position={userLocation}
             zIndexOffset={Z_INDEX.USER_LOCATION}
-            icon={L.divIcon({
-              className: 'relative',
-              html: `
-                <div class="relative flex items-center justify-center">
-                  <div class="absolute w-8 h-8 bg-blue-500/30 rounded-full animate-ping"></div>
-                  <div class="w-4 h-4 bg-blue-500 border-2 border-white rounded-full shadow-lg z-10"></div>
-                </div>
-              `,
-              iconSize: [32, 32],
-              iconAnchor: [16, 16],
-            })}
+            icon={getUserLocationIcon()}
           />
         )}
       </MapContainer>
