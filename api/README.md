@@ -10,23 +10,22 @@ ASP.NET Core `.NET 10` API for authentication, sessions, node generation, routin
 - Mapbox APIs (routing + node validation)
 - YARP reverse proxy for PocketBase passthrough
 
-## Local Run
+## Commands
 
-From `api/`:
+Use the root [README](../README.md) for restore, run, build, validation, and deployment commands.
 
-```bash
-dotnet restore
-dotnet build
-dotnet run
-```
-
-Default development URL: `http://localhost:5054` (see `Properties/launchSettings.json`).
+Default local development URL: `http://localhost:5056` (see `Properties/launchSettings.json`).
 
 Swagger UI is enabled in Development.
 
 ## Configuration
 
-The app loads `../.env` at startup and also reads `appsettings*.json`.
+For `dotnet run`, the app loads the first available env file in this order:
+- `BIKEAPELAGO_ENV_FILE` if set
+- `../.env.local`
+- `../.env`
+
+It also reads `appsettings*.json`. Docker Compose passes environment directly.
 
 Required/important environment values:
 - `ConnectionStrings__PostGis` (or `ConnectionStrings:PostGis`)
@@ -42,21 +41,11 @@ CORS origins are defined in `appsettings.Development.json` under `AllowedOrigins
 - Migrations live in `api/Migrations/`.
 - On startup, API attempts `Database.MigrateAsync()`.
 
-Common commands:
-
-```bash
-# from api/
-dotnet ef migrations add <MigrationName>
-dotnet ef database update
-```
+Migration commands are documented from the root workflow when needed.
 
 ## Test Commands
 
-From repository root:
-
-```bash
-dotnet test api.Tests/Bikeapelago.Api.Tests.csproj
-```
+Use the root [README](../README.md) for test commands.
 
 ## Key Endpoints
 

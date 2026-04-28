@@ -7,6 +7,8 @@
   "main": "index.js",
   "scripts": {
     "build": "pnpm -r --if-present run build",
+    "dev:local:app": "pnpm --filter \"@bikeapelago/bikeapelago-app\" run dev -- --host 127.0.0.1 --port 5175",
+    "dev:local:admin": "pnpm --filter \"@bikeapelago/admin-ui\" run dev -- --host 127.0.0.1 --port 5176",
     "lint": "pnpm -r --if-present run lint",
     "format": "pnpm format:base --write",
     "format:check": "pnpm format:base --check",

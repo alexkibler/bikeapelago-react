@@ -19,61 +19,88 @@ Bikeapelago is a location-based Archipelago integration with:
 - Node.js 20+ (Node 25 currently used in frontend Docker image)
 - pnpm 10+
 
-## Quick Start
+## Run Modes
 
-1. Copy environment config:
-```bash
-cp .env.example .env
-```
-2. Fill required values in `.env`:
-- `DB_PASSWORD`
-- `OSM_DISCOVERY_PASSWORD`
-- `MAPBOX_API_KEY`
-- `JWT_KEY`
-- `ADMIN_PASSWORD`
+### Production Full Stack
 
-3. Start the stack:
+Runs the GHCR-published API, game frontend, and admin frontend against the production app database and shared OSM database.
+
 ```bash
-docker compose up
+docker compose --env-file .env.prod -f docker-compose.deploy.yml pull
+docker compose --env-file .env.prod -f docker-compose.deploy.yml up -d --force-recreate
 ```
 
-Current `docker-compose.yml` behavior:
-- Starts API + frontend dev servers + both PostGIS databases by default
-- `archipelago` service is optional via `--profile archipelago`
-
-Key URLs:
+Key URLs/ports:
 - API: `http://localhost:5054`
-- Game frontend (Vite): `http://localhost:18182`
-- Admin frontend (Vite): `http://localhost:18183`
+- Game frontend: `http://localhost:8192`
+- Admin frontend: `http://localhost:8183`
 
-## Manual Development
+### Dev Full Stack
 
-### API
+Runs a containerized dev API plus GHCR-published runtime frontends against `postgis-bikeapelago-new` and the shared OSM database.
 
 ```bash
+docker compose --env-file .env.dev -f docker-compose.dev-db.yml up -d --build
+```
+
+Key URLs/ports:
+- API: `http://localhost:5055`
+- Game frontend: `http://localhost:8193`
+- Admin frontend: `http://localhost:8194`
+- Dev app DB: `localhost:5435`
+- Shared OSM DB: `localhost:5433`
+
+### Local Servers Against Dev DB
+
+Use this when you want `dotnet run` and local pnpm/Vite servers, while reusing the dev Docker databases.
+
+```bash
+docker compose --env-file .env.dev -f docker-compose.dev-db.yml up -d postgis-bikeapelago-new postgis-osm
+
 cd api
-dotnet restore
 dotnet run
 ```
 
-API local URL (launch settings): `http://localhost:5054`
-
-### Frontend
+In another shell:
 
 ```bash
 cd frontend
 pnpm install
-pnpm --filter "@bikeapelago/bikepelago-app" run dev
+pnpm run dev:local:app
 ```
 
-Admin UI:
+In another shell:
+
 ```bash
-pnpm --filter "@bikeapelago/admin-ui" run dev
+cd frontend
+pnpm run dev:local:admin
 ```
 
-Typical local URLs:
-- Game app: `http://localhost:5173`
-- Admin UI: `http://localhost:5174` (or next free Vite port)
+Local URLs:
+- API: `http://localhost:5056`
+- Game app: `http://localhost:5175`
+- Admin UI: `http://localhost:5176`
+
+### Joe/Generic Local Compose
+
+The base `docker-compose.yml` remains the generic local setup for another developer running their own isolated stack.
+
+```bash
+cp .env.example .env
+docker compose up
+```
+
+## Environment Files
+
+Environment files are intentionally scoped by run mode:
+- `.env.prod` - production full stack secrets and connection strings.
+- `.env.dev` - containerized dev full stack secrets and dev DB wiring.
+- `.env.local` - `dotnet run` wiring for local API against the dev DB.
+- `.env.example` - safe template with no secrets.
+
+Docker Compose cannot reliably self-select one of these files from inside the compose YAML because variable interpolation happens before service `env_file` values are applied. Always pass the intended file with `--env-file`.
+
+Frontend app `.env.local` files are app-local because Vite loads env files from each app directory.
 
 ## Testing and Validation
 
@@ -98,11 +125,34 @@ pnpm --filter "@bikeapelago/admin-ui" run tsc
 
 Note: there is no repository-level Playwright `test:e2e` script currently.
 
+### Build
+
+```bash
+cd frontend
+pnpm run build
+```
+
+For API build-only validation:
+
+```bash
+dotnet build api/Bikeapelago.Api.csproj
+```
+
+### Native iOS
+
+Native builds must set `VITE_PUBLIC_API_URL` to the full HTTPS backend URL because Capacitor WebViews cannot use the Vite dev proxy.
+
+```bash
+cd frontend/packages/apps/bikepelago-app
+pnpm run build
+npx cap sync ios
+```
+
 ## Configuration
 
-### Root `.env`
+### Root Environment
 
-Used by Docker Compose and API startup.
+Used by Docker Compose and API startup, depending on run mode.
 
 Important variables:
 - `DB_USER`, `DB_PASSWORD`, `DB_BIKEAPELAGO_PORT`

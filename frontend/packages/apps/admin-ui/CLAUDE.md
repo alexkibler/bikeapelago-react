@@ -16,4 +16,5 @@ pnpm --filter "@bikeapelago/admin-ui" run tsc
 
 - Keep React + TypeScript strict and explicit.
 - Avoid introducing dependencies unless required.
+- Prefer RTK Query for new tool/API calls wherever possible. If the touched admin area still uses its existing query/client pattern, keep changes consistent and avoid adding one-off request helpers.
 - Update docs when command or env behavior changes.

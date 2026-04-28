@@ -17,63 +17,9 @@ frontend/
     └── shared/
 ```
 
-## Prerequisites
+## Commands
 
-- Node.js 20+
-- pnpm 10+
-- API running at `http://localhost:5054` (or configure `VITE_PUBLIC_API_URL`)
-
-## Install
-
-```bash
-cd frontend
-pnpm install
-```
-
-## Development
-
-Game app:
-
-```bash
-pnpm --filter "@bikeapelago/bikepelago-app" run dev
-```
-
-Admin UI:
-
-```bash
-pnpm --filter "@bikeapelago/admin-ui" run dev
-```
-
-Both:
-
-```bash
-pnpm -r --if-present run dev
-```
-
-## Build
-
-All workspace packages:
-
-```bash
-pnpm -r --if-present run build
-```
-
-Per app:
-
-```bash
-pnpm --filter "@bikeapelago/bikepelago-app" run build
-pnpm --filter "@bikeapelago/admin-ui" run build
-```
-
-## Validation
-
-```bash
-pnpm -r --if-present run lint
-pnpm --filter "@bikeapelago/bikepelago-app" run test:run
-pnpm --filter "@bikeapelago/admin-ui" run tsc
-```
-
-Note: no workspace Playwright `test:e2e` script currently; game app tests are Vitest-based.
+Use the root [README](../README.md) for install, run, build, validation, and Docker commands.
 
 ## Environment Configuration
 
@@ -82,13 +28,7 @@ Set API base URL per app via `.env` files:
 - `packages/apps/bikepelago-app/.env`
 - `packages/apps/admin-ui/.env`
 
-Example:
-
-```env
-VITE_PUBLIC_API_URL=http://localhost:5054
-```
-
-Both apps also support `VITE_API_URL` fallback and default to `http://127.0.0.1:5054` in Vite config.
+Both apps support `VITE_PUBLIC_API_URL` for browser/native runtime API origin and `VITE_API_URL` for the Vite dev proxy target. Local `.env.local` files are app-local because Vite loads env files from each app directory.
 
 ## Docker (Production-style Frontends)
 
@@ -100,7 +40,7 @@ At runtime, Nginx templates use:
 - `API_PROXY_URL`
 - `API_HUBS_URL`
 
-See root compose files for deployment wiring.
+See the root [README](../README.md) and compose files for deployment wiring.
 
 ## Related Docs
 

@@ -7,6 +7,7 @@ Global guidance for Claude working in this monorepo.
 - Never run direct SQL mutations (`psql`, `docker exec ... psql`, ad-hoc DDL/DML).
 - Use EF Core migrations for schema updates.
 - If a command will modify database contents directly, stop and ask first.
+- For frontend tool/API calls, prefer RTK Query wherever the app is already wired for RTK. Use existing shared request helpers or direct `fetch` only when RTK is not available, the call is intentionally one-off, or the surrounding code already has a narrower local pattern.
 
 ## Repository Layout
 

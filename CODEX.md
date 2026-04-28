@@ -7,6 +7,7 @@ Global guidance for Codex-based agents in this repository.
 - Never execute raw SQL mutations directly against project databases.
 - Schema changes must go through EF Core migrations.
 - Keep changes scoped and avoid broad refactors unless requested.
+- For frontend tool/API calls, prefer RTK Query wherever the app is already wired for RTK. Use existing shared request helpers or direct `fetch` only when RTK is not available, the call is intentionally one-off, or the surrounding code already has a narrower local pattern.
 
 ## Project Map
 
