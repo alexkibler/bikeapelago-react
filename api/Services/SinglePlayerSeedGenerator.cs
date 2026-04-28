@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.InteropServices;
 using Bikeapelago.Api.Models;
 using Microsoft.Extensions.Logging;
 
@@ -150,9 +151,8 @@ public class SinglePlayerSeedGenerator(ILogger<SinglePlayerSeedGenerator> logger
                 fillerItems.Add(item);
         }
 
-        var rng = new Random();
-        strictProgressionItems = strictProgressionItems.OrderBy(_ => rng.Next()).ToList();
-        fillerItems            = fillerItems.OrderBy(_ => rng.Next()).ToList();
+        Random.Shared.Shuffle(CollectionsMarshal.AsSpan(strictProgressionItems));
+        Random.Shared.Shuffle(CollectionsMarshal.AsSpan(fillerItems));
 
         // ── Phase 1: Forward Fill (strict progression items only) ─────────────
         // Place each progression item only in locations reachable with items already
@@ -178,7 +178,7 @@ public class SinglePlayerSeedGenerator(ILogger<SinglePlayerSeedGenerator> logger
                 throw new Exception("Seed generation failed due to logic softlock.");
             }
 
-            var slot = emptySlots[rng.Next(emptySlots.Count)];
+            var slot = emptySlots[Random.Shared.Next(emptySlots.Count)];
             if (slot.IsArrival)
             {
                 slot.Node.ArrivalRewardItemId   = itemToPlace;
@@ -256,7 +256,7 @@ public class SinglePlayerSeedGenerator(ILogger<SinglePlayerSeedGenerator> logger
         // Descending sphere level — shuffle within same level for variety.
         emptySlotsBySphere = emptySlotsBySphere
             .OrderByDescending(e => e.Sphere)
-            .ThenBy(_ => rng.Next())
+            .ThenBy(_ => Random.Shared.Next())
             .ToList();
 
         // At most one Macguffin per node — skip the second slot of any node that already

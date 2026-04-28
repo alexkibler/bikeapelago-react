@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.InteropServices;
 using Bikeapelago.Api.Models;
 
 namespace Bikeapelago.Api.Services;
@@ -11,7 +12,6 @@ public static class ItemPoolFactory
     {
         var pool = new List<long>();
         var totalCapacity = nodes.Count * 2;
-        var rng = new Random();
 
         // 1. Macguffin Items (Triforce Hunt win condition)
         int totalMacguffins = (int)Math.Ceiling(totalCapacity * 0.15);
@@ -47,17 +47,18 @@ public static class ItemPoolFactory
         for (int i = 0; i < usefulTarget; i++)
         {
             if (pool.Count >= totalCapacity) break;
-            pool.Add(usefulItems[rng.Next(usefulItems.Length)]);
+            pool.Add(usefulItems[Random.Shared.Next(usefulItems.Length)]);
         }
 
         // 3. Filler Items (fill exact remaining capacity)
         var fillers = ItemDefinitions.GetFillerItems().ToArray();
         while (pool.Count < totalCapacity)
         {
-            pool.Add(fillers[rng.Next(fillers.Length)]);
+            pool.Add(fillers[Random.Shared.Next(fillers.Length)]);
         }
 
         // Shuffle the pool before returning it
-        return pool.OrderBy(_ => rng.Next()).ToList();
+        Random.Shared.Shuffle(CollectionsMarshal.AsSpan(pool));
+        return pool;
     }
 }

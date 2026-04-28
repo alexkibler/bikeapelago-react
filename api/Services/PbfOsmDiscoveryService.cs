@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using Bikeapelago.Api.Models;
 using Microsoft.Extensions.Logging;
@@ -80,12 +81,7 @@ public class PbfOsmDiscoveryService(ILogger<PbfOsmDiscoveryService> logger, stri
         _logger.LogInformation("Found {Count} candidate nodes within search radius", candidateNodes.Count);
 
         // Shuffle and take 'count'
-        var random = new Random();
-        for (int i = candidateNodes.Count - 1; i > 0; i--)
-        {
-            int j = random.Next(i + 1);
-            (candidateNodes[i], candidateNodes[j]) = (candidateNodes[j], candidateNodes[i]);
-        }
+        Random.Shared.Shuffle(CollectionsMarshal.AsSpan(candidateNodes));
 
         return candidateNodes.Take(count).ToList();
     }
