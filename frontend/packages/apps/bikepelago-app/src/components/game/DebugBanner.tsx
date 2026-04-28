@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { useDebugStore } from '../../store/debugStore';
-import { useGameStore } from '../../store/gameStore';
+
 import { API_BASE } from '../../lib/api';
 import { getToken } from '../../store/authStore';
+import { useDebugStore } from '../../store/debugStore';
+import { useGameStore } from '../../store/gameStore';
 
 const DebugBanner = () => {
   const { debugMode, toggle } = useDebugStore();
@@ -22,13 +23,16 @@ const DebugBanner = () => {
     setCompleting(true);
     try {
       const token = getToken();
-      const res = await fetch(`${API_BASE}/sessions/${session.id}/debug/force-complete`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      const res = await fetch(
+        `${API_BASE}/sessions/${session.id}/debug/force-complete`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
         },
-      });
+      );
       if (res.ok) {
         setNodes(nodes.map((n) => ({ ...n, state: 'Checked' as const })));
         triggerSync();
@@ -43,16 +47,23 @@ const DebugBanner = () => {
     setClearing(true);
     try {
       const token = getToken();
-      const res = await fetch(`${API_BASE}/sessions/${session.id}/nodes/check`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      const res = await fetch(
+        `${API_BASE}/sessions/${session.id}/nodes/check`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({ nodeIds: availableNodes.map((n) => n.id) }),
         },
-        body: JSON.stringify({ nodeIds: availableNodes.map((n) => n.id) }),
-      });
+      );
       if (res.ok) {
-        setNodes(nodes.map((n) => n.state === 'Available' ? { ...n, state: 'Checked' as const } : n));
+        setNodes(
+          nodes.map((n) =>
+            n.state === 'Available' ? { ...n, state: 'Checked' as const } : n,
+          ),
+        );
         triggerSync();
       }
     } finally {
@@ -61,28 +72,28 @@ const DebugBanner = () => {
   };
 
   return (
-    <div className="fixed bottom-16 md:bottom-0 left-0 right-0 z-[2000] bg-yellow-400 px-4 py-2 flex items-center justify-between">
-      <span className="text-[11px] font-black uppercase tracking-widest text-black">
+    <div className='fixed bottom-16 md:bottom-0 left-0 right-0 z-[2000] bg-yellow-400 px-4 py-2 flex items-center justify-between'>
+      <span className='text-[11px] font-black uppercase tracking-widest text-black'>
         ⚠ Debug Mode
       </span>
-      <div className="flex items-center gap-4">
+      <div className='flex items-center gap-4'>
         <button
           onClick={() => void handleForceComplete()}
           disabled={completing || !session}
-          className="text-[11px] font-black uppercase tracking-widest text-black underline underline-offset-2 hover:opacity-60 transition-opacity disabled:opacity-40 disabled:no-underline"
+          className='text-[11px] font-black uppercase tracking-widest text-black underline underline-offset-2 hover:opacity-60 transition-opacity disabled:opacity-40 disabled:no-underline'
         >
           {completing ? 'Completing…' : 'Force Complete'}
         </button>
         <button
           onClick={() => void handleClearAll()}
           disabled={clearing || availableNodes.length === 0}
-          className="text-[11px] font-black uppercase tracking-widest text-black underline underline-offset-2 hover:opacity-60 transition-opacity disabled:opacity-40 disabled:no-underline"
+          className='text-[11px] font-black uppercase tracking-widest text-black underline underline-offset-2 hover:opacity-60 transition-opacity disabled:opacity-40 disabled:no-underline'
         >
           {clearing ? 'Clearing…' : `Clear All (${availableNodes.length})`}
         </button>
         <button
           onClick={toggle}
-          className="text-[11px] font-black uppercase tracking-widest text-black underline underline-offset-2 hover:opacity-60 transition-opacity"
+          className='text-[11px] font-black uppercase tracking-widest text-black underline underline-offset-2 hover:opacity-60 transition-opacity'
         >
           Disable
         </button>

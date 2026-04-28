@@ -1,14 +1,16 @@
 import { useEffect } from 'react';
-import { useMap, useMapEvents } from 'react-leaflet';
+
 import L from 'leaflet';
+import { useMap, useMapEvents } from 'react-leaflet';
+
 import { useGameStore } from '../../store/gameStore';
-import ConfirmDialog from '../layout/ConfirmDialog';
 import type { MapNode } from '../../types/game';
+import ConfirmDialog from '../layout/ConfirmDialog';
 
 // Map fit bounds constants
 const FIT_BOUNDS = {
   PADDING: [48, 48] as [number, number],
-  MAX_ZOOM: 15
+  MAX_ZOOM: 15,
 } as const;
 
 // Map resizer to handle container boundary updates when Layout triggers changes
@@ -31,10 +33,13 @@ export const MapAutoFitter = ({ nodes }: { nodes: MapNode[] }) => {
 
   useEffect(() => {
     if (nodes.length === 0) return;
-    const latlngs = nodes.map(n => L.latLng(n.lat, n.lon));
+    const latlngs = nodes.map((n) => L.latLng(n.lat, n.lon));
     const bounds = L.latLngBounds(latlngs);
     if (bounds.isValid()) {
-      map.fitBounds(bounds, { padding: FIT_BOUNDS.PADDING, maxZoom: FIT_BOUNDS.MAX_ZOOM });
+      map.fitBounds(bounds, {
+        padding: FIT_BOUNDS.PADDING,
+        maxZoom: FIT_BOUNDS.MAX_ZOOM,
+      });
     }
   }, [map, nodes]);
 
@@ -47,15 +52,15 @@ export const MapAutoFitter = ({ nodes }: { nodes: MapNode[] }) => {
 // It includes a "smart" check to ignore clicks near existing nodes to prevent accidental pin drops.
 export const MapEvents = ({ nodes }: { nodes: MapNode[] }) => {
   const map = useMap();
-  const setCustomOrigin = useGameStore(s => s.setCustomOrigin);
-  const setPendingMapClick = useGameStore(s => s.setPendingMapClick);
-  const routeData = useGameStore(s => s.routeData);
+  const setCustomOrigin = useGameStore((s) => s.setCustomOrigin);
+  const setPendingMapClick = useGameStore((s) => s.setPendingMapClick);
+  const routeData = useGameStore((s) => s.routeData);
 
   useMapEvents({
     click(e) {
       // Smart check: ignore clicks near nodes (28px radius)
       const clickPoint = map.latLngToLayerPoint(e.latlng);
-      const isNearNode = nodes.some(node => {
+      const isNearNode = nodes.some((node) => {
         const nodePoint = map.latLngToLayerPoint([node.lat, node.lon]);
         return clickPoint.distanceTo(nodePoint) < 28;
       });
@@ -75,9 +80,9 @@ export const MapEvents = ({ nodes }: { nodes: MapNode[] }) => {
 // Renders a confirmation dialog when the user clicks the map with an active route.
 // Must be rendered outside the MapContainer so it sits above the map.
 export const MapClickConfirmDialog = () => {
-  const pendingMapClick = useGameStore(s => s.pendingMapClick);
-  const setPendingMapClick = useGameStore(s => s.setPendingMapClick);
-  const setCustomOrigin = useGameStore(s => s.setCustomOrigin);
+  const pendingMapClick = useGameStore((s) => s.pendingMapClick);
+  const setPendingMapClick = useGameStore((s) => s.setPendingMapClick);
+  const setCustomOrigin = useGameStore((s) => s.setCustomOrigin);
 
   if (!pendingMapClick) return null;
 

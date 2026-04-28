@@ -1,6 +1,8 @@
 import { useEffect, useRef } from 'react';
+
 import confetti from 'canvas-confetti';
 import { useNavigate } from 'react-router-dom';
+
 import type { GameSession } from '../../types/game';
 
 interface VictoryModalProps {
@@ -43,28 +45,30 @@ const VictoryModal = ({ session }: VictoryModalProps) => {
   }, []);
 
   return (
-    <div className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-      <div className="relative bg-[var(--color-surface-hex)] border border-[var(--color-border-strong-hex)] rounded-2xl shadow-2xl max-w-sm w-full text-center p-8 flex flex-col items-center gap-5">
-        <div className="text-6xl leading-none">&#127881;</div>
+    <div className='fixed inset-0 z-[2000] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4'>
+      <div className='relative bg-[var(--color-surface-hex)] border border-[var(--color-border-strong-hex)] rounded-2xl shadow-2xl max-w-sm w-full text-center p-8 flex flex-col items-center gap-5'>
+        <div className='text-6xl leading-none'>&#127881;</div>
 
         <div>
-          <h1 className="text-2xl font-black text-[var(--color-text-hex)] leading-tight">
+          <h1 className='text-2xl font-black text-[var(--color-text-hex)] leading-tight'>
             You Win!
           </h1>
-          <p className="text-sm text-[var(--color-text-subtle-hex)] mt-1">
+          <p className='text-sm text-[var(--color-text-subtle-hex)] mt-1'>
             {session.name || session.ap_seed_name || 'Session'} complete
           </p>
         </div>
 
-        <div className="flex items-center gap-3 bg-yellow-500/10 border border-yellow-500/30 rounded-xl px-5 py-3">
-          <span className="text-yellow-400 text-2xl leading-none">&#10022;</span>
-          <div className="text-left">
-            <div className="text-xs font-bold text-[var(--color-text-muted-hex)] uppercase tracking-widest">
+        <div className='flex items-center gap-3 bg-yellow-500/10 border border-yellow-500/30 rounded-xl px-5 py-3'>
+          <span className='text-yellow-400 text-2xl leading-none'>
+            &#10022;
+          </span>
+          <div className='text-left'>
+            <div className='text-xs font-bold text-[var(--color-text-muted-hex)] uppercase tracking-widest'>
               Macguffins
             </div>
-            <div className="text-xl font-black text-yellow-400 leading-tight">
+            <div className='text-xl font-black text-yellow-400 leading-tight'>
               {session.macguffins_collected}{' '}
-              <span className="text-sm font-normal text-[var(--color-text-subtle-hex)]">
+              <span className='text-sm font-normal text-[var(--color-text-subtle-hex)]'>
                 / {session.macguffins_required}
               </span>
             </div>
@@ -73,7 +77,7 @@ const VictoryModal = ({ session }: VictoryModalProps) => {
 
         <button
           onClick={() => void navigate('/')}
-          className="w-full py-3 rounded-xl font-bold text-sm bg-[var(--color-primary-hex)] text-white hover:opacity-90 transition-opacity"
+          className='w-full py-3 rounded-xl font-bold text-sm bg-[var(--color-primary-hex)] text-white hover:opacity-90 transition-opacity'
         >
           Back to Sessions
         </button>

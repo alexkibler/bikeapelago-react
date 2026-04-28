@@ -3,15 +3,16 @@ import type { ReactElement } from 'react';
 
 import { ArrowRight, Bike, Lock, User } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { RhfInput, useForm } from '@bikeapelago/shared-ui-form';
-import { Button } from '@bikeapelago/shared-ui-components';
 
+import { Button } from '@bikeapelago/shared-ui-components';
+import { RhfInput, useForm } from '@bikeapelago/shared-ui-form';
+
+import { useLoginPost } from '../../operations/authentication';
 import { useAuthStore } from '../../store/authStore';
 import type { LoginForm } from './types';
-import { useLoginPost } from '../../operations/authentication';
 
 export function Login(): ReactElement {
-  const formMethods = useForm<LoginForm>()
+  const formMethods = useForm<LoginForm>();
   const [error, setError] = useState('');
   const navigate = useNavigate();
   const { login, isValid } = useAuthStore();
@@ -37,7 +38,7 @@ export function Login(): ReactElement {
       },
       onError: (err) => {
         setError(err instanceof Error ? err.message : 'Invalid credentials.');
-      }
+      },
     });
   };
 
@@ -45,7 +46,7 @@ export function Login(): ReactElement {
     handleLogin({
       identity: 'testuser',
       password: 'Password',
-    })
+    });
   };
 
   return (
@@ -60,7 +61,10 @@ export function Login(): ReactElement {
           </h1>
         </div>
 
-        <form onSubmit={formMethods.handleSubmit(handleLogin)} className='space-y-4'>
+        <form
+          onSubmit={formMethods.handleSubmit(handleLogin)}
+          className='space-y-4'
+        >
           {registerMessage && !error && (
             <div className='p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl text-emerald-500 text-sm font-bold text-center'>
               {registerMessage}
@@ -78,7 +82,7 @@ export function Login(): ReactElement {
               <User className='absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-600 group-focus-within:text-orange-500 transition-colors' />
             }
             formMethods={formMethods}
-            name="identity"
+            name='identity'
             placeholder='Username'
             required
           />
@@ -87,8 +91,8 @@ export function Login(): ReactElement {
               <Lock className='absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-600 group-focus-within:text-orange-500 transition-colors' />
             }
             formMethods={formMethods}
-            name="password"
-            type="password"
+            name='password'
+            type='password'
             placeholder='Password'
             required
           />
@@ -151,4 +155,4 @@ export function Login(): ReactElement {
       </div>
     </div>
   );
-};
+}

@@ -1,21 +1,24 @@
-import type { ChangeEvent, JSX } from "react";
-import { useId } from "react";
+import type { ChangeEvent, JSX } from 'react';
+import { useId } from 'react';
 
-import { get } from "lodash-es";
 import classnames from 'classnames';
-import type { FieldValues, Path, PathValue } from "react-hook-form";
-import { twMerge } from 'tailwind-merge'
+import { get } from 'lodash-es';
+import type { FieldValues, Path, PathValue } from 'react-hook-form';
+import { twMerge } from 'tailwind-merge';
 
-import type { RhfInputProps } from "./types";
 import type { Size } from '../../shared';
+import type { RhfInputProps } from './types';
 
 const sizeClasses: Record<Size, string> = {
   sm: 'rounded-xl',
   md: 'font-medium rounded-2xl py-4 pr-4',
-  lg: 'rounded-4xl'
-}
+  lg: 'rounded-4xl',
+};
 
-export function RhfInput<TForm extends FieldValues, TField extends Path<TForm>>({
+export function RhfInput<
+  TForm extends FieldValues,
+  TField extends Path<TForm>,
+>({
   className,
   formMethods,
   label,
@@ -26,9 +29,9 @@ export function RhfInput<TForm extends FieldValues, TField extends Path<TForm>>(
   registerOptions,
   required = false,
   inputSize = 'md',
-  type = "text",
+  type = 'text',
   ...inputProps
-}: RhfInputProps<TForm, TField> & JSX.IntrinsicElements["input"]) {
+}: RhfInputProps<TForm, TField> & JSX.IntrinsicElements['input']) {
   const registerProps = formMethods.register(name, {
     required,
     onChange: (e: ChangeEvent<HTMLInputElement>) => {
@@ -38,17 +41,17 @@ export function RhfInput<TForm extends FieldValues, TField extends Path<TForm>>(
   });
   const inputErrors = get(formMethods.formState.errors, name);
   const hasErrors = !!inputErrors;
-  const hasIcon = !!leftIcon
+  const hasIcon = !!leftIcon;
   const id = useId();
   // we will likely end up with other variants. for now the two I'm working with are the same variant so this is just true
   const variantClasses = classnames({
-    'bg-[var(--color-surface-alt-hex)] border-[var(--color-border-hex)] text-[var(--color-text-hex)] focus:border-orange-500/50 placeholder:text-[var(--color-text-subtle-hex)]': true
+    'bg-[var(--color-surface-alt-hex)] border-[var(--color-border-hex)] text-[var(--color-text-hex)] focus:border-orange-500/50 placeholder:text-[var(--color-text-subtle-hex)]': true,
   });
   const iconClasses = classnames({
-    'pl-12': hasIcon
-  })
+    'pl-12': hasIcon,
+  });
   const baseInputClasses = classnames(
-    "w-full border shadow rounded focus:outline-none transition-all",
+    'w-full border shadow rounded focus:outline-none transition-all',
     variantClasses,
     iconClasses,
     sizeClasses[inputSize],
@@ -56,7 +59,7 @@ export function RhfInput<TForm extends FieldValues, TField extends Path<TForm>>(
 
   const errorClasses = classnames({
     'border-bikepelago-input-error-border': hasErrors,
-  })
+  });
 
   const inputClasses = twMerge(baseInputClasses, errorClasses, className);
 
@@ -65,7 +68,7 @@ export function RhfInput<TForm extends FieldValues, TField extends Path<TForm>>(
       {label && (
         <label
           htmlFor={id}
-          className="block text-sm font-medium text-bikepelago-body-text mb-1"
+          className='block text-sm font-medium text-bikepelago-body-text mb-1'
         >
           {label}
         </label>

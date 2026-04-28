@@ -9,7 +9,7 @@ export const ButtonSizes = {
 export type ButtonSize = Values<typeof ButtonSizes>;
 
 export const ButtonVariants = {
-  default: 'default'
+  default: 'default',
 };
 
 export type ButtonVariant = Values<typeof ButtonVariants>;

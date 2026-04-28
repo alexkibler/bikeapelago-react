@@ -1,12 +1,17 @@
-import { useToastStore, type ToastType } from '../../store/toastStore';
-import { CheckCircle, XCircle, AlertCircle, Info, X } from 'lucide-react';
+import { AlertCircle, CheckCircle, Info, X, XCircle } from 'lucide-react';
+
+import { type ToastType, useToastStore } from '../../store/toastStore';
 
 const ToastIcon = ({ type }: { type: ToastType }) => {
   switch (type) {
-    case 'success': return <CheckCircle className="w-5 h-5 text-green-500" />;
-    case 'error': return <XCircle className="w-5 h-5 text-red-500" />;
-    case 'warning': return <AlertCircle className="w-5 h-5 text-yellow-500" />;
-    case 'info': return <Info className="w-5 h-5 text-blue-500" />;
+    case 'success':
+      return <CheckCircle className='w-5 h-5 text-green-500' />;
+    case 'error':
+      return <XCircle className='w-5 h-5 text-red-500' />;
+    case 'warning':
+      return <AlertCircle className='w-5 h-5 text-yellow-500' />;
+    case 'info':
+      return <Info className='w-5 h-5 text-blue-500' />;
   }
 };
 
@@ -14,7 +19,7 @@ const ToastContainer = () => {
   const { toasts, removeToast } = useToastStore();
 
   return (
-    <div className="fixed bottom-24 md:bottom-8 right-6 z-[3000] flex flex-col gap-3 pointer-events-none">
+    <div className='fixed bottom-24 md:bottom-8 right-6 z-[3000] flex flex-col gap-3 pointer-events-none'>
       {toasts.map((toast) => (
         <div
           key={toast.id}
@@ -29,13 +34,15 @@ const ToastContainer = () => {
           `}
         >
           <ToastIcon type={toast.type} />
-          <span className="text-sm font-bold tracking-tight">{toast.message}</span>
-          <button 
-            aria-label="Close notification"
+          <span className='text-sm font-bold tracking-tight'>
+            {toast.message}
+          </span>
+          <button
+            aria-label='Close notification'
             onClick={() => removeToast(toast.id)}
-            className="ml-2 p-1 rounded-full hover:bg-white/10 transition-colors text-neutral-500 hover:text-white"
+            className='ml-2 p-1 rounded-full hover:bg-white/10 transition-colors text-neutral-500 hover:text-white'
           >
-            <X className="w-4 h-4" />
+            <X className='w-4 h-4' />
           </button>
         </div>
       ))}

@@ -1,7 +1,8 @@
-import { render, screen, fireEvent } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import DebugBanner from '../DebugBanner';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
 import type { MapNode } from '../../../types/game';
+import DebugBanner from '../DebugBanner';
 
 vi.mock('../../../store/authStore', () => ({
   getToken: () => null,
