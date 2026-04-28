@@ -30,6 +30,8 @@ frontend/packages/apps/bikepelago-app/ios/App/App.xcworkspace/xcuserdata/
 frontend/packages/apps/bikepelago-app/ios/App/build/
 .env.local
 .env.*.local
+.env.prod
+.env.dev
 .envrc.private
 
 # Dependencies
@@ -72,4 +74,3 @@ frontend/packages/apps/bikepelago-app/lint_output.txt
 *.gpx
 playwright-report/
 \n# Archipelago data\n*.apworld
-docker-compose.dev-db.yml

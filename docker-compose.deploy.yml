@@ -3,10 +3,10 @@
 # Uses pre-built images from GHCR (published by CI on push to main).
 #
 # Usage:
-#   docker compose -f docker-compose.deploy.yml pull
-#   docker compose -f docker-compose.deploy.yml up -d --force-recreate
+#   docker compose --env-file .env.prod -f docker-compose.deploy.yml pull
+#   docker compose --env-file .env.prod -f docker-compose.deploy.yml up -d --force-recreate
 #
-# Required .env vars:
+# Required .env.prod vars:
 #   MAPBOX_API_KEY, JWT_KEY, ADMIN_EMAIL, ADMIN_PASSWORD, DB_PASSWORD, OSM_DISCOVERY_PASSWORD
 
 networks:

@@ -3,7 +3,7 @@ export type SessionUniqueWhere = { id: string };
 export type SessionUpdateInput = {
   ap_server_url: string;
   ap_slot_name: string;
-}
+};
 
 export type SessionCreateDataInput = {
   user: string;
@@ -15,4 +15,4 @@ export type SessionCreateDataInput = {
   ap_server_url?: string;
   ap_slot_name?: string;
   mode: string;
-}
+};

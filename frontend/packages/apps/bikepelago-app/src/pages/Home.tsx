@@ -135,7 +135,9 @@ const Home = () => {
                       </div>
                     )}
                   </div>
-                  <div className={`transition-colors mr-8 ${session.status === 'Completed' ? 'text-green-500' : 'text-[var(--color-text-muted-hex)] group-hover:text-orange-500'}`}>
+                  <div
+                    className={`transition-colors mr-8 ${session.status === 'Completed' ? 'text-green-500' : 'text-[var(--color-text-muted-hex)] group-hover:text-orange-500'}`}
+                  >
                     {session.status === 'Completed' ? (
                       <CheckCircle className='w-6 h-6' />
                     ) : (
@@ -178,7 +180,9 @@ const Home = () => {
                   to={`/game/${session.id}`}
                   className={`w-full btn btn-md flex items-center justify-center gap-2 group/btn mt-auto ${session.status === 'Completed' ? 'btn-secondary' : 'btn-orange'}`}
                 >
-                  {session.status === 'Completed' ? 'View Session' : 'Resume Session'}
+                  {session.status === 'Completed'
+                    ? 'View Session'
+                    : 'Resume Session'}
                   <ArrowRight className='w-4 h-4 group-hover/btn:translate-x-1 transition-transform' />
                 </Link>
               </div>

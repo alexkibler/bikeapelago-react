@@ -4,23 +4,11 @@ Administrative dashboard for Bikeapelago.
 
 ## Commands
 
-Run from `frontend/`:
-
-```bash
-pnpm --filter "@bikeapelago/admin-ui" run dev
-pnpm --filter "@bikeapelago/admin-ui" run build
-pnpm --filter "@bikeapelago/admin-ui" run tsc
-```
+Use the root [README](../../../../README.md) for run, build, validation, and deployment commands.
 
 ## Environment
 
-Optional `.env` in this folder:
-
-```env
-VITE_PUBLIC_API_URL=http://localhost:5054
-```
-
-If unset, Vite falls back to `VITE_API_URL`, then `http://127.0.0.1:5054`.
+The admin app uses same-origin `/api` calls. For browser dev, set `VITE_API_URL` only when the Vite proxy should target a non-default API.
 
 ## Related Docs
 

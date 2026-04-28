@@ -1,7 +1,8 @@
-import { render, screen, fireEvent } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
-import VictoryModal from '../VictoryModal';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
+
 import type { GameSession } from '../../../types/game';
+import VictoryModal from '../VictoryModal';
 
 const mockNavigate = vi.fn();
 
@@ -42,13 +43,21 @@ describe('VictoryModal', () => {
   });
 
   it('falls back to ap_seed_name when name is absent', () => {
-    const sessionWithSeedName: GameSession = { ...mockSession, name: undefined, ap_seed_name: 'Seed ABC' };
+    const sessionWithSeedName: GameSession = {
+      ...mockSession,
+      name: undefined,
+      ap_seed_name: 'Seed ABC',
+    };
     render(<VictoryModal session={sessionWithSeedName} />);
     expect(screen.getByText(/Seed ABC/)).toBeInTheDocument();
   });
 
   it('falls back to "Session" when neither name nor ap_seed_name is set', () => {
-    const sessionNoName: GameSession = { ...mockSession, name: undefined, ap_seed_name: undefined };
+    const sessionNoName: GameSession = {
+      ...mockSession,
+      name: undefined,
+      ap_seed_name: undefined,
+    };
     render(<VictoryModal session={sessionNoName} />);
     expect(screen.getByText(/Session complete/)).toBeInTheDocument();
   });

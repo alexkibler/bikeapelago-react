@@ -6,4 +6,4 @@ export type ButtonProps = {
   hasErrors?: boolean;
   isLoading?: boolean;
   variant?: ButtonVariant;
-}
+};

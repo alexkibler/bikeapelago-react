@@ -1,45 +1,17 @@
-# Bikeapelago prod development compose
-#
-# Usage:
-#   docker compose up                                        # Bikeapelago PostGIS database only (run API with dotnet run)
-#   docker compose -f ./docker-compose.prod.yml --profile prod-frontend up               # + React PROD frontend + admin PROD UI (Nginx)
-#
-# For OrbStack "Production" deployment (hit deployed API):
-#   1. Set API_PROXY_URL=https://your-api-domain.com/api/ in .env
-#   2. Set API_HUBS_URL=https://your-api-domain.com/hubs/ in .env
-#   3. docker compose --profile prod-frontend up -d
-#
-
-x-bikeapelago-frontend-prod-definition: &frontend-prod-definition
-  profiles: [prod-frontend]
-  build:
-    context: ./frontend
-    dockerfile: Dockerfile
+x-bikeapelago-frontend-app-definition: &frontend-app-definition
+  platform: linux/amd64
   restart: unless-stopped
   networks:
-    - bikeapelago-prod
+    - bikeapelago
   environment:
-    API_PROXY_URL: ${API_PROXY_URL:-http://prod-bikeapelago-api:8080/api/}
-    API_HUBS_URL: ${API_HUBS_URL:-http://prod-bikeapelago-api:8080/hubs/}
-
-networks:
-  bikeapelago:
-    name: bikeapelago
-    external: true
-
-volumes:
-  bikeapelago_postgis_data:
-  osm_postgis_data:
-    name: avarts_postgis_data # CRITICAL: This perfectly maps back to the existing OrbStack volume!
-    external: true
+    API_PROXY_URL: ${DEV_API_PROXY_URL:-http://bikeapelago-api-dev:5054/api/}
+    API_HUBS_URL: ${DEV_API_HUBS_URL:-http://bikeapelago-api-dev:5054/hubs/}
 
 services:
-
   # ──────────────────────────────────────────────────────────────────────────
-  # OSM Discovery Database (The "Big" PostGIS) — profile: osm
+  # OSM Discovery Database (The "Prod" Data for Dev work)
   # ──────────────────────────────────────────────────────────────────────────
   postgis-osm:
-    profiles: [osm]
     image: postgis/postgis:16-3.4-alpine
     container_name: postgis-osm-dev
     restart: unless-stopped
@@ -68,20 +40,20 @@ services:
       retries: 5
 
   # ──────────────────────────────────────────────────────────────────────────
-  # Bikeapelago PostGIS Database (App Data)
+  # Bikeapelago Dev Database (App Data)
   # ──────────────────────────────────────────────────────────────────────────
-  postgis-bikeapelago:
+  postgis-bikeapelago-new:
     image: postgis/postgis:16-3.4
-    container_name: postgis-bikeapelago-dev
+    container_name: postgis-bikeapelago-new
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${DB_USER:-osm}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
-      POSTGRES_DB: bikeapelago
+      POSTGRES_DB: bikeapelago_new
     ports:
-      - "${DB_BIKEAPELAGO_PORT:-5432}:5432"
+      - "5435:5432"
     volumes:
-      - bikeapelago_postgis_data:/var/lib/postgresql/data
+      - bikeapelago_new_data:/var/lib/postgresql/data
     networks:
       - bikeapelago
     healthcheck:
@@ -91,51 +63,68 @@ services:
       retries: 5
 
   # ──────────────────────────────────────────────────────────────────────────
-  # Bikeapelago API — profile: api
+  # Bikeapelago Dev API (containerized dev stack)
   # ──────────────────────────────────────────────────────────────────────────
-  bikeapelago-api:
-    profiles: [api]
-    build:
-      context: .
-      dockerfile: ./api/Dockerfile.dev
-    image: bikeapelago-api:latest
+  bikeapelago-api-dev:
+    image: ghcr.io/alexkibler/bikeapelago-react/api:latest
+    platform: linux/amd64
     container_name: bikeapelago-api-dev
     restart: unless-stopped
+    env_file:
+      - .env.dev
     environment:
-      - ASPNETCORE_ENVIRONMENT=Development
-      - Mapbox__ApiKey=${MAPBOX_API_KEY}
-      - JWT_KEY=${JWT_KEY}
-      - ADMIN_EMAIL=${ADMIN_EMAIL}
-      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
-      - ConnectionStrings__PostGis=Host=postgis-bikeapelago;Port=5432;Database=bikeapelago;Username=${DB_USER:-osm};Password=${DB_PASSWORD}
-      - ConnectionStrings__OsmDiscovery=Host=postgis-osm;Port=5432;Database=osm_discovery;Username=${OSM_DISCOVERY_USER:-osm};Password=${OSM_DISCOVERY_PASSWORD}
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:5054
+      Mapbox__ApiKey: ${MAPBOX_API_KEY}
+      JWT_KEY: ${JWT_KEY}
+      ADMIN_EMAIL: ${ADMIN_EMAIL}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      ConnectionStrings__PostGis: Host=postgis-bikeapelago-new;Port=5432;Database=bikeapelago_new;Username=${DB_USER:-osm};Password=${DB_PASSWORD}
+      ConnectionStrings__OsmDiscovery: Host=postgis-osm;Port=5432;Database=osm_discovery;Username=${OSM_DISCOVERY_USER:-osm};Password=${OSM_DISCOVERY_PASSWORD}
+      AllowedOrigins__0: ${DEV_ALLOWED_ORIGIN_0:-http://localhost:8193}
+      AllowedOrigins__1: ${DEV_ALLOWED_ORIGIN_1:-http://localhost:8194}
+      AllowedOrigins__2: ${DEV_ALLOWED_ORIGIN_2:-https://bikeapelago-dev.alexkibler.com}
+      AllowedOrigins__3: ${DEV_ALLOWED_ORIGIN_3:-https://admin-bikeapelago-dev.alexkibler.com}
+      AllowedOrigins__4: ${DEV_ALLOWED_ORIGIN_4:-capacitor://localhost}
     ports:
-      - "5054:8080"
+      - "5055:5054"
     depends_on:
-      postgis-bikeapelago:
+      postgis-bikeapelago-new:
+        condition: service_healthy
+      postgis-osm:
         condition: service_healthy
     networks:
       - bikeapelago
 
   # ──────────────────────────────────────────────────────────────────────────
-  # PRODUCTION Frontends (OrbStack/Deploy)
+  # Bikeapelago Dev Frontends (published runtime images)
   # ──────────────────────────────────────────────────────────────────────────
-  bikeapelago-react-prod:
-    <<: *frontend-prod-definition
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-      target: runtime-frontend
-    container_name: bikeapelago-react-prod
+  bikeapelago-react-dev:
+    <<: *frontend-app-definition
+    image: ghcr.io/alexkibler/bikeapelago-react/frontend:latest
+    container_name: bikeapelago-react-dev
+    depends_on:
+      bikeapelago-api-dev:
+        condition: service_started
     ports:
-      - "8182:80"
+      - "8193:80"
 
-  bikeapelago-admin-prod:
-    <<: *frontend-prod-definition
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-      target: runtime-admin-ui
-    container_name: bikeapelago-admin-prod
+  bikeapelago-admin-dev:
+    <<: *frontend-app-definition
+    image: ghcr.io/alexkibler/bikeapelago-react/admin-ui:latest
+    container_name: bikeapelago-admin-dev
+    depends_on:
+      bikeapelago-api-dev:
+        condition: service_started
     ports:
-      - "8183:80"
+      - "8194:80"
+
+volumes:
+  bikeapelago_new_data:
+  osm_postgis_data:
+    name: avarts_postgis_data
+    external: true
+
+networks:
+  bikeapelago:
+    external: true

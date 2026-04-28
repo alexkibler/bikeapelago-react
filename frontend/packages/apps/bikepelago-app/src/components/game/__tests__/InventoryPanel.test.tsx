@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
 import InventoryPanel from '../InventoryPanel';
 
 vi.mock('react-router-dom', () => ({
@@ -13,7 +14,8 @@ vi.mock('../../../hooks/useToast', () => ({
 // Mutable state so each test can configure it
 const debugState = { debugMode: false };
 vi.mock('../../../store/debugStore', () => ({
-  useDebugStore: (selector: (s: typeof debugState) => unknown) => selector(debugState),
+  useDebugStore: (selector: (s: typeof debugState) => unknown) =>
+    selector(debugState),
 }));
 
 const gameState = {
@@ -27,7 +29,9 @@ vi.mock('../../../store/gameStore', () => ({
     selector ? selector(gameState) : gameState,
 }));
 
-const archipelagoState = { receivedItems: [] as { id: number; name: string }[] };
+const archipelagoState = {
+  receivedItems: [] as { id: number; name: string }[],
+};
 vi.mock('../../../store/archipelagoStore', () => ({
   useArchipelagoStore: (selector?: (s: typeof archipelagoState) => unknown) =>
     selector ? selector(archipelagoState) : archipelagoState,
@@ -67,7 +71,9 @@ describe('InventoryPanel', () => {
   it('shows "Select a node on map" when player has a Detour but no node selected', () => {
     archipelagoState.receivedItems = [{ id: 802010, name: 'Detour' }];
     render(<InventoryPanel />);
-    expect(screen.getAllByText('Select a node on map').length).toBeGreaterThanOrEqual(1);
+    expect(
+      screen.getAllByText('Select a node on map').length,
+    ).toBeGreaterThanOrEqual(1);
   });
 
   it('shows "Use on Selected Node" when a node is selected and player has a Detour', () => {

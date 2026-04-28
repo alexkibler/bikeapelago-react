@@ -9,12 +9,19 @@ using Microsoft.AspNetCore.Identity;
 using System.Text;
 using Bikeapelago.Api.Middleware;
 
-// Option 4: Load the root .env file automatically on startup
-var envPath = Path.Combine(Directory.GetCurrentDirectory(), "..", ".env");
-Console.WriteLine($"[Config] Checking for .env file at: {Path.GetFullPath(envPath)}");
-if (File.Exists(envPath))
+// Load local development env values before ASP.NET Core builds configuration.
+// Docker Compose passes environment directly; this path is for `dotnet run`.
+var envCandidates = new[]
 {
-    Console.WriteLine("[Config] Found .env file, loading variables...");
+    Environment.GetEnvironmentVariable("BIKEAPELAGO_ENV_FILE"),
+    Path.Combine(Directory.GetCurrentDirectory(), "..", ".env.local"),
+    Path.Combine(Directory.GetCurrentDirectory(), "..", ".env")
+}.Where(path => !string.IsNullOrWhiteSpace(path)).ToArray();
+
+var envPath = envCandidates.FirstOrDefault(File.Exists);
+if (envPath is not null)
+{
+    Console.WriteLine($"[Config] Loading env file: {Path.GetFullPath(envPath)}");
     foreach (var line in File.ReadAllLines(envPath))
     {
         var parts = line.Split('=', 2, StringSplitOptions.RemoveEmptyEntries);
@@ -30,7 +37,7 @@ if (File.Exists(envPath))
 }
 else
 {
-    Console.WriteLine("[Config] No .env file found at this path.");
+    Console.WriteLine("[Config] No local env file found.");
 }
 
 var builder = WebApplication.CreateBuilder(args);

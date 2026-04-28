@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
@@ -17,10 +18,7 @@ const isCoordinatePair = (value: unknown): value is [number, number] =>
   typeof value[0] === 'number' &&
   typeof value[1] === 'number';
 
-function processCoords(
-  coords: unknown,
-  bounds: maplibregl.LngLatBounds,
-): void {
+function processCoords(coords: unknown, bounds: maplibregl.LngLatBounds): void {
   if (!Array.isArray(coords)) return;
 
   if (isCoordinatePair(coords)) {
@@ -31,7 +29,11 @@ function processCoords(
   coords.forEach((child) => processCoords(child, bounds));
 }
 
-export const SpatialPreview: React.FC<SpatialPreviewProps> = ({ geoJson, height = '200px', interactive = false }) => {
+export const SpatialPreview: React.FC<SpatialPreviewProps> = ({
+  geoJson,
+  height = '200px',
+  interactive = false,
+}) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
 
@@ -43,24 +45,24 @@ export const SpatialPreview: React.FC<SpatialPreviewProps> = ({ geoJson, height 
       style: {
         version: 8,
         sources: {
-          'osm': {
+          osm: {
             type: 'raster',
             tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
             tileSize: 256,
-            attribution: '&copy; OpenStreetMap Contributors'
-          }
+            attribution: '&copy; OpenStreetMap Contributors',
+          },
         },
         layers: [
           {
             id: 'osm-layer',
             type: 'raster',
-            source: 'osm'
-          }
-        ]
+            source: 'osm',
+          },
+        ],
       },
       center: [0, 0],
       zoom: 1,
-      interactive: interactive
+      interactive: interactive,
     });
 
     map.current.on('load', () => {
@@ -78,9 +80,9 @@ export const SpatialPreview: React.FC<SpatialPreviewProps> = ({ geoJson, height 
         source: 'spatial-data',
         paint: {
           'fill-color': '#6366f1',
-          'fill-opacity': 0.3
+          'fill-opacity': 0.3,
         },
-        filter: ['==', '$type', 'Polygon']
+        filter: ['==', '$type', 'Polygon'],
       });
 
       map.current.addLayer({
@@ -89,13 +91,13 @@ export const SpatialPreview: React.FC<SpatialPreviewProps> = ({ geoJson, height 
         source: 'spatial-data',
         layout: {
           'line-join': 'round',
-          'line-cap': 'round'
+          'line-cap': 'round',
         },
         paint: {
           'line-color': '#6366f1',
-          'line-width': 3
+          'line-width': 3,
         },
-        filter: ['==', '$type', 'LineString']
+        filter: ['==', '$type', 'LineString'],
       });
 
       map.current.addLayer({
@@ -106,17 +108,25 @@ export const SpatialPreview: React.FC<SpatialPreviewProps> = ({ geoJson, height 
           'circle-radius': 6,
           'circle-color': '#6366f1',
           'circle-stroke-width': 2,
-          'circle-stroke-color': '#ffffff'
+          'circle-stroke-color': '#ffffff',
         },
-        filter: ['==', '$type', 'Point']
+        filter: ['==', '$type', 'Point'],
       });
 
       // Fit bounds
       const bounds = new maplibregl.LngLatBounds();
-      
-      if (isRecord(geoJson) && geoJson.type === 'Feature' && isRecord(geoJson.geometry)) {
+
+      if (
+        isRecord(geoJson) &&
+        geoJson.type === 'Feature' &&
+        isRecord(geoJson.geometry)
+      ) {
         processCoords(geoJson.geometry.coordinates, bounds);
-      } else if (isRecord(geoJson) && geoJson.type === 'FeatureCollection' && Array.isArray(geoJson.features)) {
+      } else if (
+        isRecord(geoJson) &&
+        geoJson.type === 'FeatureCollection' &&
+        Array.isArray(geoJson.features)
+      ) {
         geoJson.features.forEach((feature) => {
           if (isRecord(feature) && isRecord(feature.geometry)) {
             processCoords(feature.geometry.coordinates, bounds);
@@ -137,10 +147,10 @@ export const SpatialPreview: React.FC<SpatialPreviewProps> = ({ geoJson, height 
   }, [geoJson, interactive]);
 
   return (
-    <div 
-      ref={mapContainer} 
-      className="rounded-xl border border-zinc-800 overflow-hidden shadow-inner bg-zinc-900"
-      style={{ height }} 
+    <div
+      ref={mapContainer}
+      className='rounded-xl border border-zinc-800 overflow-hidden shadow-inner bg-zinc-900'
+      style={{ height }}
     />
   );
 };

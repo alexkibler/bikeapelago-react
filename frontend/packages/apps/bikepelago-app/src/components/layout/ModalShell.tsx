@@ -6,7 +6,11 @@ interface ModalShellProps {
   disableBackdropClick?: boolean;
 }
 
-const ModalShell = ({ children, onBackdropClick, disableBackdropClick = false }: ModalShellProps) => {
+const ModalShell = ({
+  children,
+  onBackdropClick,
+  disableBackdropClick = false,
+}: ModalShellProps) => {
   return (
     <div
       className='fixed inset-0 z-[2000] flex items-center justify-center p-4'
