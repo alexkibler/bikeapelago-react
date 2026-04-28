@@ -377,21 +377,9 @@ public class SessionsController(
             if (file == null || file.Length == 0)
                 return BadRequest("File is required");
 
-            var session = await _sessionRepository.GetByIdAsync(id);
-            if (session == null)
-                return NotFound("Session not found");
-
-            // User check
-            var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (string.IsNullOrEmpty(userIdString) || !Guid.TryParse(userIdString, out var userId))
-                return Unauthorized(new { message = "Invalid token" });
-
-            var userName = User.FindFirstValue(ClaimTypes.Name);
-
-            if (session.UserId != userId && userName != "testuser")
-            {
-                return Forbid();
-            }
+            var (session, error) = await GetAuthorizedSessionResultAsync(id);
+            if (error != null || session == null)
+                return error ?? NotFound("Session not found");
 
             var availableNodes = (await _nodeRepository.GetBySessionIdAsync(id))
                                 .Where(n => n.State == "Available");
