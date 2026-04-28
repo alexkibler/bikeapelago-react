@@ -14,6 +14,7 @@ import { DataFetchProvider } from '@bikeapelago/shared-data-fetching';
 import './App.css';
 import Layout from './components/layout/Layout';
 import { useFitFileOpen } from './hooks/useFitFileOpen';
+import { API_ORIGIN } from './lib/apiBase';
 import { resetStores } from './lib/resetStores';
 import About from './pages/About';
 import AthleteProfile from './pages/AthleteProfile';
@@ -134,7 +135,7 @@ function App() {
           handleUnauthorized();
         }}
         token={token ?? null}
-        baseUrl={import.meta.env.VITE_PUBLIC_API_URL as string | undefined}
+        baseUrl={API_ORIGIN || undefined}
       >
         <Layout>
           <AppRoutes />

@@ -4,6 +4,7 @@ import {
   type ArchipelagoStatus,
   useArchipelagoStore,
 } from '../store/archipelagoStore';
+import { HUBS_BASE } from './apiBase';
 
 class ArchipelagoClient {
   private connection: signalR.HubConnection | null = null;
@@ -24,10 +25,8 @@ class ArchipelagoClient {
 
     this.startingPromise = (async () => {
       try {
-        const apiBase =
-          (import.meta.env.VITE_PUBLIC_API_URL as string | undefined) ?? '';
         const conn = new signalR.HubConnectionBuilder()
-          .withUrl(`${apiBase}/hubs/archipelago`)
+          .withUrl(`${HUBS_BASE}/archipelago`)
           .withAutomaticReconnect()
           .build();
 
