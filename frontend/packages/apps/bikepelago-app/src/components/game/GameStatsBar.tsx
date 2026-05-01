@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 
 import { useArchipelagoStore } from '../../store/archipelagoStore';
 import type { GameSession, MapNode } from '../../types/game';
@@ -11,8 +11,18 @@ interface GameStatsBarProps {
 const GameStatsBar = ({ session, nodes }: GameStatsBarProps) => {
   const { status, error } = useArchipelagoStore();
   const [showStatsInfo, setShowStatsInfo] = useState(false);
-  const arrivalChecked = nodes.filter((n) => n.is_arrival_checked).length;
-  const precisionChecked = nodes.filter((n) => n.is_precision_checked).length;
+
+  // ⚡ Bolt: Optimize node counting by using a single O(N) loop and memoizing the result
+  const { arrivalChecked, precisionChecked } = useMemo(() => {
+    let arrivalCount = 0;
+    let precisionCount = 0;
+    for (const node of nodes) {
+      if (node.is_arrival_checked) arrivalCount++;
+      if (node.is_precision_checked) precisionCount++;
+    }
+    return { arrivalChecked: arrivalCount, precisionChecked: precisionCount };
+  }, [nodes]);
+
   const totalPossibleChecks = nodes.length * 2;
 
   const statusColor =
