@@ -1,0 +1,4 @@
+## 2025-05-03 - Unredacted Passwords in API Request Logging
+**Vulnerability:** The custom `ErrorLoggingMiddleware` was logging the raw `requestBody` (up to 2000 characters) for failed requests (status code >= 400) or exceptions. This logged sensitive fields like `password` and `newpassword` in plaintext to the database.
+**Learning:** Even if passwords are appropriately hashed before being stored in the `Users` table, logging the raw incoming JSON body of a request (such as for login or password resets) effectively bypasses this security measure, exposing plaintext passwords to anyone with access to the API logs.
+**Prevention:** Always scrub or redact sensitive JSON fields (like `password`, `newpassword`, `token`) from request and response bodies, and redact sensitive HTTP headers (like `Authorization`), *before* writing them to any log or database.
