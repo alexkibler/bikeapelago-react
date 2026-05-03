@@ -133,6 +133,7 @@ const ChatPanel = () => {
             type='submit'
             disabled={status !== 'connected' || !inputValue.trim()}
             className='w-10 h-10 bg-[var(--color-primary-hex)] hover:bg-[var(--color-primary-hover-hex)] disabled:opacity-30 disabled:bg-[var(--color-surface-alt-hex)] rounded-xl flex items-center justify-center transition-all shadow-lg active:scale-95'
+            aria-label='Send message'
           >
             <Send className='w-4 h-4 text-white' />
           </button>
