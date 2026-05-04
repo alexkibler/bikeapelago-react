@@ -67,6 +67,18 @@ public class ErrorLoggingMiddleware
 
             var authorizationHeader = request.Headers["Authorization"].ToString();
             var redactedAuthorization = string.IsNullOrEmpty(authorizationHeader) ? "" : "[REDACTED]";
+
+            // 🛡️ Sentinel: Sanitize sensitive data from request body before logging to prevent credential exposure
+            if (requestBody != null)
+            {
+                requestBody = System.Text.RegularExpressions.Regex.Replace(
+                    requestBody,
+                    "\"password\"\\s*:\\s*\"(?:[^\"\\\\]|\\\\.)*\"",
+                    "\"password\": \"[REDACTED]\"",
+                    System.Text.RegularExpressions.RegexOptions.IgnoreCase
+                );
+            }
+
             var apiLog = new ApiLog
             {
                 Timestamp = DateTime.UtcNow,
