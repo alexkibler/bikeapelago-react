@@ -131,8 +131,10 @@ const ChatPanel = () => {
           />
           <button
             type='submit'
+            aria-label='Send message'
+            title='Send message'
             disabled={status !== 'connected' || !inputValue.trim()}
-            className='w-10 h-10 bg-[var(--color-primary-hex)] hover:bg-[var(--color-primary-hover-hex)] disabled:opacity-30 disabled:bg-[var(--color-surface-alt-hex)] rounded-xl flex items-center justify-center transition-all shadow-lg active:scale-95'
+            className='w-10 h-10 bg-[var(--color-primary-hex)] hover:bg-[var(--color-primary-hover-hex)] disabled:opacity-30 disabled:bg-[var(--color-surface-alt-hex)] rounded-xl flex items-center justify-center transition-all shadow-lg active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary-hex)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface-hex)]'
           >
             <Send className='w-4 h-4 text-white' />
           </button>
