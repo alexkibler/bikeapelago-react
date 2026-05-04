@@ -67,7 +67,9 @@ const UploadPanel = ({ sessionId }: { sessionId: string }) => {
             <>
               <button
                 onClick={() => fileInputRef.current?.click()}
-                className='w-16 h-16 rounded-full bg-[var(--color-primary-hex)]/10 text-[var(--color-primary-hex)] flex items-center justify-center mb-4 group-hover:scale-110 transition-transform'
+                aria-label='Select FIT file'
+                title='Select FIT file'
+                className='w-16 h-16 rounded-full bg-[var(--color-primary-hex)]/10 text-[var(--color-primary-hex)] flex items-center justify-center mb-4 group-hover:scale-110 transition-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary-hex)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface-hex)]'
               >
                 <Play className='w-6 h-6 rotate-[-90deg] translate-y-[-2px]' />
               </button>
