@@ -16,6 +16,9 @@ public class ErrorLoggingMiddleware
     private readonly RequestDelegate _next;
     private readonly ILogger<ErrorLoggingMiddleware> _logger;
 
+    private static readonly System.Text.RegularExpressions.Regex _passwordRegex = new System.Text.RegularExpressions.Regex(@"(""[^""]*password[^""]*""\s*:\s*"")(?:[^""\\]|\\.)*("")", System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Compiled);
+
+
     public ErrorLoggingMiddleware(RequestDelegate next, ILogger<ErrorLoggingMiddleware> logger)
     {
         _next = next;
@@ -63,6 +66,12 @@ public class ErrorLoggingMiddleware
                 var fullBody = await reader.ReadToEndAsync();
                 requestBody = fullBody.Length > 2000 ? fullBody.Substring(0, 2000) + "..." : fullBody;
                 request.Body.Position = 0; // Reset for others
+            }
+
+
+            if (requestBody != null)
+            {
+                requestBody = _passwordRegex.Replace(requestBody, "$1[REDACTED]$2");
             }
 
             var authorizationHeader = request.Headers["Authorization"].ToString();
