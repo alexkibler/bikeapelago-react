@@ -573,6 +573,7 @@ public class SessionsController(
     }
 
     [HttpPost("/api/discovery/validate-nodes")]
+    [Microsoft.AspNetCore.Authorization.Authorize]
     public async Task<ActionResult<IEnumerable<ValidateResult>>> ValidateNodes(
         [FromServices] IOsmDiscoveryService discoveryService,
         [FromBody] ValidateRequest request)

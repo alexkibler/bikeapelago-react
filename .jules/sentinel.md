@@ -12,3 +12,7 @@
 **Vulnerability:** The error logging middleware (`ErrorLoggingMiddleware.cs`) was recording the raw `Authorization` header directly into the database (`ApiLogs` table). This meant that whenever a client or server error occurred, the plaintext JWT was stored, exposing active user sessions to anyone with database access.
 **Learning:** Logging entire HTTP headers without redaction often leads to the exposure of sensitive credentials, such as Bearer tokens, cookies, or API keys.
 **Prevention:** Always sanitize or selectively redact sensitive HTTP headers (especially `Authorization` and `Cookie`) before logging them to persistent storage.
+## 2025-05-06 - Protect ValidateNodes Endpoint and Redact Password Logs
+**Vulnerability:** ValidateNodes was missing an Authorize attribute allowing unauthenticated spam, and ErrorLoggingMiddleware lacked password log redaction.
+**Learning:** Hard truncation before log redaction can inadvertently leak secrets if the closing character for regex falls outside the truncation boundary.
+**Prevention:** Always apply redaction before truncating logged request payloads.
