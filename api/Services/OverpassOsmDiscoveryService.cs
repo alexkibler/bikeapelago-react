@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Net.Http;
+using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Bikeapelago.Api.Models;
@@ -48,12 +49,8 @@ public class OverpassOsmDiscoveryService(HttpClient httpClient, ILogger<Overpass
         }
 
         // Shuffle and take 'count'
-        var random = new Random();
-        for (int i = allPoints.Count - 1; i > 0; i--)
-        {
-            int j = random.Next(i + 1);
-            (allPoints[i], allPoints[j]) = (allPoints[j], allPoints[i]);
-        }
+        // ⚡ Bolt: Performance optimization - use Random.Shared.Shuffle on Span to avoid O(n log n) sorting and memory allocation
+        Random.Shared.Shuffle(CollectionsMarshal.AsSpan(allPoints));
 
         return allPoints.GetRange(0, Math.Min(count, allPoints.Count));
     }
