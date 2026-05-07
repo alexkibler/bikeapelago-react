@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Security.Claims;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Bikeapelago.Api.Data;
 using Bikeapelago.Api.Models;
@@ -61,7 +62,11 @@ public class ErrorLoggingMiddleware
                 request.Body.Position = 0;
                 using var reader = new StreamReader(request.Body, Encoding.UTF8, true, 1024, true);
                 var fullBody = await reader.ReadToEndAsync();
-                requestBody = fullBody.Length > 2000 ? fullBody.Substring(0, 2000) + "..." : fullBody;
+
+                // Redact passwords before truncating to avoid severing regex boundaries
+                var redactedBody = Regex.Replace(fullBody, "\"(password|newPassword)\"\\s*:\\s*\"(?:[^\"\\\\]|\\\\.)*\"", "\"$1\": \"[REDACTED]\"", RegexOptions.IgnoreCase);
+
+                requestBody = redactedBody.Length > 2000 ? redactedBody.Substring(0, 2000) + "..." : redactedBody;
                 request.Body.Position = 0; // Reset for others
             }
 

@@ -12,3 +12,8 @@
 **Vulnerability:** The error logging middleware (`ErrorLoggingMiddleware.cs`) was recording the raw `Authorization` header directly into the database (`ApiLogs` table). This meant that whenever a client or server error occurred, the plaintext JWT was stored, exposing active user sessions to anyone with database access.
 **Learning:** Logging entire HTTP headers without redaction often leads to the exposure of sensitive credentials, such as Bearer tokens, cookies, or API keys.
 **Prevention:** Always sanitize or selectively redact sensitive HTTP headers (especially `Authorization` and `Cookie`) before logging them to persistent storage.
+
+## 2024-05-18 - Fix Password Logging in ErrorLoggingMiddleware
+**Vulnerability:** The error logging middleware (`ErrorLoggingMiddleware.cs`) was recording the raw request body directly into the database (`ApiLogs` table) and truncating it to 2000 characters. This meant that whenever a client or server error occurred during authentication or user update requests, sensitive fields like passwords could be logged in plaintext.
+**Learning:** Logging entire HTTP request bodies without redaction often leads to the exposure of sensitive credentials, such as passwords, in the database. When redacting sensitive data, it must be done before the string is truncated, otherwise the truncation might sever regex boundaries (e.g., closing quotes), preventing the redaction from working properly.
+**Prevention:** Always sanitize or selectively redact sensitive JSON fields (e.g., passwords) from request bodies before saving to persistent storage to prevent credential exposure.
