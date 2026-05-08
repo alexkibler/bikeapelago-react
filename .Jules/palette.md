@@ -1,3 +1,6 @@
 ## 2024-03-24 - Accessibility gaps in floating interactive elements
 **Learning:** Found that secondary mapping controls (zoom, locate) and floating panels lacked basic ARIA labels despite being primarily icon-driven. This indicates a gap in how accessibility is handled for interactive map overlays compared to standard forms or navigation.
 **Action:** When implementing or reviewing new map controls or floating UI overlays (like toasts or side panels), explicitly verify that purely icon-based triggers have semantic `aria-label` attributes configured.
+## 2026-05-08 - Adding accessibility labels and disabled state context to icon buttons
+**Learning:** Forms embedded within game panels often lack native accessible labels to save visual space. Icon-only submission buttons are especially problematic if they are frequently in disabled states (like waiting for a socket connection). A dynamic `title` attribute vastly improves UX by telling the user *why* an action is currently disabled.
+**Action:** When styling icon-only interactive elements inside real-time UI components, pair `aria-label` for screen readers with a dynamic `title` property that provides explicit textual context for disabled states to all users.
