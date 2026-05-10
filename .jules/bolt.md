@@ -1,3 +1,6 @@
 ## 2024-06-25 - Expensive JSON Parsing in Render Loop
 **Learning:** Found synchronous `JSON.parse` operations running on potentially large spatial data (polylines) directly inside the React component render loop in `GameView.tsx`. This causes the main thread to block and results in laggy UI interactions whenever the component re-renders (e.g., state updates not related to the polyline).
 **Action:** Always extract and memoize `JSON.parse` and array `.map()` transformations of large datasets using `useMemo` so they only recalculate when the source data actually changes.
+## 2024-05-10 - O(N) Array Operations in React Render Hooks
+**Learning:** In React components like `RoutePanel`, calling multiple `.filter()` methods on a large array (e.g., `nodes` with thousands of items) inside the main component body creates $O(N)$ operations that execute on every render. This blocks the main thread unnecessarily when completely unrelated local state (like UI toggles) update.
+**Action:** Always memoize categorizations or transformations of large arrays into a single loop wrapped in a `useMemo` hook, ensuring the computation runs exactly once when the source data (`nodes`) actually changes, rather than blocking the UI on minor state updates.
