@@ -1,0 +1,3 @@
+## 2024-05-12 - Dynamic Tooltips on Disabled Buttons
+**Learning:** Disabled elements without tooltips are confusing for users, and basic static tooltips are not helpful when there are multiple reasons a button might be disabled (e.g., waiting for connection vs. empty input in the chat). Using dynamic `title` attributes (e.g., `title={status !== 'connected' ? 'Waiting for connection...' : !inputValue.trim() ? 'Enter a message' : 'Send message'}`) improves the UX of why an action is unavailable.
+**Action:** Always consider using a dynamic `title` attribute for disabled buttons to clearly explain the specific condition preventing the action.
