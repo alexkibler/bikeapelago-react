@@ -34,6 +34,7 @@ public class SessionsControllerTests
 
         _userId = Guid.NewGuid();
 
+        var loggerMockSession = new Mock<Microsoft.Extensions.Logging.ILogger<SessionsController>>();
         _controller = new SessionsController(
             _sessionRepoMock.Object,
             _nodeRepoMock.Object,
@@ -42,7 +43,9 @@ public class SessionsControllerTests
             Mock.Of<IProgressionEngineFactory>(),
             new SessionValidator(Mock.Of<ILogger<SessionValidator>>()),
             _routeBuilderMock.Object,
-            _itemExecutionMock.Object);
+            _itemExecutionMock.Object,
+            loggerMockSession.Object);
+
 
         var claims = new List<Claim>
         {

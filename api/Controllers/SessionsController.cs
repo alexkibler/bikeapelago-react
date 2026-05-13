@@ -19,7 +19,8 @@ public class SessionsController(
     IProgressionEngineFactory engineFactory,
     SessionValidator sessionValidator,
     IRouteBuilderService routeBuilderService,
-    IItemExecutionService itemExecutionService) : ControllerBase
+    IItemExecutionService itemExecutionService,
+    ILogger<SessionsController> logger) : ControllerBase
 {
     private static readonly HashSet<string> AllowedTransportModes = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -44,6 +45,7 @@ public class SessionsController(
     private readonly SessionValidator _sessionValidator = sessionValidator;
     private readonly IRouteBuilderService _routeBuilderService = routeBuilderService;
     private readonly IItemExecutionService _itemExecutionService = itemExecutionService;
+    private readonly ILogger<SessionsController> _logger = logger;
 
     private bool TryGetAuthenticatedUserId(out Guid userId)
     {
@@ -137,7 +139,9 @@ public class SessionsController(
         }
         catch (Exception ex)
         {
-            return BadRequest(new { message = ex.Message });
+
+            _logger.LogError(ex, "An error occurred.");
+            return BadRequest(new { message = "An error occurred." });
         }
     }
 
@@ -241,7 +245,9 @@ public class SessionsController(
         }
         catch (Exception ex)
         {
-            return BadRequest(new { message = ex.Message });
+
+            _logger.LogError(ex, "An error occurred.");
+            return BadRequest(new { message = "An error occurred." });
         }
     }
 
@@ -267,7 +273,9 @@ public class SessionsController(
         }
         catch (Exception ex)
         {
-            return BadRequest(new { message = ex.Message });
+
+            _logger.LogError(ex, "An error occurred.");
+            return BadRequest(new { message = "An error occurred." });
         }
     }
 
@@ -318,7 +326,9 @@ public class SessionsController(
         }
         catch (Exception ex)
         {
-            return BadRequest(new { message = ex.Message });
+
+            _logger.LogError(ex, "An error occurred.");
+            return BadRequest(new { message = "An error occurred." });
         }
     }
 
@@ -344,7 +354,9 @@ public class SessionsController(
         }
         catch (Exception ex)
         {
-            return BadRequest(new { message = ex.Message });
+
+            _logger.LogError(ex, "An error occurred.");
+            return BadRequest(new { message = "An error occurred." });
         }
     }
 
@@ -363,7 +375,9 @@ public class SessionsController(
         }
         catch (Exception ex)
         {
-            return BadRequest(new { message = ex.Message });
+
+            _logger.LogError(ex, "An error occurred.");
+            return BadRequest(new { message = "An error occurred." });
         }
     }
 
@@ -404,7 +418,9 @@ public class SessionsController(
         }
         catch (Exception ex)
         {
-            return StatusCode(500, $"Failed to parse FIT file: {ex.Message}");
+
+            _logger.LogError(ex, "Failed to parse FIT file.");
+            return StatusCode(500, new { message = "Failed to parse FIT file." });
         }
     }
 
@@ -443,7 +459,9 @@ public class SessionsController(
         }
         catch (Exception ex)
         {
-            return StatusCode(500, new { message = $"Route optimization failed: {ex.Message}" });
+
+            _logger.LogError(ex, "Route optimization failed.");
+            return StatusCode(500, new { message = "Route optimization failed." });
         }
     }
 
