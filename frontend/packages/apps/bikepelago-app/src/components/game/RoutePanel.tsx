@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 
 import {
   ChevronDown,
@@ -130,9 +130,19 @@ const RoutePanel = ({ sessionId }: { sessionId: string }) => {
       [cat]: !prev[cat as keyof typeof prev],
     }));
 
-  const availableNodes = nodes.filter((n) => n.state === 'Available');
-  const checkedNodes = nodes.filter((n) => n.state === 'Checked');
-  const hiddenNodes = nodes.filter((n) => n.state === 'Hidden');
+  // ⚡ Bolt: Replaced multiple O(N) filters with a single O(N) pass, cached with useMemo.
+  // Impact: Prevents 3 redundant array allocations per render, avoiding main thread blocks during rapid state updates.
+  const { availableNodes, checkedNodes, hiddenNodes } = useMemo(() => {
+    const available: MapNode[] = [];
+    const checked: MapNode[] = [];
+    const hidden: MapNode[] = [];
+    for (const n of nodes) {
+      if (n.state === 'Available') available.push(n);
+      else if (n.state === 'Checked') checked.push(n);
+      else if (n.state === 'Hidden') hidden.push(n);
+    }
+    return { availableNodes: available, checkedNodes: checked, hiddenNodes: hidden };
+  }, [nodes]);
 
   const hasSelection = selectedNodeIds.size > 0;
   const canRoute = (hasSelection || availableNodes.length > 0) && !isRouting;
