@@ -42,6 +42,7 @@ public class SessionsControllerNodesTests
         _engine.Setup(e => e.CheckNodesAsync(It.IsAny<Guid>(), It.IsAny<List<NewlyCheckedNode>>()))
             .Returns(Task.CompletedTask);
 
+        var loggerMockSession = new Mock<Microsoft.Extensions.Logging.ILogger<SessionsController>>();
         _controller = new SessionsController(
             _sessionRepo.Object,
             _nodeRepo.Object,
@@ -50,7 +51,8 @@ public class SessionsControllerNodesTests
             _engineFactory.Object,
             _validator,
             null!, // IRouteBuilderService
-            Mock.Of<IItemExecutionService>());
+            Mock.Of<IItemExecutionService>(),
+            loggerMockSession.Object);
 
         var claims = new List<Claim>
         {

@@ -29,12 +29,15 @@ public class AuthControllerTests
         var roleStore = new Mock<IRoleStore<IdentityRole<Guid>>>();
         _roleManagerMock = new Mock<RoleManager<IdentityRole<Guid>>>(roleStore.Object, null!, null!, null!, null!);
 
+        var loggerMock = new Mock<Microsoft.Extensions.Logging.ILogger<AuthController>>();
+
         _userId = Guid.NewGuid();
 
         _controller = new AuthController(
             _userRepoMock.Object,
             _userManagerMock.Object,
-            _roleManagerMock.Object);
+            _roleManagerMock.Object,
+            loggerMock.Object);
 
         var claims = new List<Claim>
         {
