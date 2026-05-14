@@ -12,3 +12,8 @@
 **Vulnerability:** The error logging middleware (`ErrorLoggingMiddleware.cs`) was recording the raw `Authorization` header directly into the database (`ApiLogs` table). This meant that whenever a client or server error occurred, the plaintext JWT was stored, exposing active user sessions to anyone with database access.
 **Learning:** Logging entire HTTP headers without redaction often leads to the exposure of sensitive credentials, such as Bearer tokens, cookies, or API keys.
 **Prevention:** Always sanitize or selectively redact sensitive HTTP headers (especially `Authorization` and `Cookie`) before logging them to persistent storage.
+
+## 2026-04-28 - Fix Password Exposure in Error Logs
+**Vulnerability:** The error logging middleware (`ErrorLoggingMiddleware.cs`) was capturing the entire request body up to 2000 characters to save in `ApiLogs`. This allowed plain text passwords sent in registration or login forms to be exposed to anyone with database access. Additionally, redacting the body after truncation could result in severed regex bounds (like missing end-quotes) and fail to redact the password at all.
+**Learning:** Sensitive payload fields such as passwords must be explicitly scrubbed using precise rules *before* general string manipulations like truncating are applied. Relying on simple replacement post-truncation is unsafe as the matched group boundaries might have been cut off.
+**Prevention:** Always apply security sanitization and redaction as the immediate first step after reading raw payloads, before applying any length limits or formatting. Utilize properly escaped and robust regex patterns.
