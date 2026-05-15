@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using Microsoft.Extensions.Logging;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -34,7 +35,8 @@ public class AuthControllerTests
         _controller = new AuthController(
             _userRepoMock.Object,
             _userManagerMock.Object,
-            _roleManagerMock.Object);
+            _roleManagerMock.Object,
+            Mock.Of<ILogger<AuthController>>());
 
         var claims = new List<Claim>
         {

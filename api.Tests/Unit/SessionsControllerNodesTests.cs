@@ -43,6 +43,7 @@ public class SessionsControllerNodesTests
             .Returns(Task.CompletedTask);
 
         _controller = new SessionsController(
+            Mock.Of<ILogger<SessionsController>>(),
             _sessionRepo.Object,
             _nodeRepo.Object,
             Mock.Of<IUserRepository>(),

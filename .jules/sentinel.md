@@ -12,3 +12,7 @@
 **Vulnerability:** The error logging middleware (`ErrorLoggingMiddleware.cs`) was recording the raw `Authorization` header directly into the database (`ApiLogs` table). This meant that whenever a client or server error occurred, the plaintext JWT was stored, exposing active user sessions to anyone with database access.
 **Learning:** Logging entire HTTP headers without redaction often leads to the exposure of sensitive credentials, such as Bearer tokens, cookies, or API keys.
 **Prevention:** Always sanitize or selectively redact sensitive HTTP headers (especially `Authorization` and `Cookie`) before logging them to persistent storage.
+## 2025-05-15 - Prevent Information Disclosure in Auth and Sessions Controllers
+**Vulnerability:** Exception details (ex.Message) were being directly returned to clients in error responses (BadRequest/StatusCode(500)), potentially leaking sensitive internal stack traces or runtime information.
+**Learning:** Returning raw exception messages to clients is an Information Disclosure vulnerability.
+**Prevention:** Catch blocks should log the detailed exception server-side using ILogger and return generic, safe error messages to clients while preserving the original semantic HTTP status codes.

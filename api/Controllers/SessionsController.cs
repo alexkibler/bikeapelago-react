@@ -12,6 +12,7 @@ namespace Bikeapelago.Api.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 public class SessionsController(
+    ILogger<SessionsController> logger,
     IGameSessionRepository sessionRepository,
     IMapNodeRepository nodeRepository,
     IUserRepository userRepository,
@@ -21,6 +22,7 @@ public class SessionsController(
     IRouteBuilderService routeBuilderService,
     IItemExecutionService itemExecutionService) : ControllerBase
 {
+    private readonly ILogger<SessionsController> _logger = logger;
     private static readonly HashSet<string> AllowedTransportModes = new(StringComparer.OrdinalIgnoreCase)
     {
         "bike", "walk", "foot"
@@ -137,7 +139,8 @@ public class SessionsController(
         }
         catch (Exception ex)
         {
-            return BadRequest(new { message = ex.Message });
+            _logger.LogError(ex, "Operation failed");
+            return BadRequest(new { message = "An error occurred during the operation." });
         }
     }
 
@@ -241,7 +244,8 @@ public class SessionsController(
         }
         catch (Exception ex)
         {
-            return BadRequest(new { message = ex.Message });
+            _logger.LogError(ex, "Operation failed");
+            return BadRequest(new { message = "An error occurred during the operation." });
         }
     }
 
@@ -267,7 +271,8 @@ public class SessionsController(
         }
         catch (Exception ex)
         {
-            return BadRequest(new { message = ex.Message });
+            _logger.LogError(ex, "Operation failed");
+            return BadRequest(new { message = "An error occurred during the operation." });
         }
     }
 
@@ -318,7 +323,8 @@ public class SessionsController(
         }
         catch (Exception ex)
         {
-            return BadRequest(new { message = ex.Message });
+            _logger.LogError(ex, "Operation failed");
+            return BadRequest(new { message = "An error occurred during the operation." });
         }
     }
 
@@ -344,7 +350,8 @@ public class SessionsController(
         }
         catch (Exception ex)
         {
-            return BadRequest(new { message = ex.Message });
+            _logger.LogError(ex, "Operation failed");
+            return BadRequest(new { message = "An error occurred during the operation." });
         }
     }
 
@@ -363,7 +370,8 @@ public class SessionsController(
         }
         catch (Exception ex)
         {
-            return BadRequest(new { message = ex.Message });
+            _logger.LogError(ex, "Operation failed");
+            return BadRequest(new { message = "An error occurred during the operation." });
         }
     }
 
@@ -404,7 +412,8 @@ public class SessionsController(
         }
         catch (Exception ex)
         {
-            return StatusCode(500, $"Failed to parse FIT file: {ex.Message}");
+            _logger.LogError(ex, "FIT file parsing failed");
+            return StatusCode(500, new { message = "Failed to parse FIT file." });
         }
     }
 
@@ -443,7 +452,8 @@ public class SessionsController(
         }
         catch (Exception ex)
         {
-            return StatusCode(500, new { message = $"Route optimization failed: {ex.Message}" });
+            _logger.LogError(ex, "Route optimization failed");
+            return StatusCode(500, new { message = "Route optimization failed." });
         }
     }
 
