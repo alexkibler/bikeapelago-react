@@ -1,4 +1,4 @@
-import { type KeyboardEvent, useState } from 'react';
+import { type KeyboardEvent, useMemo, useState } from 'react';
 
 import {
   CheckCircle2,
@@ -36,8 +36,17 @@ const InventoryPanel = () => {
     RADIUS_INC: { name: 'Progressive Radius Increase', id: 802006 },
   };
 
-  const receivedCount = (itemId: number) =>
-    receivedItems.filter((i) => i.id === itemId).length;
+  // ⚡ Bolt: Cache counts using useMemo to avoid O(N) filters on every check
+  const receivedItemCounts = useMemo(() => {
+    const counts: Record<number, number> = {};
+    for (let i = 0; i < receivedItems.length; i++) {
+      const id = receivedItems[i].id;
+      counts[id] = (counts[id] || 0) + 1;
+    }
+    return counts;
+  }, [receivedItems]);
+
+  const receivedCount = (itemId: number) => receivedItemCounts[itemId] || 0;
   const activeCount = (itemId: number, used: number | undefined) =>
     Math.max(0, receivedCount(itemId) - (used ?? 0));
 
@@ -143,28 +152,30 @@ const InventoryPanel = () => {
     }
   };
 
-  const otherItems = Object.values(
-    receivedItems
-      .filter(
-        (i) =>
-          ![
-            ITEMS.DETOUR.name,
-            ITEMS.DRONE.name,
-            ITEMS.SIGNAL_AMPLIFIER.name,
-            'Location Swap',
-          ].includes(i.name),
-      )
-      .reduce(
-        (acc, item) => {
-          if (!acc[item.id]) {
-            acc[item.id] = { ...item, count: 0 };
-          }
-          acc[item.id].count += 1;
-          return acc;
-        },
-        {} as Record<number, { id: number; name: string; count: number }>,
-      ),
-  );
+  const otherItems = useMemo(() => {
+    return Object.values(
+      receivedItems
+        .filter(
+          (i) =>
+            ![
+              ITEMS.DETOUR.name,
+              ITEMS.DRONE.name,
+              ITEMS.SIGNAL_AMPLIFIER.name,
+              'Location Swap',
+            ].includes(i.name),
+        )
+        .reduce(
+          (acc, item) => {
+            if (!acc[item.id]) {
+              acc[item.id] = { ...item, count: 0 };
+            }
+            acc[item.id].count += 1;
+            return acc;
+          },
+          {} as Record<number, { id: number; name: string; count: number }>,
+        ),
+    );
+  }, [receivedItems]);
 
   const ItemCount = ({ count, itemId }: { count: number; itemId: number }) => {
     if (debugMode) {
