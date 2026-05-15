@@ -122,6 +122,7 @@ const ChatPanel = () => {
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             disabled={status !== 'connected'}
+            aria-label='Message input'
             placeholder={
               status === 'connected'
                 ? 'Type a message or command...'
@@ -132,6 +133,14 @@ const ChatPanel = () => {
           <button
             type='submit'
             disabled={status !== 'connected' || !inputValue.trim()}
+            aria-label='Send message'
+            title={
+              status !== 'connected'
+                ? 'Waiting for connection...'
+                : !inputValue.trim()
+                  ? 'Type a message to send'
+                  : 'Send message'
+            }
             className='w-10 h-10 bg-[var(--color-primary-hex)] hover:bg-[var(--color-primary-hover-hex)] disabled:opacity-30 disabled:bg-[var(--color-surface-alt-hex)] rounded-xl flex items-center justify-center transition-all shadow-lg active:scale-95'
           >
             <Send className='w-4 h-4 text-white' />
