@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 
 import { API_BASE } from '../../lib/api';
 import { getToken } from '../../store/authStore';
@@ -16,7 +16,11 @@ const DebugBanner = () => {
 
   if (!debugMode) return null;
 
-  const availableNodes = nodes.filter((n) => n.state === 'Available');
+  // ⚡ Bolt: Memoize filter to avoid O(N) array allocation on every render
+  const availableNodes = useMemo(
+    () => nodes.filter((n) => n.state === 'Available'),
+    [nodes],
+  );
 
   const handleForceComplete = async () => {
     if (completing || !session) return;
