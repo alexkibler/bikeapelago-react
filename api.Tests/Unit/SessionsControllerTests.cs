@@ -35,6 +35,7 @@ public class SessionsControllerTests
         _userId = Guid.NewGuid();
 
         _controller = new SessionsController(
+            Mock.Of<ILogger<SessionsController>>(),
             _sessionRepoMock.Object,
             _nodeRepoMock.Object,
             _userRepoMock.Object,
