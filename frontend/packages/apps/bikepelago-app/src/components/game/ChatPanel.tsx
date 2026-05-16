@@ -127,10 +127,19 @@ const ChatPanel = () => {
                 ? 'Type a message or command...'
                 : 'Waiting for connection...'
             }
+            aria-label='Chat message'
             className='flex-1 bg-[var(--color-surface-alt-hex)] border border-[var(--color-border-hex)] rounded-xl px-4 py-2.5 text-sm text-[var(--color-text-hex)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary-hex)]/50 disabled:opacity-50 transition-all'
           />
           <button
             type='submit'
+            aria-label='Send message'
+            title={
+              status !== 'connected'
+                ? 'Waiting for connection...'
+                : !inputValue.trim()
+                  ? 'Type a message to send'
+                  : 'Send message'
+            }
             disabled={status !== 'connected' || !inputValue.trim()}
             className='w-10 h-10 bg-[var(--color-primary-hex)] hover:bg-[var(--color-primary-hover-hex)] disabled:opacity-30 disabled:bg-[var(--color-surface-alt-hex)] rounded-xl flex items-center justify-center transition-all shadow-lg active:scale-95'
           >
