@@ -42,7 +42,8 @@ public class SessionsControllerTests
             Mock.Of<IProgressionEngineFactory>(),
             new SessionValidator(Mock.Of<ILogger<SessionValidator>>()),
             _routeBuilderMock.Object,
-            _itemExecutionMock.Object);
+            _itemExecutionMock.Object,
+            Mock.Of<ILogger<SessionsController>>());
 
         var claims = new List<Claim>
         {
