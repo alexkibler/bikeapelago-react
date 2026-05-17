@@ -34,7 +34,8 @@ public class AuthControllerTests
         _controller = new AuthController(
             _userRepoMock.Object,
             _userManagerMock.Object,
-            _roleManagerMock.Object);
+            _roleManagerMock.Object,
+            Mock.Of<Microsoft.Extensions.Logging.ILogger<AuthController>>());
 
         var claims = new List<Claim>
         {

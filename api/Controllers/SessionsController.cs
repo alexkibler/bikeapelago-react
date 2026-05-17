@@ -19,7 +19,8 @@ public class SessionsController(
     IProgressionEngineFactory engineFactory,
     SessionValidator sessionValidator,
     IRouteBuilderService routeBuilderService,
-    IItemExecutionService itemExecutionService) : ControllerBase
+    IItemExecutionService itemExecutionService,
+    ILogger<SessionsController> logger) : ControllerBase
 {
     private static readonly HashSet<string> AllowedTransportModes = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -44,6 +45,7 @@ public class SessionsController(
     private readonly SessionValidator _sessionValidator = sessionValidator;
     private readonly IRouteBuilderService _routeBuilderService = routeBuilderService;
     private readonly IItemExecutionService _itemExecutionService = itemExecutionService;
+    private readonly ILogger<SessionsController> _logger = logger;
 
     private bool TryGetAuthenticatedUserId(out Guid userId)
     {
@@ -137,7 +139,8 @@ public class SessionsController(
         }
         catch (Exception ex)
         {
-            return BadRequest(new { message = ex.Message });
+            _logger.LogError(ex, "Failed to create session.");
+            return BadRequest(new { message = "An error occurred while creating the session." });
         }
     }
 
@@ -241,7 +244,8 @@ public class SessionsController(
         }
         catch (Exception ex)
         {
-            return BadRequest(new { message = ex.Message });
+            _logger.LogError(ex, "Failed to set up session from route.");
+            return BadRequest(new { message = "An error occurred while setting up the session from the route." });
         }
     }
 
@@ -267,7 +271,8 @@ public class SessionsController(
         }
         catch (Exception ex)
         {
-            return BadRequest(new { message = ex.Message });
+            _logger.LogError(ex, "Failed to generate session nodes.");
+            return BadRequest(new { message = "An error occurred while generating session nodes." });
         }
     }
 
@@ -318,7 +323,8 @@ public class SessionsController(
         }
         catch (Exception ex)
         {
-            return BadRequest(new { message = ex.Message });
+            _logger.LogError(ex, "Failed to update session.");
+            return BadRequest(new { message = "An error occurred while updating the session." });
         }
     }
 
@@ -344,7 +350,8 @@ public class SessionsController(
         }
         catch (Exception ex)
         {
-            return BadRequest(new { message = ex.Message });
+            _logger.LogError(ex, "Failed to delete session.");
+            return BadRequest(new { message = "An error occurred while deleting the session." });
         }
     }
 
@@ -363,7 +370,8 @@ public class SessionsController(
         }
         catch (Exception ex)
         {
-            return BadRequest(new { message = ex.Message });
+            _logger.LogError(ex, "Failed to delete all sessions.");
+            return BadRequest(new { message = "An error occurred while deleting all sessions." });
         }
     }
 
@@ -404,7 +412,8 @@ public class SessionsController(
         }
         catch (Exception ex)
         {
-            return StatusCode(500, $"Failed to parse FIT file: {ex.Message}");
+            _logger.LogError(ex, "Failed to parse FIT file.");
+            return StatusCode(500, "An error occurred while parsing the FIT file.");
         }
     }
 
@@ -443,7 +452,8 @@ public class SessionsController(
         }
         catch (Exception ex)
         {
-            return StatusCode(500, new { message = $"Route optimization failed: {ex.Message}" });
+            _logger.LogError(ex, "Route optimization failed.");
+            return StatusCode(500, new { message = "An error occurred while optimizing the route." });
         }
     }
 

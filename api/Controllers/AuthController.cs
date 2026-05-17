@@ -14,12 +14,14 @@ public class AuthController : ControllerBase
     private readonly IUserRepository _userRepository;
     private readonly UserManager<User> _userManager;
     private readonly RoleManager<IdentityRole<Guid>> _roleManager;
+    private readonly ILogger<AuthController> _logger;
 
-    public AuthController(IUserRepository userRepository, UserManager<User> userManager, RoleManager<IdentityRole<Guid>> roleManager)
+    public AuthController(IUserRepository userRepository, UserManager<User> userManager, RoleManager<IdentityRole<Guid>> roleManager, ILogger<AuthController> logger)
     {
         _userRepository = userRepository;
         _userManager = userManager;
         _roleManager = roleManager;
+        _logger = logger;
     }
 
     [HttpPost("/api/auth/login")]
@@ -112,7 +114,8 @@ public class AuthController : ControllerBase
             
             return Ok(user);
         } catch (Exception ex) {
-            return BadRequest(new { message = ex.Message });
+            _logger.LogError(ex, "Registration failed.");
+            return BadRequest(new { message = "An error occurred during registration." });
         }
     }
 }

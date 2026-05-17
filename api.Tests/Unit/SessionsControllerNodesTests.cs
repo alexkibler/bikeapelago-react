@@ -50,7 +50,8 @@ public class SessionsControllerNodesTests
             _engineFactory.Object,
             _validator,
             null!, // IRouteBuilderService
-            Mock.Of<IItemExecutionService>());
+            Mock.Of<IItemExecutionService>(),
+            _logger.Object);
 
         var claims = new List<Claim>
         {
