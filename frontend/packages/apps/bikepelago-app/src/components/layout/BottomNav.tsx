@@ -25,6 +25,7 @@ const BottomNav = () => {
             </Link>
             <button
               onClick={() => togglePanel('chat')}
+              aria-expanded={activePanel === 'chat'}
               className={`flex flex-col items-center gap-1 p-2 transition-colors rounded-lg ${activePanel === 'chat' ? 'bg-[var(--color-primary-hex)]/20 text-[var(--color-primary-hex)]' : 'text-[var(--color-text-muted-hex)] hover:text-[var(--color-primary-hex)] hover:bg-[rgb(var(--color-surface-overlay))]'}`}
             >
               <MessageSquare className='w-5 h-5' />
@@ -34,6 +35,7 @@ const BottomNav = () => {
             </button>
             <button
               onClick={() => togglePanel('inventory')}
+              aria-expanded={activePanel === 'inventory'}
               className={`flex flex-col items-center gap-1 p-2 transition-colors rounded-lg ${activePanel === 'inventory' ? 'bg-[var(--color-primary-hex)]/20 text-[var(--color-primary-hex)]' : 'text-[var(--color-text-muted-hex)] hover:text-[var(--color-primary-hex)] hover:bg-[rgb(var(--color-surface-overlay))]'}`}
             >
               <Package className='w-5 h-5' />
@@ -43,6 +45,7 @@ const BottomNav = () => {
             </button>
             <button
               onClick={() => togglePanel('route')}
+              aria-expanded={activePanel === 'route'}
               className={`flex flex-col items-center gap-1 p-2 transition-colors rounded-lg ${activePanel === 'route' ? 'bg-[var(--color-primary-hex)]/20 text-[var(--color-primary-hex)]' : 'text-[var(--color-text-muted-hex)] hover:text-[var(--color-primary-hex)] hover:bg-[rgb(var(--color-surface-overlay))]'}`}
             >
               <Map className='w-5 h-5' />

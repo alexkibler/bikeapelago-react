@@ -71,6 +71,7 @@ const Sidebar = () => {
 
             <button
               onClick={() => togglePanel('chat')}
+              aria-expanded={activePanel === 'chat'}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${activePanel === 'chat' ? 'bg-[var(--color-primary-hex)]/10 text-[var(--color-primary-hex)] shadow-inner shadow-primary/5' : 'text-[var(--color-text-muted-hex)] hover:text-[var(--color-text-hex)] hover:bg-[rgb(var(--color-surface-overlay))]'}`}
             >
               <svg
@@ -91,6 +92,7 @@ const Sidebar = () => {
 
             <button
               onClick={() => togglePanel('inventory')}
+              aria-expanded={activePanel === 'inventory'}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${activePanel === 'inventory' ? 'bg-[var(--color-primary-hex)]/10 text-[var(--color-primary-hex)] shadow-inner shadow-primary/5' : 'text-[var(--color-text-muted-hex)] hover:text-[var(--color-text-hex)] hover:bg-[rgb(var(--color-surface-overlay))]'}`}
             >
               <Package className='w-5 h-5' />
@@ -99,6 +101,7 @@ const Sidebar = () => {
 
             <button
               onClick={() => togglePanel('route')}
+              aria-expanded={activePanel === 'route'}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${activePanel === 'route' ? 'bg-[var(--color-primary-hex)]/10 text-[var(--color-primary-hex)] shadow-inner shadow-primary/5' : 'text-[var(--color-text-muted-hex)] hover:text-[var(--color-text-hex)] hover:bg-[rgb(var(--color-surface-overlay))]'}`}
             >
               <svg
